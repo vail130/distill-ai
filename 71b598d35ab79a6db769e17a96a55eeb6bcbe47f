@@ -1,0 +1,49 @@
+.opencode/rules/performance.md
+  ab2bb0b85a01f798 1-34
+.opencode/rules/flag-policy.md
+  ab2bb0b85a01f798 1-23
+docs/formats/SCHEMA.md
+  ab2bb0b85a01f798 5
+CONTRIBUTING.md
+  ab2bb0b85a01f798 99,119-121,131-132,142-143
+.opencode/rules/code-style.md
+  ab2bb0b85a01f798 1-19
+.opencode/rules/output-stability.md
+  ab2bb0b85a01f798 1-38
+.opencode/rules/alignment.md
+  ab2bb0b85a01f798 1-65
+.opencode/rules/commits.md
+  ab2bb0b85a01f798 1-56
+AGENTS.md
+  ab2bb0b85a01f798 6-7,15-16,24,33-60,64-66,71-74
+opencode.json
+  ab2bb0b85a01f798 1-6
+.opencode/rules/testing.md
+  ab2bb0b85a01f798 1-46
+.github/PULL_REQUEST_TEMPLATE.md
+  ab2bb0b85a01f798 9,102
+.opencode/rules/dependencies.md
+  ab2bb0b85a01f798 1-19
+TODO.md
+  ab2bb0b85a01f798 15,21,51,231,248
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "71b598d35ab79a6db769e17a96a55eeb6bcbe47f",
+  "prompts": {
+    "ab2bb0b85a01f798": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1d1396929ffelA77PVRH1hlfH1",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 1569,
+      "total_deletions": 187,
+      "accepted_lines": 1561,
+      "overriden_lines": 8
+    }
+  }
+}
