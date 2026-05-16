@@ -239,27 +239,32 @@ pkg/
 ### Core types
 
 ```go
-// Event is the unit of distillation.
+// Event is the unit of distillation. The JSON shape is a public API;
+// see docs/formats/SCHEMA.md.
 type Event struct {
-    Severity Severity          // Error, Warn, Info
-    Kind     string             // "test_failure", "panic", "http_5xx", ...
-    Title    string             // one-line summary
-    Location *Location          // file:line if applicable
-    Body     []string           // relevant lines verbatim
-    Context  []string           // surrounding lines
-    Frames   []StackFrame       // structured stack (if extractable)
-    Count    int                // dedupe count
-    Raw      string             // original bytes (for --passthrough)
-    Metadata map[string]string
+    Severity        Severity          // SeverityError, SeverityWarn, SeverityInfo
+    Kind            string            // "test_failure", "panic", ...
+    Title           string            // one-line summary
+    Location        *Location         // file:line, nil when unknown
+    Body            []string          // relevant lines verbatim
+    Context         []string          // surrounding lines
+    Frames          []StackFrame      // structured stack, optional
+    FramesCollapsed int               // vendor frames omitted during collapse
+    Count           int               // dedupe count (1 for unique events)
+    Truncated       bool              // body forced-truncated by --budget
+    Metadata        map[string]string // format-specific extras
+    Raw             string            // original bytes; internal-only, json:"-"
 }
 
 // Format is the plugin interface. Adding a format = implementing this.
 type Format interface {
     Name() string
-    Detect(sample []byte) Confidence  // 0.0 - 1.0
+    Detect(sample []byte) Confidence
     Parse(ctx context.Context, r io.Reader, opts ParseOpts) (<-chan Event, error)
 }
 
+// Confidence is a detector's self-reported certainty in [0.0, 1.0].
+// Formats below ConfidenceMinDetect (0.6) are rejected.
 type Confidence float64
 ```
 
