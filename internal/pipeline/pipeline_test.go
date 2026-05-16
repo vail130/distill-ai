@@ -1,7 +1,7 @@
 package pipeline_test
 
 import (
-	"bytes"
+	"bufio"
 	"context"
 	"errors"
 	"io"
@@ -16,10 +16,10 @@ import (
 	"github.com/vail130/distill-ai/internal/pipeline"
 )
 
-// lineFormat is a deterministic test Format: one Event per non-empty
-// line of input, Kind="line", Title=line text. Reused across pipeline
-// tests; lives in this file rather than internal/testutil to keep the
-// dependency graph one-directional.
+// lineFormat is a deterministic, streaming test Format: one Event per
+// non-empty line of input, emitted as soon as the line arrives.
+// Streams via bufio.Scanner so the streaming property test (which
+// feeds bytes slowly) sees Events incrementally rather than after EOF.
 type lineFormat struct{}
 
 func (lineFormat) Name() string                     { return "line" }
@@ -28,12 +28,10 @@ func (lineFormat) Parse(ctx context.Context, r io.Reader, _ formats.ParseOpts) (
 	out := make(chan event.Event)
 	go func() {
 		defer close(out)
-		buf, err := io.ReadAll(r)
-		if err != nil {
-			return
-		}
-		for _, line := range bytes.Split(buf, []byte("\n")) {
-			if len(line) == 0 {
+		sc := bufio.NewScanner(r)
+		for sc.Scan() {
+			line := sc.Text()
+			if line == "" {
 				continue
 			}
 			select {
@@ -42,8 +40,8 @@ func (lineFormat) Parse(ctx context.Context, r io.Reader, _ formats.ParseOpts) (
 			case out <- event.Event{
 				Severity: event.SeverityInfo,
 				Kind:     "line",
-				Title:    string(line),
-				Body:     []string{string(line)},
+				Title:    line,
+				Body:     []string{line},
 				Count:    1,
 			}:
 			}

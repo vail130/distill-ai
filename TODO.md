@@ -212,7 +212,7 @@ Define the pipeline shape with stub stages (no-op pass-through).
     [ARCHITECTURE.md § Pipeline](./ARCHITECTURE.md#pipeline) if the
     real shape differs from the sketch.
 
-### M2.2 — Property tests: determinism & streaming
+### M2.2 — Property tests: determinism & streaming ✅
 
 Promote the design's two big invariants to enforceable tests.
 
