@@ -378,13 +378,16 @@ type Estimator interface {
     Estimate(s string) int
 }
 
-// Default: word+symbol heuristic with +10% safety margin.
-// ±15% accurate, zero deps, instant startup.
+// Default: word+symbol heuristic with the +10% safety margin from
+// tokens.DefaultSafetyMargin. ±15% accurate, zero deps, instant startup.
+// Implementation: tokens.Heuristic with WordTokenRatio=1.3.
 func Default() Estimator
 
 // Opt-in: real BPE tokenizer (cl100k_base, OpenAI/Claude).
 // Exact for GPT, ~95% for Claude, ~85% for Llama/Gemini.
-// Adds ~2MB to binary, 50-100ms startup.
+// Adds ~2MB to binary, 50-100ms startup. The vocab is embedded
+// via tiktoken-go-loader's offline loader — zero network on first
+// init, enforced by TestTiktoken_NoNetwork at build time.
 func Tiktoken() (Estimator, error)
 ```
 

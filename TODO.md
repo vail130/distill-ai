@@ -355,7 +355,7 @@ overestimating because it can overflow the consumer's context window
 — shapes both estimators: the default heuristic biases toward
 overestimation with a built-in safety margin.
 
-### M4.1 — `internal/tokens/estimate.go`: Estimator interface and heuristic
+### M4.1 — `internal/tokens/estimate.go`: Estimator interface and heuristic ✅
 
 - **DoD:**
   - `Estimator` interface with `Estimate(s string) int`.
