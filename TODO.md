@@ -88,7 +88,7 @@ Define the data model every format emits and every encoder consumes.
     [SCHEMA.md](./docs/formats/SCHEMA.md), update the schema doc in the
     same commit.
 
-### M1.2 — `internal/formats/format.go`: plugin interface
+### M1.2 — `internal/formats/format.go`: plugin interface ✅
 
 Define the contract every format implements.
 
