@@ -479,18 +479,243 @@ the shared config struct so M6 (budget enforcer) can consume it.
 
 ## M5 — Event processing
 
-- [ ] `internal/event/dedupe.go`: bounded LRU keyed by `hash(title + location)`
-- [ ] `--dedupe-window=N` flag wiring
-- [ ] Stream-mode dedupe: emit collapsed `Count: N` periodically
-- [ ] Batch-mode dedupe: post-process before emit
-- [ ] `internal/event/collapse.go`: stack frame collapsing
-- [ ] Vendor-frame detection: configurable patterns per language
-  - Python: `site-packages/`, `dist-packages/`, stdlib paths
-  - Node: `node_modules/`
-  - Go: `GOROOT`, `vendor/`, `pkg/mod/`
-  - Java/JVM: package prefixes (`java.`, `sun.`, `org.junit.`)
-- [ ] `--keep-vendor` flag wiring
-- [ ] Frame collapse tests per language
+Two complementary noise-reduction passes that turn the raw Event
+stream into something an LLM can actually use: dedupe identical
+events that fire in tight loops, and collapse vendor / runtime stack
+frames that occupy space without carrying signal.
+
+Cross-references
+[ARCHITECTURE.md § Streaming behaviour](./ARCHITECTURE.md#streaming-behaviour)
+(dedupe shape) and
+[ARCHITECTURE.md § Pipeline](./ARCHITECTURE.md#pipeline) (where the
+two stages plug in).
+
+Both passes are pipeline `Stage` implementations; the `Pipeline`
+shape from M2 does not change. Each item below lists Definition of
+Done (DoD), required tests, and required doc updates per the
+[alignment rule](./.opencode/rules/alignment.md).
+
+### M5.1 — `internal/event/dedupe.go`: bounded LRU dedupe
+
+Collapse identical Events into a single Event with `Count > 1` so a
+flaky test that fires 4,000 times doesn't blow the budget.
+
+- **DoD:**
+  - `Deduper` struct holding a bounded LRU keyed by an Event's
+    signature, where `Signature(Event) string` is
+    `hash(Title + "\x00" + Location.File + ":" + Location.Line)`.
+    A nil `Location` hashes as `Title` alone. The hash function is
+    FNV-64a from `hash/fnv` — stdlib, allocation-free, sufficient
+    for collision resistance at the window sizes we run at.
+  - LRU implemented with a `container/list` doubly-linked list plus
+    a `map[string]*list.Element`. No third-party LRU dependency; the
+    pattern is ~50 lines.
+  - `New(window int) *Deduper` constructs a Deduper with a fixed
+    capacity. `window <= 0` is treated as "off" — the Deduper still
+    satisfies the API but every Event passes through with `Count=1`.
+  - `Observe(ev Event) (out Event, emit bool)` is the streaming
+    entry point. On first sight of a signature: store the Event with
+    its index, return `(ev with Count=1, true)`. On a duplicate
+    within the window: bump the stored Event's `Count`, move it to
+    the front of the LRU, return `(_, false)` so the caller drops
+    the duplicate from the stream.
+  - `Flush() []Event` returns all in-flight Events with their final
+    `Count` values, in LRU recency order (most-recently-seen first,
+    matching the order in which they were "promoted"). Used by
+    batch-mode callers and by the streaming flush hook below.
+  - `DedupeStage` implements `pipeline.Stage`. Each incoming Event
+    is fed through `Observe`; emitted Events flow through unchanged.
+    On `in` close, `DedupeStage` calls `Flush` and emits each Event
+    whose `Count > 1` and whose first-emit had `Count == 1` — i.e.,
+    only the *follow-up* count gets flushed, so consumers see a
+    single Event per signature with the final `Count`. (This means
+    the stream emits the Event eagerly with `Count=1` for latency,
+    then re-emits with the corrected `Count` at flush. M5.3
+    documents this two-emit pattern in the encoder contract.)
+  - Concurrency: `Deduper` is **not** goroutine-safe; one
+    `DedupeStage` owns one `Deduper` from a single goroutine. The
+    pipeline already provides that constraint.
+  - Zero dependencies beyond `container/list` and `hash/fnv`.
+- **Tests** (`internal/event/dedupe_test.go`):
+  - `TestDeduper_FirstSightEmits`: an Event seen once round-trips
+    with `Count=1, emit=true`.
+  - `TestDeduper_DuplicateBumpsCount`: same signature twice → second
+    `Observe` returns `emit=false`; `Flush` reports `Count=2`.
+  - `TestDeduper_DistinctTitlesDoNotCollide`: two Events with the
+    same Location but different Titles emit separately.
+  - `TestDeduper_DistinctLocationsDoNotCollide`: two Events with the
+    same Title but different file:line emit separately.
+  - `TestDeduper_NilLocationHashesAsTitleOnly`: two Events with
+    `Location=nil` and identical Title collapse; one with a Title
+    that happens to contain the would-be hash separator does not
+    collide with anything (signature is hashed, not concatenated
+    verbatim).
+  - `TestDeduper_EvictionOldestOut`: window=3, observe 4 distinct
+    signatures, then re-observe the first — it should re-emit as
+    new (not as a duplicate) because it was evicted.
+  - `TestDeduper_WindowZeroDisables`: window=0, every Event passes
+    through with `emit=true, Count=1`; `Flush` returns no events.
+  - `TestDeduper_FlushOrder`: LRU recency order, most-recent first.
+  - `TestDedupeStage_StreamingPassthrough`: stage in a pipeline,
+    feed 100 unique events, assert all 100 emerge in order with
+    `Count=1`.
+  - `TestDedupeStage_StreamingDeduplicates`: feed 10 distinct + 10
+    of the same Event, assert 11 events emerge (10 originals +
+    1 final flush carrying `Count=11` for the duplicated one).
+  - `TestDedupeStage_ContextCancellation`: cancel mid-stream, stage
+    drains and exits, no goroutine leak.
+- **Docs:**
+  - Godoc on `Deduper`, `New`, `Observe`, `Flush`, `Signature`,
+    `DedupeStage`. Explain the two-emit pattern (emit eagerly with
+    `Count=1`, re-emit on flush with final `Count`) on `DedupeStage`
+    so encoder authors expect to see the same signature twice.
+  - Update
+    [ARCHITECTURE.md § Streaming behaviour](./ARCHITECTURE.md#streaming-behaviour)
+    if the flush cadence or `Count` semantics differ from the
+    sketch.
+  - Add a `dedupe` row to the schema doc's `count` field if the
+    two-emit pattern is observable on the JSON output. (Currently
+    it's not — the encoder is M7 — but the schema must agree once
+    M7 lands; record the expectation in `docs/formats/SCHEMA.md`.)
+
+### M5.2 — `internal/event/collapse.go`: stack frame collapse
+
+Mark vendor frames in a stack and collapse contiguous runs of them,
+reducing 30-frame Java stacks to "3 user frames + 27 vendor
+frames collapsed".
+
+- **DoD:**
+  - `VendorPattern` is a compiled regex paired with a human-readable
+    label. A small package-level slice of default patterns covers:
+    - **Python:** `site-packages/`, `dist-packages/`, paths under
+      `/usr/lib/python\d+/`, `<frozen importlib.*>`.
+    - **Node:** `node_modules/`.
+    - **Go:** `GOROOT` prefix (matched as `/src/runtime/` and
+      stdlib paths under `/src/<single-segment>/`), `/vendor/`,
+      `pkg/mod/` for the module cache.
+    - **JVM:** Function prefixes `java.`, `javax.`, `sun.`, `jdk.`,
+      `org.junit.`, `org.gradle.`.
+  - `Classify(frame StackFrame) bool` returns whether any default
+    pattern matches `frame.File` or `frame.Function`. Pure function;
+    no global state beyond the compiled regex slice.
+  - `ClassifyFrames(frames []StackFrame) []StackFrame` returns a
+    new slice with `Vendor` populated. Does not mutate input. (The
+    parsers in M9–M12 may already populate `Vendor`; ClassifyFrames
+    overwrites it. This is intentional — the collapse stage is the
+    single source of truth for vendor classification, so format
+    authors don't have to keep regex tables in sync.)
+  - `Collapse(frames []StackFrame, keepVendor bool) (out []StackFrame, collapsed int)`:
+    - With `keepVendor=true`: returns `frames` unchanged (after
+      re-classification via `ClassifyFrames`), `collapsed=0`.
+    - With `keepVendor=false`: walks the slice; contiguous runs of
+      `Vendor=true` frames are removed entirely; `collapsed` is the
+      total count removed. Leading or trailing vendor runs are
+      collapsed the same as middle runs.
+    - Edge cases: all-vendor stack → empty `out` and
+      `collapsed=len(frames)`; all-user stack → unchanged.
+  - `CollapseStage` implements `pipeline.Stage`. For each Event,
+    rebuilds `Frames` via `Collapse` and sets `FramesCollapsed` to
+    the returned count. Events without `Frames` pass through
+    untouched. Reads `KeepVendor` from a struct field set by the
+    pipeline wiring.
+  - Per-pattern compile happens once at package init; runtime cost
+    is O(frames × patterns), constant time per frame.
+- **Tests** (`internal/event/collapse_test.go`):
+  - `TestClassify_Python_SitePackages`: a Python frame from
+    `/.../site-packages/requests/api.py` → `Vendor=true`.
+  - `TestClassify_Python_Stdlib`: a frame from
+    `/usr/lib/python3.11/json/decoder.py` → `Vendor=true`.
+  - `TestClassify_Node_Modules`: a Node frame whose file contains
+    `/node_modules/` → `Vendor=true`.
+  - `TestClassify_Go_Stdlib`: a Go frame from `runtime/proc.go` →
+    `Vendor=true`.
+  - `TestClassify_Go_PkgMod`: a Go frame from
+    `~/go/pkg/mod/github.com/...` → `Vendor=true`.
+  - `TestClassify_JVM_JavaPrefix`: a JVM frame with
+    `Function="java.util.ArrayList$Itr.next"` → `Vendor=true`.
+  - `TestClassify_UserCode_NotVendor`: a user-app frame from
+    `internal/api/handler.go` (or `app/views.py`, etc.) →
+    `Vendor=false`.
+  - `TestCollapse_MiddleVendorRun`: `[user, vendor, vendor, user]` →
+    `[user, user]`, `collapsed=2`.
+  - `TestCollapse_LeadingTrailingVendorRuns`: a stack that starts
+    and ends with vendor runs → only the interior user frames
+    survive.
+  - `TestCollapse_AllVendor`: every frame vendor → empty out,
+    `collapsed=len(input)`.
+  - `TestCollapse_AllUser`: no vendor frames → unchanged.
+  - `TestCollapse_KeepVendor`: `keepVendor=true` → `out` matches
+    input modulo `Vendor` reclassification; `collapsed=0`.
+  - `TestCollapseStage_EventWithoutFrames`: Event.Frames=nil passes
+    through with `FramesCollapsed=0`.
+  - `TestCollapseStage_KeepVendorRespected`: stage with
+    `KeepVendor=true` preserves all frames and reports 0.
+  - `TestCollapseStage_ContextCancellation`: cancel mid-stream,
+    stage drains and exits.
+- **Docs:**
+  - Godoc on every exported symbol (`VendorPattern`, `Classify`,
+    `ClassifyFrames`, `Collapse`, `CollapseStage`, `DefaultPatterns`).
+  - Update
+    [ARCHITECTURE.md § Pipeline](./ARCHITECTURE.md#pipeline) if the
+    stage shape differs from the M2 sketch.
+  - Add the pattern catalogue (Python / Node / Go / JVM) to a new
+    `docs/formats/vendor-frames.md` so format-author docs from
+    M9–M12 can link to it. Per the alignment rule, the doc lands in
+    the same commit as the patterns.
+
+### M5.3 — Wire DedupeStage and CollapseStage into Pipeline options
+
+Connect the two stages to the pipeline's configuration so the CLI
+(M8) only has to pass flag values through.
+
+- **DoD:**
+  - New `pipeline.Options` struct exposing:
+    - `DedupeWindow int` (0 = off).
+    - `KeepVendor bool`.
+    - Existing `BufferSize int`.
+  - A constructor `pipeline.Build(src Source, sink Sink, opts Options) *Pipeline`
+    that returns a `Pipeline` with `[CollapseStage, DedupeStage]`
+    pre-wired in the documented order (collapse first, so dedupe
+    sees the final frame shape).
+  - The wire order is asserted by a comment in `Build` and by
+    `TestBuild_StageOrder`.
+  - Existing `Pipeline{Source, Stages, Sink}` field-level
+    construction still works for tests that need to substitute
+    custom stages.
+- **Tests** (`internal/pipeline/build_test.go`):
+  - `TestBuild_DefaultsAreSafe`: zero `Options` produces a
+    pipeline whose stages are no-op-equivalent (`DedupeWindow=0`
+    → dedupe pass-through, `KeepVendor=false` but no frames in
+    test events → collapse pass-through).
+  - `TestBuild_DedupeAndCollapseChainTogether`: feed an event with
+    a long stack and three duplicates; assert dedupe collapses to
+    `Count=4` and the surviving Event's `FramesCollapsed > 0`.
+  - `TestBuild_StageOrder`: collapse runs before dedupe so the
+    dedupe signature reflects the post-collapse frame layout
+    (matters for events whose Title is derived from a frame).
+- **Docs:**
+  - Godoc on `Options` and `Build`.
+  - Update
+    [ARCHITECTURE.md § Pipeline](./ARCHITECTURE.md#pipeline) with a
+    note that `Build` is the supported constructor and field-level
+    construction is reserved for tests.
+  - README is not yet updated — flags ship in M8 — but a sentence
+    in `docs/formats/SCHEMA.md` confirms that
+    `count > 1` and `frames_collapsed > 0` may appear on the same
+    Event after M5.
+
+### M5 exit criteria
+
+- All three sub-items ticked.
+- `make check` clean; no race hits; no goroutine leaks.
+- M5 milestone drift check: ARCHITECTURE.md pipeline section names
+  the two real stages (no longer "stub"); schema doc references
+  dedupe `count` and collapse `frames_collapsed` semantics; the
+  new `docs/formats/vendor-frames.md` exists and is linked from
+  ARCHITECTURE.
+- `--dedupe-window=N` and `--keep-vendor` flags are **not** wired in
+  M5; that's M8. The pipeline options exist so M8 only has to pass
+  flag values through.
 
 ---
 
