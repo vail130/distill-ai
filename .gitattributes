@@ -1,0 +1,25 @@
+# Normalise line endings on checkin; check out native.
+* text=auto eol=lf
+
+# Go source
+*.go        text eol=lf diff=golang
+
+# Shell scripts must be LF.
+*.sh        text eol=lf
+*.bash      text eol=lf
+
+# Windows batch files use CRLF.
+*.bat       text eol=crlf
+*.cmd       text eol=crlf
+
+# Treat fixture inputs and expected outputs as binary-ish:
+# don't normalise line endings, don't show in diffs by default.
+internal/formats/*/testdata/**  -text -diff
+
+# Generated files: exclude from language stats, hide from default diffs.
+**/*.pb.go              linguist-generated=true
+**/zz_generated_*.go    linguist-generated=true
+
+# Documentation language stats.
+*.md        linguist-documentation=true
+docs/**     linguist-documentation=true
