@@ -1,0 +1,23 @@
+TODO.md
+  ab2bb0b85a01f798 346-476
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "c3ad07dfbac31a4ccadccf08e75a3e7dba1862a7",
+  "prompts": {
+    "ab2bb0b85a01f798": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1d1396929ffelA77PVRH1hlfH1",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 1362,
+      "total_deletions": 7,
+      "accepted_lines": 1355,
+      "overriden_lines": 27
+    }
+  }
+}
