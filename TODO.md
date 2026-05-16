@@ -508,7 +508,7 @@ this?" without running a full pipeline.
 
 ---
 
-## v1.1 (post-launch)
+## v1.1 — more log / test formats (post-launch)
 
 - [ ] `k8s` format: kubectl logs, structured + unstructured
 - [ ] `json` format: generic JSON-per-line logs (Zap, slog, Bunyan, Pino)
@@ -516,6 +516,11 @@ this?" without running a full pipeline.
 - [ ] `cargo` test/build output
 - [ ] `rspec` format
 - [ ] `mocha` format
+
+> Compiler / build-error formats (rustc, tsc, gcc) live in
+> [M21](#m21--compiler--build-error-formats) under v1.3 — they
+> overlap with code distillation conceptually and ship in that
+> sequence.
 
 ---
 
@@ -526,6 +531,90 @@ this?" without running a full pipeline.
 - [ ] Tool: `sift_file(path, format?) -> distilled_output`
 - [ ] Document setup for Claude Desktop, opencode, Continue, etc.
 - [ ] Integration tests against a real MCP client
+
+---
+
+## v1.3 — Code distillation
+
+Extend distill-ai from "distil logs / test output / stack traces" to
+"distil source code too." Same `Event` / `Format` / pipeline machinery
+as M1–M16; each language becomes a Format whose `Detect` matches
+files by extension or shebang and whose `Parse` walks an AST instead
+of scanning lines. New `Kind` values land in
+[`docs/formats/SCHEMA.md`](./docs/formats/SCHEMA.md): `package`,
+`import`, `type_def`, `func_sig`, `method_sig`, `field`, `const`.
+
+Architectural decision recorded in
+[ADR-0001](./docs/decisions/0001-reject-cgo-tree-sitter-prefer-wasm.md):
+CGo tree-sitter is rejected; WASM tree-sitter via wazero is the
+multi-language path. Go-only (M17) uses the stdlib first to avoid any
+dependency until the design proves itself.
+
+Each milestone below ships scoped (DoD, tests, docs) before its
+branch opens, per the
+[scoping convention](#scoping-format).
+
+### M17 — Source-code distillation (Go-only)
+
+- [ ] `internal/formats/gocode/`: Go source as a Format using
+      `go/parser` from the stdlib
+- [ ] New `Kind` values in SCHEMA.md and `docs/formats/gocode.md`:
+      `package`, `import`, `type_def`, `func_sig`, `method_sig`,
+      `const`, `var_decl`
+- [ ] `--input=code` or `distill-ai code <file>` CLI surface (decide
+      at scoping time)
+- [ ] Dogfood: `distill-ai code ./...` produces a useful repo summary
+      of this codebase
+- [ ] Per-event token cost ≤ 20 tokens for a typical signature
+
+### M18 — Multi-language code distillation (WASM tree-sitter)
+
+- [ ] Add `wazero` dependency, justified per
+      [dependencies rule](./.opencode/rules/dependencies.md)
+- [ ] `internal/codeparse/`: WASM grammar loader, query helpers
+- [ ] Languages: Python, TypeScript, JavaScript, Rust as Formats
+- [ ] Resolve the binary-size tradeoff captured in
+      [ADR-0001](./docs/decisions/0001-reject-cgo-tree-sitter-prefer-wasm.md)
+      § Consequences: either revise the size budget upward for the
+      single `distill-ai` binary or split a `distill-ai-code` binary
+- [ ] Performance budget revisit: WASM is ~2–3× slower than native
+      tree-sitter; document the floor in
+      [performance rule](./.opencode/rules/performance.md)
+
+### M19 — Agent-read wrapper
+
+- [ ] CLI mode that takes a file/dir and emits the distilled view
+      first, full content on demand
+- [ ] Integrate as an MCP tool exposed via `distill-ai mcp` (M14 /
+      v1.2): `read_distilled(path)` returns symbol summary;
+      `read_full(path, ranges?)` returns verbatim bytes
+- [ ] Document the agent-side workflow in
+      `docs/integration-agent-reads.md` (how Claude Code / opencode
+      can be configured to prefer the distilled read)
+- [ ] Depends on M17 (Go), ideally M18 (other languages)
+
+### M20 — AST-aware diff distillation
+
+- [ ] Take a unified diff (or `git diff` output) and parse the
+      before/after of each hunk through the relevant language Format
+- [ ] Emit symbol-level `Event`s: `function Foo signature changed`,
+      `import added`, `type X moved`, `method Y deleted`
+- [ ] Non-code text diffs fall back to line-level distillation
+- [ ] Subsumes the backlog `--diff` idea for source files; log diffs
+      still use the original line-level approach
+- [ ] Depends on M17/M18
+
+### M21 — Compiler / build-error formats
+
+- [ ] `rustc` / `cargo` output as a Format
+- [ ] `tsc` output as a Format
+- [ ] `go build` output as a Format (currently overlaps with `gotest`;
+      decide whether to merge or split)
+- [ ] `gcc` / `clang` output as a Format
+- [ ] Independent of M17–M20 architecturally; this is "more formats"
+      in the v1.1 sense, but listed here because compiler errors
+      reference source positions and benefit from the same per-event
+      structure code distillation defines
 
 ---
 
