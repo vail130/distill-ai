@@ -72,7 +72,11 @@ This is the most common contribution. The process:
    sample log file. This lets maintainers confirm the format is in scope
    and isn't already being worked on.
 2. Create `internal/formats/<name>/<name>.go`.
-3. Implement the `Format` interface (`Name`, `Detect`, `Parse`).
+3. Implement the [`Format` interface][format-godoc] (`Name`, `Detect`,
+   `Parse`). The godoc on each method is the canonical spec: detection
+   must be cheap, parse must close the channel on EOF or context
+   cancellation, etc. A runnable minimum implementation lives in
+   [`internal/formats/example_test.go`][format-example].
 4. Register in `init()`: `formats.Register(&Format{})`.
 5. Add fixtures under `internal/formats/<name>/testdata/`. **Minimum five
    cases**: clean run, single failure, multiple failures, mixed
@@ -173,3 +177,6 @@ By participating in this project, you agree to abide by the
 - Bug or feature: file an issue.
 - General discussion: GitHub Discussions (if enabled) or open an issue
   labelled `question`.
+
+[format-godoc]: https://pkg.go.dev/github.com/vail130/distill-ai/internal/formats#Format
+[format-example]: ./internal/formats/example_test.go
