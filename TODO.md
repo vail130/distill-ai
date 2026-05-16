@@ -12,13 +12,13 @@ Each milestone is split into sub-items. Each sub-item has:
 
 - **Definition of Done (DoD):** what must be true for the box to be ticked.
 - **Tests:** the tests that must exist when the item lands. Per the
-  [alignment rule](./AGENTS.md#documentation-and-test-alignment-hard-rule)
+  [alignment rule](./.opencode/rules/alignment.md)
   these ship in the same commit as the code.
 - **Docs:** the docs that must update when the item lands. Same rule.
 
 Each milestone ends with **exit criteria** — a milestone-level drift
 check before the milestone is marked complete (see
-[AGENTS.md § Enforcement](./AGENTS.md#enforcement)).
+[alignment.md § Enforcement](./.opencode/rules/alignment.md#enforcement)).
 
 Milestones M1–M3 are scoped this way today. M4–M16 will be scoped
 before their respective branches open, to avoid premature detail.
@@ -48,7 +48,7 @@ every later milestone consumes. Cross-references
 
 Each item below lists Definition of Done (DoD), required tests, and
 required doc updates per the
-[alignment rule](./AGENTS.md#documentation-and-test-alignment-hard-rule).
+[alignment rule](./.opencode/rules/alignment.md).
 
 ### M1.1 — `internal/event/event.go`: core types ✅
 
@@ -228,7 +228,7 @@ Promote the design's two big invariants to enforceable tests.
 - **Docs:**
   - Document `slowReader` in `internal/testutil/`.
   - Reference these tests from
-    [AGENTS.md § Testing](./AGENTS.md#testing).
+    [testing.md](./.opencode/rules/testing.md).
 
 ### M2.3 — Backpressure & goroutine safety audit
 
@@ -245,7 +245,7 @@ Before M3 lands more stages, prove the existing skeleton doesn't leak.
     pipe a large synthetic stream, sample memory.
 - **Docs:**
   - Add a note to
-    [AGENTS.md § Performance](./AGENTS.md#performance) on the bounded-
+    [performance.md](./.opencode/rules/performance.md) on the bounded-
     memory invariant and how it's verified.
 
 ### M2 exit criteria

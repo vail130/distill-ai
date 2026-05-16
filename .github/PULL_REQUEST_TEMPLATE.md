@@ -6,7 +6,7 @@ For style and conventions, see AGENTS.md and CONTRIBUTING.md.
 
 HARD RULE: every commit that changes code must also update the
 corresponding docs and tests in the same commit. See
-https://github.com/vail130/distill-ai/blob/main/AGENTS.md#documentation-and-test-alignment-hard-rule
+https://github.com/vail130/distill-ai/blob/main/.opencode/rules/alignment.md
 -->
 
 ## What this changes
@@ -99,7 +99,7 @@ Tick every box that applies; explicitly mark N/A for the rest.
       doesn't, the "Why" section above explains why we should bend them.
 - [ ] No network behaviour introduced.
 - [ ] Output schema unchanged, or schema version bumped per
-      [AGENTS.md output stability](../AGENTS.md#output-stability).
+      [output-stability rule](../.opencode/rules/output-stability.md).
 
 ## For format additions only
 
