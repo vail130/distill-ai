@@ -341,7 +341,7 @@ this?" without running a full pipeline.
 
 ---
 
-## M4 — Token estimation
+## M4 — Token estimation ✅
 
 Estimate the token cost of an event's text so the budget enforcer
 (M6) can pack the output to a target size. Two estimators ship: a
@@ -403,7 +403,7 @@ overestimation with a built-in safety margin.
     [performance.md](./.opencode/rules/performance.md) so it joins
     the project's set of throughput targets.
 
-### M4.3 — Tiktoken estimator (opt-in, embedded BPE)
+### M4.3 — Tiktoken estimator (opt-in, embedded BPE) ✅
 
 - **DoD:**
   - `Tiktoken()` factory returns an `Estimator` backed by the
@@ -443,7 +443,7 @@ overestimation with a built-in safety margin.
   - Add `tiktoken-go` and `tiktoken-go-loader` to
     [ARCHITECTURE.md § Dependencies](./ARCHITECTURE.md#dependencies).
 
-### M4.4 — `Tokenizer` config option
+### M4.4 — `Tokenizer` config option ✅
 
 The CLI flag wiring is M8 work; this milestone just adds the option to
 the shared config struct so M6 (budget enforcer) can consume it.
