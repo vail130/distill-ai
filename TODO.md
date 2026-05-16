@@ -343,13 +343,137 @@ this?" without running a full pipeline.
 
 ## M4 — Token estimation
 
-- [ ] `internal/tokens/estimate.go`: `Estimator` interface
-- [ ] Heuristic estimator: word + symbol counting, +10% safety margin
-- [ ] Heuristic estimator benchmarks (target: ≥100 MB/sec)
-- [ ] Tiktoken estimator: lazy-init `cl100k_base` vocab
-- [ ] `--tokenizer=heuristic|tiktoken` flag wiring
-- [ ] Accuracy tests: golden corpus with known GPT-4 token counts, assert ±15% heuristic / exact tiktoken
-- [ ] Document accuracy expectations in `--help` text
+Estimate the token cost of an event's text so the budget enforcer
+(M6) can pack the output to a target size. Two estimators ship: a
+fast zero-dep heuristic (default) and an opt-in BPE tokenizer for
+exact counts on OpenAI / Claude models.
+
+Cross-references
+[ARCHITECTURE.md § Token estimation](./ARCHITECTURE.md#token-estimation).
+The asymmetric design principle — underestimating is worse than
+overestimating because it can overflow the consumer's context window
+— shapes both estimators: the default heuristic biases toward
+overestimation with a built-in safety margin.
+
+### M4.1 — `internal/tokens/estimate.go`: Estimator interface and heuristic
+
+- **DoD:**
+  - `Estimator` interface with `Estimate(s string) int`.
+  - `Heuristic` implementation: word count × 1.3 + symbol-run count,
+    multiplied by a configurable safety margin (default +10%).
+  - `Default()` factory returns a `Heuristic` pre-configured with the
+    +10% margin.
+  - Constants `WordTokenRatio = 1.3` and `DefaultSafetyMargin = 0.10`
+    so the design is reviewable without re-reading the implementation.
+  - Zero dependencies. Pure stdlib.
+- **Tests** (`internal/tokens/estimate_test.go`):
+  - `TestHeuristic_EmptyString`: returns 0.
+  - `TestHeuristic_PureASCIIWords`: a known sentence has a known
+    rough count within ±15%.
+  - `TestHeuristic_SymbolHeavyCode`: a Go snippet with brackets,
+    semicolons, and operators scores higher than its word count
+    alone would suggest.
+  - `TestHeuristic_OverestimatesByDefault`: feed a corpus where we
+    know the actual tiktoken count, assert heuristic ≥ true count
+    most of the time (i.e., safety margin works as intended).
+  - `TestHeuristic_SafetyMarginZero`: with margin 0, the result
+    matches the raw word+symbol count.
+  - `TestHeuristic_DeterministicAcrossCalls`: same input × 100 calls
+    → identical result every time.
+- **Docs:**
+  - Godoc on `Estimator`, `Heuristic`, `Default`,
+    `WordTokenRatio`, `DefaultSafetyMargin`.
+  - Update
+    [ARCHITECTURE.md § Token estimation](./ARCHITECTURE.md#token-estimation)
+    if the constants or shape differ from the sketch there.
+
+### M4.2 — Throughput benchmark for Heuristic
+
+- **DoD:**
+  - `BenchmarkHeuristic_Estimate` reports MB/sec via `b.SetBytes`.
+  - Target: ≥ 100 MB/sec on a typical laptop (Apple M-series or
+    modern x86 laptop). Lower is OK — the budget enforcer calls
+    this once per event, not per byte — but the benchmark exists so
+    future regressions are visible.
+  - Bench runs as part of `make bench`, not the default test suite.
+- **Tests:** the benchmark is the deliverable. No assertion;
+  performance gates are agreed at M16 release prep.
+- **Docs:**
+  - Note the benchmark in
+    [performance.md](./.opencode/rules/performance.md) so it joins
+    the project's set of throughput targets.
+
+### M4.3 — Tiktoken estimator (opt-in, embedded BPE)
+
+- **DoD:**
+  - `Tiktoken()` factory returns an `Estimator` backed by the
+    `cl100k_base` vocabulary.
+  - Lazy initialisation: the BPE tables are loaded on the first
+    `Estimate` call, not at process start, so the binary's cold-start
+    latency budget (M16) only pays the cost when `--tokenizer=tiktoken`
+    is selected.
+  - Offline-only: the BPE vocab is embedded via the
+    `tiktoken-go-loader` offline loader. **Zero network access** even
+    on first init; this is enforced by `tiktoken.SetBpeLoader` at
+    package init, before any code path can reach the default
+    network-loader.
+  - Adds two dependencies: `github.com/pkoukk/tiktoken-go` and
+    `github.com/pkoukk/tiktoken-go-loader`. Both pure Go, MIT, no
+    CGo. Justified in the commit per
+    [dependencies.md](./.opencode/rules/dependencies.md).
+  - Returns an `Estimator` whose error path is `init failure` only;
+    once initialised, `Estimate` is infallible (returns 0 on impossible
+    inputs rather than erroring, matching the `Heuristic` shape).
+- **Tests** (`internal/tokens/tiktoken_test.go`):
+  - `TestTiktoken_KnownCounts`: a small fixture corpus with known
+    GPT-4 (cl100k_base) token counts. Exact match required.
+  - `TestTiktoken_EmptyString`: returns 0.
+  - `TestTiktoken_LazyInitOnce`: 100 concurrent `Estimate` calls
+    succeed without a race on the init path (`sync.Once`).
+  - `TestTiktoken_NoNetwork`: in-process check that
+    `tiktoken.SetBpeLoader` was called with an offline loader at
+    package init; if a future refactor removed the call, the
+    test fails before any user ever hit a runtime download.
+- **Docs:**
+  - Godoc on `Tiktoken` explaining the lazy-init, embedded-vocab,
+    cl100k_base scope (OpenAI exact, Claude ~95%, Llama/Gemini ~85%).
+  - Update
+    [ARCHITECTURE.md § Token estimation](./ARCHITECTURE.md#token-estimation)
+    if the API shape differs from the sketch.
+  - Add `tiktoken-go` and `tiktoken-go-loader` to
+    [ARCHITECTURE.md § Dependencies](./ARCHITECTURE.md#dependencies).
+
+### M4.4 — `Tokenizer` config option
+
+The CLI flag wiring is M8 work; this milestone just adds the option to
+the shared config struct so M6 (budget enforcer) can consume it.
+
+- **DoD:**
+  - A new `Tokenizer` field on whatever shared options the pipeline
+    is going to accept (TBD by M4 implementation time; could live
+    on `pipeline.Pipeline` or on a new `pipeline.Options`).
+  - Values: `"heuristic"` (default) and `"tiktoken"`.
+  - A helper `tokens.ByName(name) (Estimator, error)` so the CLI in
+    M8 can just pass the string through and get an `Estimator`.
+- **Tests:**
+  - `TestByName_Heuristic`, `TestByName_Tiktoken`, `TestByName_Unknown`
+    in `internal/tokens/`.
+- **Docs:**
+  - Mention the flag in
+    [ARCHITECTURE.md flag list](./ARCHITECTURE.md#flags) if it isn't
+    already listed there (it is, from the original design).
+
+### M4 exit criteria
+
+- All four sub-items ticked.
+- `make check` clean, no race hits.
+- `make bench` runs the heuristic benchmark; its result is logged in
+  the commit body for the future M16 reference.
+- M4 milestone drift check: ARCHITECTURE token-estimation section and
+  the implementation agree on constants, factory names, and the
+  network-free guarantee; dependencies allow-list in ARCHITECTURE
+  includes both tiktoken deps; performance.md lists the heuristic
+  throughput benchmark.
 
 ---
 
