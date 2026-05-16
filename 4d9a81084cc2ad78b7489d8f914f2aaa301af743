@@ -1,0 +1,29 @@
+docs/decisions/0001-reject-cgo-tree-sitter-prefer-wasm.md
+  ab2bb0b85a01f798 1-142
+ARCHITECTURE.md
+  ab2bb0b85a01f798 443-451
+TODO.md
+  ab2bb0b85a01f798 511,520-523,537-620
+docs/decisions/README.md
+  ab2bb0b85a01f798 1-77
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "4d9a81084cc2ad78b7489d8f914f2aaa301af743",
+  "prompts": {
+    "ab2bb0b85a01f798": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1d1396929ffelA77PVRH1hlfH1",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 1429,
+      "total_deletions": 1,
+      "accepted_lines": 1428,
+      "overriden_lines": 1
+    }
+  }
+}
