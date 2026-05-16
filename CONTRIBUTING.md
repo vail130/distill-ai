@@ -59,10 +59,37 @@ go test -race ./...
 
 # Benchmarks
 go test -bench=. ./...
+
+# Integration suite only (forks the compiled binary)
+make test-integration
 ```
 
 Every format has golden-file tests under
 `internal/formats/<name>/testdata/`. Run them before opening a PR.
+
+### Integration tests
+
+`test/integration/` holds tests that exec the real compiled binary
+rather than calling functions in-process. They build `cmd/distill-ai`
+with `-race` once per `go test` run and exercise it the way an agent
+or human would: argv, stdin, exit codes, stdout/stderr separation.
+
+Fixtures live under `test/integration/testdata/fixtures/` as raw
+`.input` files. Expected output lives under `testdata/golden/` as
+`*.contains.txt` files (one substring per non-empty line; all must
+appear in the captured stream). Byte-exact goldens will arrive when
+M8+ ships the distilled output encoders, whose output is stable
+across machines.
+
+Add an integration test when:
+
+- A new subcommand or top-level flag lands (every flag in
+  [ARCHITECTURE.md § Flags](./ARCHITECTURE.md#flags) needs at least
+  one end-to-end exercise).
+- A new format starts winning detection (replace the pre-format
+  "falls through to no-match" assertion with a positive detection
+  assertion).
+- A regression is found that the unit tests missed.
 
 ## Adding a format
 
@@ -88,6 +115,13 @@ This is the most common contribution. The process:
    `ARCHITECTURE.md`.
 9. Add a doc under `docs/formats/<name>.md` describing what's extracted
    and what's dropped.
+10. Add a recipe to
+    `.opencode/skills/distill-output/SKILL.md` showing how to dogfood
+    the new format on this repo's own command output. Skill recipes
+    are part of the documentation surface; see the
+    [alignment rule](./.opencode/rules/alignment.md) for the full
+    list of docs that must move when the CLI surface or recipe-
+    relevant behaviour changes.
 
 Don't touch other formats' code. The plugin model exists for isolation.
 

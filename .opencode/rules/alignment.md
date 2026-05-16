@@ -12,12 +12,13 @@ Each kind of change has a fixed set of docs that must move with it:
 | Change                                          | Doc(s) that must update in the same commit              |
 |-------------------------------------------------|---------------------------------------------------------|
 | New / renamed / removed exported symbol         | Godoc on the symbol; ARCHITECTURE.md if it appears there |
-| New / renamed / removed CLI flag or subcommand  | README.md usage section; `--help` text in `cmd/`         |
+| New / renamed / removed CLI flag or subcommand  | README.md usage section; `--help` text in `cmd/`; the `cli-surface` manifest in `.opencode/skills/distill-output/SKILL.md` |
 | New / changed JSON output field or kind value   | `docs/formats/SCHEMA.md`; bump `schema_version` if breaking |
-| New format added                                | README format list; ARCHITECTURE format list; `docs/formats/<name>.md` |
+| New format added                                | README format list; ARCHITECTURE format list; `docs/formats/<name>.md`; `.opencode/skills/distill-output/SKILL.md` recipes |
 | Design principle bent or scope changed          | ARCHITECTURE.md design principles / out-of-scope sections |
 | Public package API change in `pkg/distill/`     | godoc; `pkg/distill/example_test.go`                     |
 | Performance budget changed (binary size, latency, throughput) | `.opencode/rules/performance.md`; commit-message justification |
+| New dogfood-relevant binary behaviour (build output path, env vars consumed, etc.) | `.opencode/skills/distill-output/SKILL.md` recipes section |
 
 If a change touches code that's described elsewhere and the description
 doesn't change, that's also a doc bug — the doc has drifted.
@@ -43,6 +44,14 @@ doesn't change, that's also a doc bug — the doc has drifted.
 - **Hard gates (CI must pass):** `go test ./...`, `go vet`,
   `golangci-lint run`. `revive`'s `exported` rule fails the build on
   undocumented exported symbols.
+- **Skill drift guard.** `TestSkill_DocumentsCurrentCLISurface` in
+  `test/integration/integration_test.go` parses the `cli-surface`
+  manifest in `.opencode/skills/distill-output/SKILL.md` and asserts
+  every subcommand and top-level flag listed there is recognised by
+  the compiled binary — and conversely, every subcommand the binary
+  prints in `--help` is in the manifest (or its `cli-surface-future`
+  block). A new verb or flag without a matching manifest update
+  fails the integration suite, which gates merges.
 - **PR template checklist** explicitly requires docs + tests boxes
   ticked. Reviewers reject PRs with code changes and no corresponding
   doc / test diffs.

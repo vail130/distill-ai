@@ -1,0 +1,2 @@
+unknown subcommand
+Run 'distill-ai --help' for usage.

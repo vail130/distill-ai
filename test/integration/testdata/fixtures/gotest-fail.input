@@ -1,0 +1,8 @@
+=== RUN   TestThing
+    thing_test.go:42: expected 200, got 500
+--- FAIL: TestThing (0.01s)
+=== RUN   TestOtherThing
+--- PASS: TestOtherThing (0.00s)
+FAIL
+exit status 1
+FAIL	github.com/example/project/thing	0.123s

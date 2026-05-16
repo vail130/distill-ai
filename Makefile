@@ -39,6 +39,10 @@ install: ## Install into $GOBIN / $GOPATH/bin
 test: ## Run all tests with race detector
 	$(GO) test $(TESTFLAGS) ./...
 
+.PHONY: test-integration
+test-integration: ## Run only the integration suite (forks the compiled binary)
+	$(GO) test $(TESTFLAGS) ./test/integration/...
+
 .PHONY: test-update
 test-update: ## Refresh golden-file fixtures
 	$(GO) test $(TESTFLAGS) ./... -update

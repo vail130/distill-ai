@@ -81,6 +81,15 @@ Tick every box that applies; explicitly mark N/A for the rest.
       changed; `schema_version` bumped for breaking changes.
 - [ ] **`docs/formats/<name>.md`** added/updated if a format was added
       or its extraction behaviour changed.
+- [ ] **`.opencode/skills/distill-output/SKILL.md`** updated if the
+      CLI surface changed (new subcommand, new top-level flag, new
+      format that becomes a recipe target, or a dogfood-relevant
+      behaviour change). The `cli-surface` manifest at the top of
+      the skill is parsed by
+      `TestSkill_DocumentsCurrentCLISurface` — that test fails if
+      the manifest drifts from the binary. The
+      [alignment rule](../.opencode/rules/alignment.md) names this
+      explicitly.
 - [ ] **CHANGELOG.md** updated under `[Unreleased]` for user-visible
       changes.
 

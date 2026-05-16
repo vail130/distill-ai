@@ -1,0 +1,4 @@
+Hello, world.
+This is a plain text file with no recognisable log structure.
+There are no severity markers, no test runner output, no panics.
+A naive detector should not falsely claim this is anything in particular.
