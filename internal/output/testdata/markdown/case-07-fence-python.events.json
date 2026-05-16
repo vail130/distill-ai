@@ -1,0 +1,24 @@
+{
+  "format_name": "pytest",
+  "input_lines": 100,
+  "fence_lang": "python",
+  "estimator_name": "heuristic",
+  "events": [
+    {
+      "severity": "error",
+      "kind": "test_failure",
+      "title": "AssertionError",
+      "location": {"file": "tests/test_x.py", "line": 5, "column": null},
+      "body": [
+        "def test_x():",
+        "    assert 1 == 2"
+      ],
+      "context": [
+        "import pytest"
+      ],
+      "frames_collapsed": 0,
+      "count": 1,
+      "truncated": false
+    }
+  ]
+}

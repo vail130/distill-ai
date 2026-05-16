@@ -1,0 +1,37 @@
+{
+  "format_name": "pytest",
+  "input_lines": 8432,
+  "estimator_name": "heuristic",
+  "events": [
+    {
+      "severity": "error",
+      "kind": "test_failure",
+      "title": "AssertionError: expected 302, got 200",
+      "location": {"file": "tests/api/test_auth.py", "line": 47, "column": null},
+      "body": ["AssertionError: expected 302, got 200"],
+      "frames_collapsed": 0,
+      "count": 1,
+      "truncated": false
+    },
+    {
+      "severity": "warn",
+      "kind": "warning",
+      "title": "DeprecationWarning: use foo() instead of bar()",
+      "location": null,
+      "body": ["DeprecationWarning: use foo() instead of bar()"],
+      "frames_collapsed": 0,
+      "count": 1,
+      "truncated": false
+    },
+    {
+      "severity": "error",
+      "kind": "test_error",
+      "title": "fixture 'db' not found",
+      "location": {"file": "tests/conftest.py", "line": 12, "column": null},
+      "body": ["E       fixture 'db' not found", "ERROR tests/test_db.py::test_insert"],
+      "frames_collapsed": 0,
+      "count": 1,
+      "truncated": false
+    }
+  ]
+}
