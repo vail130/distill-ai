@@ -7,6 +7,12 @@ its consumer runs. It must be fast and bounded.
 
 - **Streaming throughput:** ≥ 50 MB/sec on a single core, measured with
   the heuristic estimator and a typical format parser.
+- **Heuristic-estimator throughput:** ≥ 100 MB/sec single-core,
+  zero allocations per call. Verified by `BenchmarkHeuristic_Estimate`
+  in `internal/tokens/`. The budget enforcer (M6) calls Estimate once
+  per Event so per-call latency matters more than throughput in
+  practice, but the throughput number is the easier comparison point
+  across machines. Run with `make bench`.
 - **Cold-start latency:** ≤ 20 ms with the heuristic estimator,
   ≤ 120 ms with `--tokenizer=tiktoken`. Measured from process start to
   first byte of output for a no-op input.
