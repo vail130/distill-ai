@@ -39,7 +39,7 @@ before their respective branches open, to avoid premature detail.
 
 ---
 
-## M1 — Core types & interfaces
+## M1 — Core types & interfaces ✅
 
 Foundation milestone: define the data model and plugin contract that
 every later milestone consumes. Cross-references
