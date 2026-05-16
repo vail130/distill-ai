@@ -1,0 +1,27 @@
+internal/pipeline/safety_test.go
+  ab2bb0b85a01f798 1-277
+.opencode/rules/performance.md
+  ab2bb0b85a01f798 17-23
+TODO.md
+  ab2bb0b85a01f798 177,233
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "c391475014460e200afc842889e9056d8355d4fc",
+  "prompts": {
+    "ab2bb0b85a01f798": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1d1396929ffelA77PVRH1hlfH1",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 331,
+      "total_deletions": 49,
+      "accepted_lines": 1484,
+      "overriden_lines": 2
+    }
+  }
+}
