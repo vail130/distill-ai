@@ -89,15 +89,25 @@ Don't touch other formats' code. The plugin model exists for isolation.
 
 ## Submitting a pull request
 
+> **Hard rule:** every commit that changes code must also update the
+> corresponding docs and tests in the same commit. PRs without aligned
+> docs/tests are rejected. See
+> [AGENTS.md § Documentation and test alignment](./AGENTS.md#documentation-and-test-alignment-hard-rule)
+> for the full rule and the table mapping each kind of change to the
+> docs that must move with it.
+
 1. Fork the repo and create a branch from `main`:
    `git checkout -b <component>/<short-description>` (e.g.,
    `pytest/collapse-vendor-frames`).
 2. Make your changes. Keep commits small and focused — one logical
    change per commit.
 3. Run `go test ./...` and `golangci-lint run`. Both must pass.
-4. Update relevant docs (README, format docs, ARCHITECTURE if scope
-   changed).
-5. Push and open a PR. Fill in the PR template completely.
+4. **Update docs and tests in the same commit as the code they
+   describe.** README usage section + `--help` text for flag changes,
+   `docs/formats/SCHEMA.md` for output changes, format docs for new
+   formats, godoc for every exported symbol.
+5. Push and open a PR. Fill in the PR template completely; the docs +
+   tests boxes are not optional.
 6. Be patient. Maintainers review on best-effort basis.
 
 ### Commit messages
