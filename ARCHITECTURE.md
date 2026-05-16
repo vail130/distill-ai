@@ -372,14 +372,32 @@ Signatures are cheap regex matches on known markers:
 
 ### Budget enforcement
 
-When `--budget=N` is set:
+When `--budget=N` is set, `BudgetStage` (in `internal/pipeline/budget.go`)
+caps the estimated cost of the Event stream at N tokens.
 
 1. Estimate tokens per event via `tokens.Estimator`.
-2. Greedily emit highest-severity events until budget would be exceeded.
-3. If a single high-priority event exceeds budget, truncate its body and
-   mark `truncated: true`.
-4. Always emit summary footer (~30 tokens) so consumer knows what dropped.
-5. Exit code 3 if budget forced drops.
+2. Buffer the full input — severity-priority ordering can't be decided
+   streaming, so `BudgetStage` is the one stage that deliberately
+   breaks the streaming-first invariant. `--budget` is only meaningful
+   for bounded input.
+3. Sort buffered events by descending severity (`error` → `warn` →
+   `info`); break ties by arrival order. Determinism is preserved.
+4. Emit greedily until the remaining budget would be exceeded. The
+   stage holds back `Reserve` tokens (default
+   `DefaultBudgetReserve = 30`) so the Sink (M7) always has room for
+   a summary line.
+5. If a single high-priority event exceeds the remaining budget but
+   its Title + Location + one body line + the sentinel
+   `BudgetTruncationSentinel` fits, the event is emitted with
+   `Body=[first-line, "... [truncated by --budget]"]` and
+   `truncated: true`. Otherwise it is dropped.
+6. With `Budget == 0` the stage degrades to a streaming pass-through;
+   counters still track what passed through so the Sink can render a
+   footer.
+7. Drops and truncations are tracked on a `BudgetCounters` value
+   shared with the Sink. The Sink (and M14 library callers) read
+   counters after `Pipeline.Run` returns. Exit code 3 wiring lands
+   in M6.3.
 
 ### Token estimation
 

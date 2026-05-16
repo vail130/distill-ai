@@ -757,7 +757,7 @@ M6 builds on M5 (DedupeStage, CollapseStage) and M4 (`tokens.Estimator`,
 required tests, and required doc updates per the
 [alignment rule](./.opencode/rules/alignment.md).
 
-### M6.1 — `internal/pipeline/budget.go`: BudgetStage with severity-priority emission
+### M6.1 — `internal/pipeline/budget.go`: BudgetStage with severity-priority emission ✅
 
 Buffer events, sort by severity, emit until the budget would be
 exceeded. Mark dropped events on the `Summary` (M7 work) via shared
