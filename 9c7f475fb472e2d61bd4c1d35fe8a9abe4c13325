@@ -1,0 +1,27 @@
+.goreleaser.yaml
+  ab2bb0b85a01f798 1-109
+.github/workflows/ci.yml
+  ab2bb0b85a01f798 1-62
+.github/workflows/release.yml
+  ab2bb0b85a01f798 1-30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "9c7f475fb472e2d61bd4c1d35fe8a9abe4c13325",
+  "prompts": {
+    "ab2bb0b85a01f798": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1d1396929ffelA77PVRH1hlfH1",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 201,
+      "total_deletions": 0,
+      "accepted_lines": 468,
+      "overriden_lines": 0
+    }
+  }
+}
