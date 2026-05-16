@@ -1,0 +1,23 @@
+.gitignore
+  ab2bb0b85a01f798 33-37
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "90864bf27f793f34f27b68c1d8966da90a603b9b",
+  "prompts": {
+    "ab2bb0b85a01f798": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1d1396929ffelA77PVRH1hlfH1",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 14,
+      "total_deletions": 9,
+      "accepted_lines": 272,
+      "overriden_lines": 0
+    }
+  }
+}
