@@ -1,0 +1,72 @@
+internal/output/testdata/json/case-09-streaming-multi.expected.ndjson
+  27cf09bbe10e7fdd 1-3
+internal/output/testdata/json/case-04-frames-context-count.events.json
+  27cf09bbe10e7fdd 1-29
+internal/output/testdata/json/case-08-streaming-single.expected.ndjson
+  27cf09bbe10e7fdd 1-2
+internal/output/testdata/json/case-02-single.expected.json
+  27cf09bbe10e7fdd 1-35
+internal/output/testdata/json/case-04-frames-context-count.expected.json
+  27cf09bbe10e7fdd 1-54
+internal/output/testdata/json/case-07-streaming-empty.expected.ndjson
+  27cf09bbe10e7fdd 1
+internal/output/testdata/json/case-01-empty.expected.json
+  27cf09bbe10e7fdd 1-17
+internal/output/testdata/json/case-03-multi.events.json
+  27cf09bbe10e7fdd 1-37
+internal/output/testdata/json/case-05-truncated.events.json
+  27cf09bbe10e7fdd 1-21
+docs/formats/SCHEMA.md
+  27cf09bbe10e7fdd 151-161
+internal/output/testdata/json/case-01-empty.events.json
+  27cf09bbe10e7fdd 1-5
+internal/output/testdata/json/case-09-streaming-multi.events.json
+  27cf09bbe10e7fdd 1-29
+internal/output/testdata/json/case-05-truncated.expected.json
+  27cf09bbe10e7fdd 1-35
+internal/output/json_test.go
+  27cf09bbe10e7fdd 1-234
+internal/output/testdata/json/case-08-streaming-single.events.json
+  27cf09bbe10e7fdd 1-19
+internal/output/json.go
+  27cf09bbe10e7fdd 1-243
+internal/output/testdata/json/case-02-single.events.json
+  27cf09bbe10e7fdd 1-20
+internal/output/testdata/json/case-03-multi.expected.json
+  27cf09bbe10e7fdd 1-63
+internal/output/testdata/json/case-07-streaming-empty.events.json
+  27cf09bbe10e7fdd 1-6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "06359f9fcbe96dc5acb1ccd71f2d79b3f83618dd",
+  "prompts": {
+    "27cf09bbe10e7fdd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1cdd8df5bffehxMD8Q1B3K8d32",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 867,
+      "total_deletions": 3,
+      "accepted_lines": 864,
+      "overriden_lines": 0
+    },
+    "88e9712c2700c6c6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1cde89cadffegPygUZrDQ0Q7L7",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 2241,
+      "overriden_lines": 0
+    }
+  }
+}
