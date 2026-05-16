@@ -315,13 +315,25 @@ Implementation in `internal/pipeline/`:
 
 ### Autodetection
 
-1. Read first 4KB of input via `TeeReader` (so it's not consumed).
-2. Run `Detect(sample)` on every registered format in parallel.
-3. Pick highest confidence ≥ 0.6. Ties broken by specificity (specific
-   formats beat `generic`).
-4. If max confidence < 0.6 and `--strict`, exit 2. Otherwise fall back to
-   `generic`.
-5. Resume reading from the buffered sample + remaining stream.
+1. Read first 4 KiB of input (`detect.SampleSize`); the sample is
+   buffered so no bytes are lost from the original stream.
+2. Run `Detect(sample)` on every registered format in parallel. The
+   generic format is excluded from the candidate set up front so it
+   cannot win a tie on confidence alone; it is reserved for the
+   fallback path.
+3. Pick the highest-confidence format ≥ `event.ConfidenceMinDetect`
+   (0.6). When two specific formats score identically the
+   alphabetically-earlier `Name()` wins, so detection is
+   deterministic across runs (Go map iteration is randomised).
+4. If the winner is below 0.6:
+   - `--strict`: return `detect.ErrNoFormat`, mapped to exit code 2 by
+     the CLI.
+   - Default: fall back to the format registered under the name
+     `"generic"`, marking `Result.FellBackToGeneric = true`.
+5. The detector returns the chosen format plus an `io.Reader`
+   (`Result.Stream`) that yields the sampled bytes followed by the
+   rest of the original input. The pipeline hands that reader to
+   `Format.Parse` without losing the sample.
 
 Signatures are cheap regex matches on known markers:
 - pytest: `=== FAILURES ===`

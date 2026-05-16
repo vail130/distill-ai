@@ -264,7 +264,7 @@ hand the rest of the stream to that format's `Parse()`.
 Cross-references
 [ARCHITECTURE.md § Autodetection](./ARCHITECTURE.md#autodetection).
 
-### M3.1 — `internal/detect/detect.go`: detection engine
+### M3.1 — `internal/detect/detect.go`: detection engine ✅
 
 - **DoD:**
   - `Detect(ctx, r io.Reader) (chosen formats.Format, sample []byte, err error)`.
@@ -295,7 +295,7 @@ Cross-references
     [ARCHITECTURE.md § Autodetection](./ARCHITECTURE.md#autodetection)
     with the concrete tie-breaking rule and the sample-size constant.
 
-### M3.2 — `--strict` mode
+### M3.2 — `--strict` mode ✅
 
 - **DoD:**
   - When the detector falls back to `generic` and `--strict` is set,
