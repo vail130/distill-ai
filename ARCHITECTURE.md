@@ -305,18 +305,27 @@ Implementation in `internal/pipeline/`:
 - **`Source`** produces Events. `FormatSource` wraps a `Format.Parse`.
 - **`Stage`** transforms an Event stream. The shipped stages are
   `CollapseStage` (M5, drops vendor-frame runs and counts them in
-  `FramesCollapsed`) and `DedupeStage` (M5, bounded-LRU collapse of
-  identical Events into a single `Count > 1` entry). `PassthroughStage`
-  is the no-op identity, used in tests. Budget enforcement (M6) plugs
-  in as another Stage.
+  `FramesCollapsed`), `DedupeStage` (M5, bounded-LRU collapse of
+  identical Events into a single `Count > 1` entry), and
+  `BudgetStage` (M6, caps the estimated token cost of the stream
+  and records per-run stats on a shared `BudgetCounters`).
+  `PassthroughStage` is the no-op identity, used in tests.
 - **`Sink`** consumes the tail of the stream. Encoders (M7) are Sinks.
 - **`Pipeline`** wires one Source, an ordered list of Stages, and one
-  Sink. `Pipeline.Run(ctx)` is the entry point.
+  Sink. `Pipeline.Run(ctx)` is the entry point. The exported
+  `Pipeline.BudgetCounters` field, populated by `Build` when
+  `Options.Budget > 0`, is the Sink's window into what `BudgetStage`
+  observed during the run.
 - **`Build(src, sink, Options{})`** is the supported constructor; it
   returns a Pipeline with `[CollapseStage, DedupeStage]` pre-wired in
   the documented order (collapse before dedupe so dedupe signatures
-  key on the post-collapse frame layout). Field-level Pipeline
-  construction is reserved for tests substituting custom Stages.
+  key on the post-collapse frame layout). When `Options.Budget > 0`,
+  `BudgetStage` is appended to the chain and `Pipeline.BudgetCounters`
+  is populated; otherwise the field is nil. Build returns
+  `(*Pipeline, error)` because the `Tokenizer` option can fail to
+  resolve, and a misconfigured run must surface that before any
+  goroutine starts. Field-level Pipeline construction is reserved
+  for tests substituting custom Stages.
 - A single `BufferSize` (default 16) sizes the relay channel from the
   Source and propagates down the chain via `cap(in)` so every
   inter-stage channel is equally bounded.

@@ -82,6 +82,14 @@ type Pipeline struct {
 	// positive value tightens backpressure; a larger value relaxes
 	// it at the cost of in-flight memory.
 	BufferSize int
+
+	// BudgetCounters, when non-nil, is the BudgetCounters value
+	// shared with the BudgetStage in Stages. The Sink (M7) and
+	// library callers (M14) read it after Run returns to render the
+	// footer and to decide exit code 3. nil when no BudgetStage is
+	// wired (Options.Budget == 0); populated by Build when the
+	// budget chain is built.
+	BudgetCounters *BudgetCounters
 }
 
 // Run executes the pipeline end to end. It blocks until either the

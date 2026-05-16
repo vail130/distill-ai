@@ -842,7 +842,7 @@ counters carried through the stage.
     behaviour. The existing four-step sketch in ARCHITECTURE.md is
     the spec; this commit fleshes out the implementation.
 
-### M6.2 — Wire BudgetStage into pipeline.Options and Build
+### M6.2 — Wire BudgetStage into pipeline.Options and Build ✅
 
 Make the budget controllable from the same `Options` value the CLI
 (M8) and library callers (M14) already use.
