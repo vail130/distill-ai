@@ -20,10 +20,10 @@ Each milestone ends with **exit criteria** — a milestone-level drift
 check before the milestone is marked complete (see
 [alignment.md § Enforcement](./.opencode/rules/alignment.md#enforcement)).
 
-Milestones M1–M8 and M10 are scoped this way today. Per the working
+Milestones M1–M10 are scoped this way today. Per the working
 agreement, the next three open milestones are kept fully scoped at all
-times — so as M7 lands, M10 gets scoped; as M8 lands, M11 gets scoped;
-and so on. M9 and M11–M16 are sketched but not yet scoped.
+times — so as M8 lands, M11 gets scoped; as M9 lands, M12 gets
+scoped; and so on. M11–M16 are sketched but not yet scoped.
 
 ---
 
@@ -1449,11 +1449,439 @@ ship).
 
 ## M9 — Generic format (fallback)
 
-- [ ] `internal/formats/generic/generic.go`: regex-based error/warning detection
-- [ ] Heuristics: lines matching `ERROR|FATAL|panic|Exception|Traceback`, severity keywords
-- [ ] Context capture: N lines before/after match
-- [ ] Confidence: always returns low value (loses to specific formats)
-- [ ] Fixtures: 10+ cases covering mixed/unknown log shapes
+The detector's safety net. When no specific format scores above
+`event.ConfidenceMinDetect` (0.6), the detector falls back to a format
+registered under the reserved name `"generic"` (see
+[ARCHITECTURE.md § Autodetection](./ARCHITECTURE.md#autodetection)).
+Today no such format exists — the `detect` subcommand returns
+`ErrNoFormat` when nothing matches and the help text says "no generic
+fallback is registered yet (lands in M9)." M9 closes that gap.
+
+The generic format is a regex-driven scanner. It cannot do what
+pytest / jest / gotest do — it has no test-runner semantics, no
+structured frame extraction beyond best-effort `file:line:` matches.
+It exists so that piping arbitrary log output through `distill-ai`
+yields something rather than nothing: a sequence of severity-bucketed
+Events anchored to `ERROR`, `FATAL`, `panic`, `Exception`,
+`Traceback`, and friends, with N lines of surrounding context.
+
+Cross-references
+[ARCHITECTURE.md § Autodetection](./ARCHITECTURE.md#autodetection)
+(falls back to `generic` by name),
+[ARCHITECTURE.md § Format plugin contract](./ARCHITECTURE.md#format-plugin-contract)
+(the Format interface),
+[docs/formats/SCHEMA.md § Kind values](./docs/formats/SCHEMA.md#kind-values)
+(new generic kind values land here).
+
+M9 builds on M1 (`Format`, `formats.Register`), M3
+(autodetection — `generic` must lose ties to every specific format
+even at equal confidence; the detector already excludes `generic`
+from the candidate set up front), M5 (StackFrame classification via
+`ClassifyFrames`, when the parser opportunistically extracts a
+frame), and M7 (the encoders that render generic Events). Each item
+below lists Definition of Done, required tests, and required doc
+updates per the [alignment rule](./.opencode/rules/alignment.md).
+
+### M9.1 — `internal/formats/generic/generic.go`: skeleton + Detect
+
+Land the package, register it under the reserved name, implement
+`Detect` as a deliberate low-floor returner. No parsing yet —
+`Parse` returns an immediately-closed channel — so the detector's
+fallback path can exercise the new format end-to-end before the
+scanner arrives.
+
+- **DoD:**
+  - New package `internal/formats/generic` exporting `Format` (a
+    value type implementing `formats.Format`).
+  - `func init() { formats.Register(Format{}) }` so the registry
+    picks it up at process start.
+  - `Name() string` returns `"generic"` — the reserved name the
+    detector looks up by string in
+    [ARCHITECTURE.md § Autodetection](./ARCHITECTURE.md#autodetection).
+  - `Detect(sample []byte) Confidence`:
+    - Returns `confidenceFloor = 0.1` when the sample contains at
+      least one line matching the package's `severityPattern`
+      catalogue (defined in M9.2). The intent is "we can probably
+      find *something* useful" rather than "we recognise this
+      format." 0.1 is intentionally below
+      `event.ConfidenceMinDetect` (0.6) so a specific format
+      always wins.
+    - Returns `0.0` otherwise.
+    - The constant `confidenceFloor = 0.1` lives at package scope
+      so reviewers can see the magic number without context-
+      switching to the test.
+  - `Parse(ctx, r, opts)` returns an immediately-closed channel
+    with `nil` error for M9.1; M9.2–M9.4 fill it in. The detector
+    can then resolve the fallback path against a real registered
+    Format before the parser exists.
+  - Per [ARCHITECTURE.md § Autodetection step 2](./ARCHITECTURE.md#autodetection),
+    `generic` is excluded from the detector's candidate set, so its
+    `Detect` is never compared against a specific format on ties.
+    M9.1 documents this invariant in the package godoc so future
+    contributors don't try to make `generic` "win" ties by
+    inflating its confidence.
+- **Tests** (`internal/formats/generic/generic_test.go`):
+  - `TestGeneric_RegisteredAtInit`: import the package for its
+    side effect, then call `formats.Get("generic")` and assert
+    `(format, true)` and `format.Name() == "generic"`.
+  - `TestGeneric_DetectFloorOnSeverityHit`: feed a sample with a
+    single line containing `ERROR`; assert `Confidence == 0.1`.
+  - `TestGeneric_DetectZeroOnNonMatch`: feed innocuous prose
+    (`"Hello, world."`); assert `Confidence == 0.0`.
+  - `TestGeneric_DetectBelowMinThreshold`: assert
+    `confidenceFloor < event.ConfidenceMinDetect` at compile time
+    via a test that fails when the constants drift apart.
+  - `TestGeneric_ParseEmptyStub`: ensure `Parse` returns a closed
+    channel without error so M3 fallback paths work end-to-end
+    against the stubbed parser.
+  - `TestDetect_FallbackUsesGenericFormat`: extend the existing
+    detector test in `internal/detect/detect_test.go` so a sample
+    that no specific format claims (low-entropy text) returns
+    `FellBackToGeneric=true` with `Format.Name() == "generic"`,
+    rather than the current `ErrNoFormat`.
+- **Docs:**
+  - Godoc on `Format`, `Detect`, `Parse`, `confidenceFloor`, and
+    the "excluded from detector candidate set" invariant.
+  - New `docs/formats/generic.md` with the section skeleton
+    (intro, detection model, what's extracted, what's dropped,
+    example I/O). M9.1 fills in intro + detection; M9.2–M9.4
+    extend.
+  - Update [README.md](./README.md) usage section to mention that
+    `distill-ai` produces output for unknown log shapes via the
+    `generic` fallback (M8 wires this end-to-end via the run
+    command; M9 makes the fallback non-empty).
+  - Update `cmd/distill-ai/detect.go` help text — the current
+    hint string ("no generic fallback is registered yet (lands in
+    M9)") becomes stale the moment M9.1 lands. Replace it with a
+    note that low-confidence input still detects as `generic` by
+    default and `--strict` is the way to reject it.
+
+### M9.2 — Severity-anchored event scanner
+
+The core scan loop: read line-by-line, anchor an Event on every line
+that matches the severity catalogue, capture N lines of context
+before and after the anchor.
+
+- **DoD:**
+  - The parser is a `bufio.Scanner` over `r io.Reader`. No
+    full-input buffering: a small rolling window
+    (`contextLines * 2 + 1` lines) is the only in-memory state,
+    bounded regardless of input size.
+  - The default context size is `defaultContextLines = 3`.
+    `ParseOpts` already carries a context-size field once M8 wires
+    `--context=N`; until then M9 hard-codes the default and the
+    opt-in field is read from `opts` when non-zero. The constant
+    lives at package scope.
+  - **Severity catalogue.** A package-level slice of
+    `(pattern *regexp.Regexp, severity event.Severity, kind string)`
+    triples covers the standard markers:
+    - `error`: `ERROR`, `FATAL`, `panic:`, `Exception:`,
+      `Traceback ` (the trailing space is intentional — anchors
+      the Python "Traceback (most recent call last):" form),
+      `\bcaused by:`, `Error:`.
+    - `warn`: `WARN(ING)?`, `\bDeprecation`, `^W\d{4}:` (Python
+      warning code form), `Warning:`.
+    - `info`: deliberately empty in v1 — info-level scanning has
+      too much noise from healthy stdout. Hooking it up is
+      backlog work; ship without to keep the default quiet.
+    - Each pattern is precompiled at package init.
+    - Patterns are evaluated in catalogue order; first match wins,
+      so `Traceback` (kind `traceback`) sorts above generic
+      `Error:` (kind `error`).
+  - **Kind values.** The scanner emits these kinds, each added to
+    SCHEMA.md in M9.5: `error_line`, `warning_line`, `traceback`,
+    `panic`, `exception`.
+  - **Per-Event shape:**
+    - `Severity` from the matched pattern.
+    - `Kind` from the matched pattern.
+    - `Title` = the matched line, trimmed of trailing whitespace,
+      with leading ANSI escape sequences (`\x1b\[[0-9;]*m`)
+      stripped. The strip happens once via a precompiled regex.
+    - `Location` = best-effort extraction via a single
+      `locationPattern` regex matching `<path>:<line>:?(\d+)?`
+      anywhere on the anchor line. Path must contain at least one
+      `/` or `\` to avoid false positives on host:port pairs. Nil
+      if no match.
+    - `Body` = the anchor line verbatim (no ANSI strip — the user
+      can see what was emitted).
+    - `Context` = up to `contextLines` lines before and
+      `contextLines` lines after, in source order, joined into
+      one slice. Lines that themselves match the severity
+      catalogue are still included as context — the scanner does
+      not deduplicate adjacent matches into a single Event.
+    - `Frames`, `FramesCollapsed`, `Count`, `Metadata` left zero
+      / nil. Dedupe is M5's job; frame extraction for `traceback`
+      / `panic` blocks is M9.3.
+  - **Streaming.** Each Event is forwarded as soon as its
+    trailing-context window is full (i.e., `contextLines` lines
+    after the anchor have been consumed) or the input closes.
+    The parser never accumulates Events.
+  - **Backpressure.** The channel returned by `Parse` is
+    unbuffered (or buffered to 1 — decided at implementation
+    time). The pipeline's BufferSize handles inter-stage
+    queueing; the parser itself blocks on send so a slow
+    downstream stage propagates backpressure naturally.
+  - **Cancellation.** Each loop iteration checks `ctx.Done()`
+    before reading the next line and before sending an Event.
+- **Tests** (extends `generic_test.go`):
+  - `TestGeneric_ParseSingleError`: input is five innocuous lines
+    + one `ERROR: thing broke` + three innocuous lines; assert
+    one Event with `Severity=error`, `Kind=error_line`, three
+    lines of context before, three after.
+  - `TestGeneric_ParseMultipleEvents`: feed a fixture with three
+    distinct anchor lines spaced far enough apart that contexts
+    don't overlap; assert three Events with non-overlapping
+    `Context` slices.
+  - `TestGeneric_ParseOverlappingContexts`: feed two anchor lines
+    one apart; assert both Events emit and their `Context`
+    slices may share lines (no deduplication of context across
+    Events).
+  - `TestGeneric_ParsePanicAndException`: feed a Go panic line
+    and a Python `Exception: foo`; assert one Event each with
+    `Kind=panic` and `Kind=exception` respectively.
+  - `TestGeneric_ParseTracebackHeader`: feed a `Traceback (most
+    recent call last):` line; assert one Event with
+    `Kind=traceback`, severity error.
+  - `TestGeneric_ParseExtractsLocation`: feed
+    `ERROR foo.py:42: bad thing`; assert
+    `Location={File:"foo.py", Line:42}`.
+  - `TestGeneric_ParseLocationRequiresSlash`: feed
+    `ERROR connection to db:5432 refused`; assert
+    `Location == nil` (no slash → not a path).
+  - `TestGeneric_ParseStripsANSIFromTitle`: feed
+    `\x1b[31mERROR\x1b[0m: thing broke`; assert
+    `Title == "ERROR: thing broke"`.
+  - `TestGeneric_ParseBodyKeepsANSI`: same input as above; assert
+    `Body[0]` retains the escape sequences so users see what
+    actually arrived.
+  - `TestGeneric_ParseInfoNotEmittedV1`: feed `INFO: starting
+    server`; assert no Events emitted (info is empty in v1).
+  - `TestGeneric_ParseStreaming`: use `testutil.SlowReader` to
+    drip a fixture with three Events spread across the input;
+    assert at least the first Event emerges before the source
+    closes.
+  - `TestGeneric_ParseDeterministic`: same input twice → byte-
+    equal sequence of Events (property test, ties into the
+    project's determinism invariant).
+  - `TestGeneric_ParseBoundedMemory`: feed a 10MB synthetic
+    stream of innocuous lines (no anchors); assert peak heap
+    stays under a fixed ceiling — the same pattern as
+    `TestPipeline_BoundedMemory_PeakSampling` from M2.3.
+  - `TestGeneric_ParseContextCancellation`: cancel mid-stream;
+    parser drains and exits; no goroutine leak.
+- **Docs:**
+  - Extend `docs/formats/generic.md`: the severity catalogue
+    (table form), the kind values, an example input + Event
+    output, the ANSI-strip rule, the location-extraction
+    heuristic.
+  - Add the new kinds (`error_line`, `warning_line`, `traceback`,
+    `panic`, `exception`) to
+    [SCHEMA.md § Kind values](./docs/formats/SCHEMA.md#kind-values)
+    under a new `generic` section. Per the alignment rule, the
+    schema doc lands in the same commit.
+
+### M9.3 — Traceback / panic block accumulation
+
+`Kind=traceback` and `Kind=panic` Events are more useful when their
+Body carries the full block, not just the anchor line. M9.3 extends
+the scanner with a small block-accumulator that picks up
+trailing lines until the block terminator.
+
+- **DoD:**
+  - When the scanner anchors a `traceback` or `panic` Event, it
+    switches into block mode: subsequent lines are appended to
+    the Event's `Body` until either:
+    - A line that does not match the block's continuation regex.
+    - The block exceeds `maxBlockLines = 100` lines (a hard cap
+      to keep memory bounded under adversarial input).
+    - EOF.
+  - **Continuation regex per kind:**
+    - `traceback`: lines matching `^\s+File "` (Python
+      traceback indented frame), `^\s+at ` (JVM stack frame),
+      `^\s*\.\.\. \d+ more$` (JVM "N more frames" tail), and
+      anything matching `^\s` (an indented line; Python
+      tracebacks indent the assertion and exception type).
+    - `panic`: lines matching `^\s*goroutine \d+`, `^\s*0x[0-9a-f]+`
+      (Go panic addresses), `^\s` (any indentation; Go panic
+      stack lines are indented), and `^panic: ` repeats. Go
+      panics often print `goroutine 1 [running]:` after `panic:`,
+      so the accumulator continues across those.
+  - **Frame extraction.** When the block terminates, a per-kind
+    frame extractor runs over the captured Body:
+    - `traceback`: regex match `File "(path)", line (\d+),
+      in (func)` (Python) and `at (func)\((path):(\d+)\)`
+      (JVM). One `StackFrame` per match.
+    - `panic`: regex match `(path):(\d+)( \+0x[0-9a-f]+)?$`
+      anchored at the end of a line. The function name is the
+      preceding line's content trimmed of arguments
+      (`func(0x123, 0x456)` → `func`).
+    - Frames produced with `Vendor=false`; the M5 CollapseStage's
+      `ClassifyFrames` repopulates `Vendor` after parse.
+  - **`Title` re-derivation.** For `traceback` Events, after the
+    block is captured, the Title is replaced with the last
+    non-blank Body line (the actual exception message), matching
+    the convention every specific format uses. For `panic`
+    Events, the Title stays the original `panic: <message>` line.
+  - **Streaming.** Block accumulation delays Event emission until
+    the block terminates. The trailing-context window from M9.2
+    still applies after the block: M9.3's Event includes the
+    `contextLines` lines after the block ends, not after the
+    anchor.
+- **Tests:**
+  - `TestGeneric_ParsePythonTracebackBlock`: a fixture with one
+    Python traceback (anchor + 3 frame lines + final
+    `KeyError:` line); assert Title is `KeyError: 'foo'`, Body
+    contains every block line in order, `Frames` has 3 entries
+    with correct File/Line/Function.
+  - `TestGeneric_ParseGoPanicBlock`: a fixture with `panic:
+    runtime error` + goroutine stack; assert Title is the panic
+    message, Body contains the stack, `Frames` populated.
+  - `TestGeneric_ParseJVMTracebackBlock`: an `Exception in
+    thread "main" java.lang.NullPointerException` block; assert
+    Title and Frames.
+  - `TestGeneric_ParseBlockMaxLinesCap`: feed a 200-line indented
+    block; assert Body has exactly `maxBlockLines` (=100) entries
+    and a sentinel suffix `... [block truncated]` as the final
+    Body line.
+  - `TestGeneric_ParseBlockEndsOnDedent`: feed a traceback
+    followed by a non-indented log line; assert the block ends
+    cleanly and the next non-indented line becomes either
+    context for the next Event or is discarded.
+  - `TestGeneric_ParseBlockBoundedMemory`: feed a 1GB synthetic
+    block of indented lines (no anchors after the first); assert
+    peak heap stays under the same ceiling as M9.2 — proves the
+    `maxBlockLines` cap.
+- **Docs:**
+  - Extend `docs/formats/generic.md`: side-by-side example of a
+    Python traceback, a Go panic, and a JVM exception, each with
+    the Event the scanner produces.
+
+### M9.4 — Wire `--keep-warnings` and `--severity` filter semantics
+
+M9 is the first format whose v1 surface exposes both warnings and
+errors. The `--keep-warnings` and `--severity` CLI flags (wired in
+M8.2.x) need a defined interaction with the generic scanner.
+
+- **DoD:**
+  - The generic `Parse` reads two new fields from `opts`
+    (`formats.ParseOpts` — extended to carry these in the same
+    commit):
+    - `MinSeverity event.Severity` — default
+      `event.SeverityError`. Events whose severity is lower than
+      `MinSeverity` are not emitted by the parser.
+    - `KeepWarnings bool` — default false. When true, the
+      effective minimum severity drops to `SeverityWarn`
+      regardless of `MinSeverity`. This matches the
+      [ARCHITECTURE.md § Flags](./ARCHITECTURE.md#flags) sketch
+      where `--keep-warnings` is a one-shot bump for the common
+      "errors only when errors exist, otherwise everything" case.
+    - When `MinSeverity == SeverityInfo` and `KeepWarnings ==
+      false`, the parser still emits warnings (the explicit
+      `MinSeverity` wins over the default). Document the
+      precedence in godoc.
+  - **Filtering position.** Filtering happens inside the parser,
+    not as a downstream Stage, because dropping a low-severity
+    anchor line also frees its context window. This is the
+    cheapest place to drop noise.
+  - The two specific formats already shipped (pytest in M10,
+    when it lands) do not yet read these fields; M9.4 only wires
+    them into `generic`. Future formats opt in by reading the
+    same `ParseOpts` fields. SCHEMA.md notes this is a per-
+    format opt-in, not a pipeline-wide guarantee, so consumers
+    don't expect "this option always filters everything."
+- **Tests:**
+  - `TestGeneric_ParseMinSeverityError`: feed a fixture with one
+    error and one warning, default opts; assert only the error
+    Event emerges.
+  - `TestGeneric_ParseKeepWarnings`: same fixture,
+    `KeepWarnings=true`; assert both Events emerge.
+  - `TestGeneric_ParseMinSeverityInfoEmitsWarnings`: even though
+    v1 catalogue has no info patterns, asserting that setting
+    `MinSeverity=SeverityInfo` doesn't suppress warnings; both
+    error and warning Events emerge.
+  - `TestGeneric_ParseFilterBeforeContext`: a warning anchor
+    inside an error's context window does not become its own
+    Event when warnings are filtered, but the line still appears
+    in the error Event's `Context`. Proves filtering happens
+    "drop the anchor but keep the surrounding lines as context"
+    rather than "skip the line entirely."
+- **Docs:**
+  - Extend `docs/formats/generic.md` with the filtering
+    semantics, including the `Context`-preservation rule above.
+  - Note the per-format opt-in in
+    [SCHEMA.md § Severity](./docs/formats/SCHEMA.md) (or a new
+    section if one doesn't exist; decide at scoping time).
+
+### M9.5 — Fixtures and ARCHITECTURE update
+
+Tie M9 off with the canonical fixture set per
+[CONTRIBUTING.md § Adding a format](./CONTRIBUTING.md#adding-a-format)
+and update the project's format-list / scope documents.
+
+- **DoD:**
+  - Ten fixtures under `internal/formats/generic/testdata/`,
+    matching the v1 design's minimum-of-ten goal for the
+    fallback:
+    - `clean.input`: no severity hits, scanner emits nothing.
+    - `single-error.input`: one `ERROR:` line in a sea of INFO.
+    - `multi-error.input`: three errors at various points.
+    - `python-traceback.input`: a clean Python traceback.
+    - `go-panic.input`: a goroutine stack dump.
+    - `jvm-exception.input`: a Java exception block.
+    - `mixed-warn-error.input`: warnings and errors interleaved,
+      exercises `--keep-warnings`.
+    - `ansi-coloured.input`: lines with `\x1b[...m` colour codes,
+      exercises the ANSI strip.
+    - `nested-paths.input`: a line with `file.py:42:` plus a
+      `host:port` pair, exercises the slash-required location
+      heuristic.
+    - `block-overflow.input`: a traceback longer than
+      `maxBlockLines` to exercise the cap.
+  - Each `.input` has a `.expected` companion in the JSON shape
+    the format-test harness reads (the harness is the same one
+    pytest uses in M10.5; extract it to `internal/formats/testing.go`
+    so both formats share it). Per the alignment rule, the
+    harness lands in the same commit it is first used by.
+  - `formats.All()` (after the side-effect import) includes
+    `generic` in alphabetical position — verified by
+    `cmd/distill-ai/list_formats_test.go` once M8.4 lands.
+  - ARCHITECTURE.md format list updated to mention `generic` as
+    "shipped" rather than "fallback (not yet implemented)".
+  - The `cmd/distill-ai/detect.go` help text fixed in M9.1
+    rechecked here; the M9 milestone exit catches any drift if
+    M9.1 and M9.5 land in separate commits.
+- **Tests:**
+  - `TestGeneric_Goldens`: harness walks `testdata/`, runs the
+    parser on each `.input`, marshals Events to JSON, diffs
+    against `.expected`. Run with `-update` to regenerate.
+  - `TestGeneric_FixtureCount`: hard assertion that exactly the
+    ten enumerated fixtures exist, so future drift is caught.
+- **Docs:**
+  - `docs/formats/generic.md` finalised: detection model, every
+    parsed kind with an example, severity catalogue, the
+    filtering semantics, the ten fixtures referenced by file
+    name.
+  - ARCHITECTURE.md updated per DoD.
+  - README.md format list updated.
+
+### M9 exit criteria
+
+- All five sub-items ticked.
+- `make check` clean; no race hits; no goroutine leaks.
+- M9 milestone drift check: `formats.Get("generic")` returns the
+  registered Format; `docs/formats/generic.md` exists and describes
+  every Event kind the parser emits; SCHEMA.md's `generic` kind
+  values list matches the parser's emitted kinds; the ten fixtures
+  live under `internal/formats/generic/testdata/` with `*.input` +
+  `*.expected` pairs; `cmd/distill-ai/detect.go` help text no
+  longer claims "generic fallback is not yet registered"; the
+  detector's `ErrNoFormat` return path now triggers only for
+  `--strict` callers (the default path falls back to `generic`
+  with `FellBackToGeneric=true`).
+- The generic format is the safety net every other v1 format is
+  measured against. If `cmd | distill-ai` produces zero Events on
+  a real-world log shape that contains the word `ERROR`, M9 has
+  a gap.
 
 ---
 
