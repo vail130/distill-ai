@@ -114,7 +114,7 @@ Define the contract every format implements.
     [CONTRIBUTING.md § Adding a format](./CONTRIBUTING.md#adding-a-format)
     to the `Format` godoc.
 
-### M1.3 — `internal/formats/registry.go`: format registry
+### M1.3 — `internal/formats/registry.go`: format registry ✅
 
 Thread-safe registration so formats self-register via `init()`.
 
