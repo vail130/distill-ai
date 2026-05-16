@@ -406,3 +406,31 @@ func TestBudgetStage_ContextCancellation(t *testing.T) {
 		t.Errorf("goroutine leak: before=%d after=%d", before, after)
 	}
 }
+
+func TestBudgetCounters_ForcedDropsTrueOnDrops(t *testing.T) {
+	c := &BudgetCounters{EventsDroppedBudget: 1}
+	if !c.ForcedDrops() {
+		t.Error("ForcedDrops()=false with EventsDroppedBudget>0")
+	}
+}
+
+func TestBudgetCounters_ForcedDropsTrueOnTruncations(t *testing.T) {
+	c := &BudgetCounters{EventsTruncated: 1}
+	if !c.ForcedDrops() {
+		t.Error("ForcedDrops()=false with EventsTruncated>0")
+	}
+}
+
+func TestBudgetCounters_ForcedDropsFalseOnCleanRun(t *testing.T) {
+	c := &BudgetCounters{EventsBuffered: 5, EventsEmitted: 5}
+	if c.ForcedDrops() {
+		t.Error("ForcedDrops()=true on clean run")
+	}
+}
+
+func TestBudgetCounters_ForcedDropsFalseOnNilReceiver(t *testing.T) {
+	var c *BudgetCounters
+	if c.ForcedDrops() {
+		t.Error("ForcedDrops()=true on nil receiver")
+	}
+}

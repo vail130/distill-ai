@@ -99,7 +99,12 @@ Total ~15. Resist adding more without strong justification.
 - `0` — success, events found and emitted
 - `1` — success, but no events found (input was clean)
 - `2` — error: bad flags, IO error, detection failed in `--strict`
-- `3` — partial: ran successfully but dropped content to fit `--budget`
+- `3` — partial: ran successfully but dropped or truncated content
+  to fit `--budget`. The source-of-truth for this code is
+  `BudgetCounters.ForcedDrops()` on the Pipeline's `BudgetCounters`
+  field (M6.3); CLI wiring lands in M8. The method is safe on a nil
+  receiver, so pipelines without a `BudgetStage` cleanly report
+  "no forced drops" without the caller having to nil-check.
 
 Agents and CI use these.
 
@@ -405,8 +410,9 @@ caps the estimated cost of the Event stream at N tokens.
    footer.
 7. Drops and truncations are tracked on a `BudgetCounters` value
    shared with the Sink. The Sink (and M14 library callers) read
-   counters after `Pipeline.Run` returns. Exit code 3 wiring lands
-   in M6.3.
+   counters after `Pipeline.Run` returns;
+   `BudgetCounters.ForcedDrops()` is the canonical signal for exit
+   code 3 (wired by M8).
 
 ### Token estimation
 
