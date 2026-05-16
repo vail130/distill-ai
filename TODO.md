@@ -20,8 +20,10 @@ Each milestone ends with **exit criteria** — a milestone-level drift
 check before the milestone is marked complete (see
 [alignment.md § Enforcement](./.opencode/rules/alignment.md#enforcement)).
 
-Milestones M1–M3 are scoped this way today. M4–M16 will be scoped
-before their respective branches open, to avoid premature detail.
+Milestones M1–M8 are scoped this way today. Per the working agreement,
+the next three open milestones are kept fully scoped at all times — so
+as M6 lands, M9 gets scoped; as M7 lands, M10 gets scoped; and so on.
+M9–M16 are sketched but not yet scoped.
 
 ---
 
@@ -734,45 +736,714 @@ Connect the two stages to the pipeline's configuration so the CLI
 
 ## M6 — Budget enforcement
 
-- [ ] `internal/pipeline/budget.go`: greedy emit by severity until budget hit
-- [ ] Single-event-exceeds-budget: truncate body, mark `truncated: true`
-- [ ] Footer always emitted (~30 token reserve)
-- [ ] Exit code 3 when budget forces drops
-- [ ] Tests: assert output never exceeds `--budget=N` by more than estimator margin
-- [ ] Tests: footer present even when all events dropped
+Enforce a target output token count via `--budget=N`. The budget
+stage sits at the tail of the pipeline (after Collapse and Dedupe,
+before the Sink); it estimates each Event's token cost via a
+`tokens.Estimator`, emits highest-severity Events first, truncates a
+single Event's body when it alone exceeds the remaining budget, and
+counts drops so the footer (M7) can report them. Exit code 3 is
+reserved for "ran successfully but had to drop content."
+
+Cross-references
+[ARCHITECTURE.md § Budget enforcement](./ARCHITECTURE.md#budget-enforcement)
+and [§ Token estimation](./ARCHITECTURE.md#token-estimation).
+The asymmetric design from M4 applies: the heuristic overestimates,
+so a `--budget=N` cap typically yields fewer than N real tokens.
+That's deliberate — overshooting a model's context window is worse
+than wasting headroom.
+
+M6 builds on M5 (DedupeStage, CollapseStage) and M4 (`tokens.Estimator`,
+`tokens.ByName`). Each item below lists Definition of Done (DoD),
+required tests, and required doc updates per the
+[alignment rule](./.opencode/rules/alignment.md).
+
+### M6.1 — `internal/pipeline/budget.go`: BudgetStage with severity-priority emission
+
+Buffer events, sort by severity, emit until the budget would be
+exceeded. Mark dropped events on the `Summary` (M7 work) via shared
+counters carried through the stage.
+
+- **DoD:**
+  - `BudgetStage` implements `pipeline.Stage`. Configurable fields:
+    - `Budget int` (target token cap; 0 means "no cap" → pass-through).
+    - `Reserve int` (footer reserve; default 30, see M6.3).
+    - `Estimator tokens.Estimator` (required when `Budget > 0`).
+    - `Counters *BudgetCounters` (pointer to a struct the Sink reads
+      after the pipeline drains; see DoD below).
+  - **Eviction-emit timing.** BudgetStage is **buffered**: it reads
+    its input fully before emitting, because severity-priority
+    ordering can't be decided streaming. This is documented as the
+    one stage that deliberately breaks streaming, justified because
+    `--budget` only makes sense for bounded input. When `Budget == 0`
+    the stage degrades to a streaming pass-through identical to
+    `PassthroughStage`.
+  - **Emission order** when `Budget > 0`: events emitted in
+    descending severity (error → warn → info), then by their original
+    arrival order within each severity bucket. The arrival order is
+    captured by an incrementing sequence number assigned when the
+    event is buffered, so the order is deterministic for identical
+    inputs.
+  - **Single-event truncation.** Before deciding to drop an event,
+    BudgetStage asks: "would this event fit if its body were
+    truncated to one line?" If yes — i.e., the Title + Location +
+    one-line body fits in the remaining budget — the event is
+    emitted with `Body` reduced to its first line plus a sentinel
+    suffix line `"... [truncated by --budget]"`, and `Truncated=true`.
+    If no — the event is dropped entirely.
+  - **Counters.** A `BudgetCounters` struct (exported, zero-value
+    safe, goroutine-unsafe — the Sink reads it only after the
+    pipeline returns) holds:
+    - `EventsBuffered int` — events the stage saw on input.
+    - `EventsEmitted int` — events sent downstream.
+    - `EventsDroppedBudget int` — events the budget forced out.
+    - `EventsTruncated int` — events whose body was shortened.
+    - `EstimatedTokens int` — total estimated tokens emitted
+      (including the reserve; see M6.3).
+  - **Footer reserve.** The stage subtracts `Reserve` from `Budget`
+    before deciding what fits, so the Sink (M7) always has room for
+    a summary line. With `Budget < Reserve` the stage emits no
+    events and reports them all as dropped.
+- **Tests** (`internal/pipeline/budget_test.go`):
+  - `TestBudgetStage_ZeroBudgetIsPassthrough`: `Budget=0` → every
+    input event flows out unchanged with no buffering delay (verify
+    streaming via `testutil.SlowReader`-style timing assertion).
+  - `TestBudgetStage_EmitsHighestSeverityFirst`: feed
+    `[info, warn, error]` with a budget that fits only two events;
+    assert `[error, warn]` emerge in that order.
+  - `TestBudgetStage_DropsLowestFirst`: budget too tight for all;
+    the dropped event is the lowest-severity one. Tie-break by
+    arrival order: among same-severity events, later arrivals drop
+    first.
+  - `TestBudgetStage_TruncatesSingleOversizedEvent`: feed one Event
+    whose estimated cost > `Budget - Reserve` but whose Title alone
+    fits; assert it emerges with `Truncated=true`, `Body` contains
+    one verbatim line plus the sentinel.
+  - `TestBudgetStage_DropsUntruncatableEvent`: feed one Event whose
+    Title alone exceeds budget; assert it is dropped and counted as
+    `EventsDroppedBudget`, not `EventsTruncated`.
+  - `TestBudgetStage_ReserveProtected`: with `Budget=100`,
+    `Reserve=30`, the stage never emits more than ~70 tokens of
+    estimated output (within the estimator's ±15% margin).
+  - `TestBudgetStage_CountersAccurate`: feed a fixture with known
+    expected counts, assert every `BudgetCounters` field matches.
+  - `TestBudgetStage_DeterministicOrder`: same input twice → same
+    emission sequence (property test; ties into M2.2 determinism
+    invariant).
+  - `TestBudgetStage_ContextCancellation`: cancel mid-stream
+    (during the buffering phase), stage drains and exits, no
+    goroutine leak.
+- **Docs:**
+  - Godoc on `BudgetStage`, `BudgetCounters`, the `Budget` /
+    `Reserve` / `Estimator` / `Counters` fields. Document the
+    buffering-vs-streaming tradeoff explicitly.
+  - Update
+    [ARCHITECTURE.md § Budget enforcement](./ARCHITECTURE.md#budget-enforcement)
+    so it documents the truncation sentinel string and the reserve
+    behaviour. The existing four-step sketch in ARCHITECTURE.md is
+    the spec; this commit fleshes out the implementation.
+
+### M6.2 — Wire BudgetStage into pipeline.Options and Build
+
+Make the budget controllable from the same `Options` value the CLI
+(M8) and library callers (M14) already use.
+
+- **DoD:**
+  - `pipeline.Options` gains:
+    - `Budget int` (token cap; 0 = no budget).
+    - `Tokenizer string` (heuristic | tiktoken; passed through to
+      `tokens.ByName`).
+  - `Build(src, sink, opts)` wires the chain as
+    `[CollapseStage, DedupeStage, BudgetStage]` when `Budget > 0`,
+    and `[CollapseStage, DedupeStage]` when `Budget == 0`. The
+    BudgetStage is inserted between the existing stages and the
+    Sink, never reordered.
+  - The `BudgetCounters` value is created by `Build`, attached to
+    the returned Pipeline (via a new `Pipeline.BudgetCounters`
+    field), and shared with the BudgetStage by pointer so the Sink
+    can read it after `Run` returns.
+  - When `Budget > 0` and `Estimator` would fail to construct
+    (e.g., unknown tokenizer name), `Build` returns an error rather
+    than a partially-wired Pipeline. Signature changes from
+    `Build(...) *Pipeline` to `Build(...) (*Pipeline, error)`; all
+    existing call sites updated in the same commit.
+- **Tests** (`internal/pipeline/build_test.go`, extended):
+  - `TestBuild_BudgetZeroOmitsBudgetStage`: `Options{}` → chain is
+    `[CollapseStage, DedupeStage]`, no BudgetStage.
+  - `TestBuild_BudgetSetIncludesBudgetStage`: `Options{Budget: 100}`
+    → chain is `[CollapseStage, DedupeStage, BudgetStage]`, in that
+    order.
+  - `TestBuild_BudgetCountersExposed`: after `Run`, the Pipeline's
+    `BudgetCounters` reflects what the BudgetStage observed.
+  - `TestBuild_UnknownTokenizerErrors`: `Options{Budget: 100, Tokenizer: "ggml"}`
+    → `Build` returns an error before any goroutine starts.
+  - `TestBuild_TokenizerHeuristicByDefault`: empty `Tokenizer`
+    string defaults to `"heuristic"`.
+- **Docs:**
+  - Godoc on the new `Options` fields and the new
+    `Pipeline.BudgetCounters` field.
+  - Mention the new chain shape and the `Build` error return in
+    [ARCHITECTURE.md § Pipeline](./ARCHITECTURE.md#pipeline).
+
+### M6.3 — Exit code 3 plumbing
+
+The CLI maps "BudgetStage dropped or truncated content" to exit
+code 3. M6 prepares the signal; M8 reads it.
+
+- **DoD:**
+  - `BudgetCounters` gains a method
+    `func (c *BudgetCounters) ForcedDrops() bool` that returns
+    `EventsDroppedBudget > 0 || EventsTruncated > 0`.
+  - Documented contract: any consumer that wants to honour exit
+    code 3 calls `ForcedDrops()` on the Pipeline's `BudgetCounters`
+    after `Run` returns. M8 will wire the CLI; M14 library callers
+    can do the same.
+  - No CLI work yet — flag parsing and exit-code mapping live in M8.
+- **Tests:**
+  - `TestBudgetCounters_ForcedDropsTrueOnDrops`.
+  - `TestBudgetCounters_ForcedDropsTrueOnTruncations`.
+  - `TestBudgetCounters_ForcedDropsFalseOnCleanRun`.
+- **Docs:**
+  - Godoc on `ForcedDrops`.
+  - Update
+    [ARCHITECTURE.md § Exit codes](./ARCHITECTURE.md#exit-codes) to
+    name `BudgetCounters.ForcedDrops()` as the source-of-truth for
+    exit code 3.
+
+### M6 exit criteria
+
+- All three sub-items ticked.
+- `make check` clean; no race hits; no goroutine leaks.
+- M6 milestone drift check: ARCHITECTURE.md budget-enforcement section
+  documents the truncation sentinel, the reserve, and the
+  `ForcedDrops()` contract; the new `Pipeline.BudgetCounters` field
+  is mentioned in
+  [ARCHITECTURE.md § Pipeline](./ARCHITECTURE.md#pipeline); SCHEMA.md
+  already documents `truncated` and `events_dropped_budget` and so
+  needs no change.
+- `--budget=N` and `--tokenizer=...` flags are **not** wired in M6;
+  that's M8. The pipeline option exists so M8 only has to pass flag
+  values through.
 
 ---
 
 ## M7 — Output encoders
 
-- [ ] `internal/output/text.go`: default compact format
-- [ ] `internal/output/json.go`: stable schema; bounded → JSON, streaming → ndjson
-- [ ] `internal/output/markdown.go`: headings + fenced blocks
-- [ ] Footer rendering per format
-- [ ] `--no-footer` flag wiring
-- [ ] Schema versioning constant + tests
-- [ ] Golden output tests for all three formats
+Three Sinks that turn the Event stream into bytes a user (or an LLM)
+can read: compact `text` (the default), schema-versioned `json` /
+`ndjson`, and `markdown` for direct paste into chat. Each Sink owns
+its own footer rendering; the `--no-footer` option suppresses the
+footer line uniformly across all three.
+
+Cross-references
+[ARCHITECTURE.md § Output formats](./ARCHITECTURE.md#output-formats),
+[docs/formats/SCHEMA.md](./docs/formats/SCHEMA.md) (the source of
+truth for JSON), and
+[output-stability rule](./.opencode/rules/output-stability.md) (JSON
+is a public API).
+
+M7 builds on M6 (`BudgetCounters` populates the summary; estimated
+tokens come from the Estimator the BudgetStage already constructed).
+The Sink reads counters and the BudgetStage's
+`BudgetCounters.EstimatedTokens` after the pipeline returns. Each
+item below lists Definition of Done (DoD), required tests, and
+required doc updates per the
+[alignment rule](./.opencode/rules/alignment.md).
+
+### M7.1 — `internal/output/text.go`: default compact encoder
+
+Match the example output in
+[ARCHITECTURE.md § Output formats § text](./ARCHITECTURE.md#output-formats).
+
+- **DoD:**
+  - `TextSink` implements `pipeline.Sink`. Configurable fields:
+    - `Writer io.Writer` (required).
+    - `NoFooter bool`.
+    - `FormatName string` (the format that fed the pipeline; used
+      in the header line "N events from <format>").
+    - `Counters *pipeline.BudgetCounters` (optional; nil for
+      pipelines without BudgetStage — the Sink computes the
+      summary from its own running counts).
+  - **Streaming.** Events render incrementally: each event writes
+    its own block as soon as it arrives. The header line is
+    deferred until the first event arrives (so the count is known)
+    or replaced with a "no events found" line if input closes
+    without any events.
+  - **Per-event block shape** (lines):
+    1. `[N] <SEVERITY> <Title>` — N is 1-indexed sequence number.
+    2. `  at <file>:<line>` — only if `Location` is set.
+    3. Body lines indented two spaces.
+    4. `  context:` followed by indented context lines, only if
+       `Context` is non-empty.
+    5. `  ... K vendor frames collapsed` — only if
+       `FramesCollapsed > 0`.
+    6. `  (×K)` — only if `Count > 1`.
+    7. `  [truncated by --budget]` — only if `Truncated == true`.
+    8. Blank line.
+  - **Footer** (skipped if `NoFooter`):
+    - `---` separator.
+    - `distilled <in_lines> lines → <out_lines> lines (<tokens> tokens)`.
+    - `dropped: <budget_drops> events, <dedup_collapsed> deduped, <frames> vendor frames`.
+    - Input line count comes from a `LineCounter` wrapper the Source
+      installs around its `io.Reader`; expose a public
+      `output.LineCounter` so the CLI can plug it in.
+  - All counters degrade gracefully when their source isn't
+    available (e.g., no BudgetStage → `dropped: 0 events`).
+- **Tests** (`internal/output/text_test.go`):
+  - Golden-file tests under `internal/output/testdata/text/`:
+    `case-01.events.json` (a fixture serialisation of events) +
+    `case-01.expected.txt`. Update with `go test -update ./...`.
+    Minimum five cases: empty input, single event, multi-event,
+    event with frames + context + count, event with truncated body.
+  - `TestTextSink_NoFooterSuppressesFooter`.
+  - `TestTextSink_StreamingEmitsBeforeEOF`: use
+    `testutil.SlowReader` to drip events; first event block must
+    appear before the source closes.
+  - `TestTextSink_HandlesNilLocation`: event with no Location omits
+    the `at file:line` line cleanly.
+  - `TestTextSink_ContextCancellation`: cancel mid-stream, Sink
+    returns context.Canceled, no goroutine leak.
+- **Docs:**
+  - Godoc on `TextSink`, `LineCounter`, every exported field.
+  - Update [README.md](./README.md) once the CLI is wired in M8;
+    M7 only needs godoc + the existing ARCHITECTURE example.
+
+### M7.2 — `internal/output/json.go`: schema-versioned JSON / ndjson
+
+Match the schema in
+[docs/formats/SCHEMA.md](./docs/formats/SCHEMA.md) exactly.
+
+- **DoD:**
+  - `JSONSink` implements `pipeline.Sink`. Configurable fields:
+    - `Writer io.Writer` (required).
+    - `NoFooter bool`.
+    - `FormatName string`.
+    - `Counters *pipeline.BudgetCounters` (optional).
+    - `Streaming bool` — when true, emits ndjson (one JSON object
+      per line, each carrying `schema_version`, `format`, and
+      either `event` or `summary`); when false, accumulates events
+      and emits a single batch JSON object at end of stream.
+    - `EstimatorName string` — `"heuristic"` or `"tiktoken"`,
+      reflected in `summary.estimator`.
+    - `ExitCode int` — populated by the CLI (M8) after pipeline
+      completion; included in `summary.exit_code`.
+  - **Schema version constant.** A new `output.SchemaVersion = 1`
+    constant (the only place this value lives). The
+    `TestEvent_JSONSchemaMatchesDoc` test in `internal/event/`
+    extended to also verify `output.SchemaVersion` matches the
+    `Current schema version: 1` line in SCHEMA.md.
+  - **Streaming mode.** Each event marshals to a self-contained
+    line of the shape
+    `{"schema_version":1,"format":"<name>","event":{...}}`; the
+    final line is
+    `{"schema_version":1,"format":"<name>","summary":{...}}`.
+    Per SCHEMA.md.
+  - **Batch mode.** Single top-level object with `schema_version`,
+    `format`, `events: [...]`, `summary: {...}`.
+  - **Mode selection.** M7 exposes `Streaming` as an explicit
+    field. The CLI (M8) decides which to use: stdin pipe-into-tty
+    use case → batch; stdin from a long-running tail → streaming.
+    A future heuristic can auto-detect; for now M8 ships an
+    `--output-streaming` flag or chooses batch by default.
+  - **`null` Location.** When an event has `Location == nil`,
+    JSON encodes `"location": null`. The struct tag is already
+    `json:"location"` (no omitempty), so the existing event package
+    handles this; M7 verifies it via a golden test.
+  - **`metadata` map order.** Marshalled with sorted keys for
+    determinism (use `json.Marshal` on a `map[string]string`
+    which Go sorts deterministically). Asserted by a property test.
+- **Tests** (`internal/output/json_test.go`):
+  - Golden tests under `internal/output/testdata/json/` matching
+    the same case set as the text encoder: same five fixtures →
+    expected JSON. Plus three ndjson cases to exercise streaming
+    mode.
+  - `TestJSONSink_SchemaVersionMatchesDoc`: extends
+    `TestEvent_JSONSchemaMatchesDoc` (or lives alongside it) to
+    cross-check `output.SchemaVersion` against the SCHEMA.md
+    "Current schema version" line.
+  - `TestJSONSink_StreamingProducesNDJSON`: every line of output
+    is a valid JSON object; final line has `summary`, prior lines
+    have `event`.
+  - `TestJSONSink_BatchProducesSingleObject`: output parses to
+    one `Output{}` struct; `len(events)` matches input.
+  - `TestJSONSink_MetadataSortedKeys`: feed an event with metadata
+    `{c: ..., a: ..., b: ...}`; output order is `a, b, c`.
+  - `TestJSONSink_NoFooterStillIncludesSummaryFieldsInBatch`: in
+    batch mode, the summary object is part of the schema and is
+    always emitted; `--no-footer` suppresses only the human-
+    readable footer line in text/markdown. Document this asymmetry
+    in godoc.
+- **Docs:**
+  - Godoc on `JSONSink`, `SchemaVersion`, every field.
+  - Update SCHEMA.md only if M7 discovers a gap (the current spec
+    is the contract). Document the text/markdown vs JSON
+    `--no-footer` asymmetry under
+    [SCHEMA.md § Summary object](./docs/formats/SCHEMA.md#summary-object).
+  - Update [output-stability rule](./.opencode/rules/output-stability.md)
+    if any drift-guard test name changes.
+
+### M7.3 — `internal/output/markdown.go`: markdown encoder
+
+Same content as the text encoder, wrapped in markdown headings and
+fenced blocks for direct paste into chat.
+
+- **DoD:**
+  - `MarkdownSink` implements `pipeline.Sink`. Same configurable
+    fields as `TextSink`.
+  - **Per-event block shape:**
+    - `### [N] <SEVERITY> <Title>`.
+    - Bullet list of metadata (location, count, truncation marker,
+      collapsed-frame count).
+    - Body wrapped in a fenced code block. Fence language derived
+      from a format hint on the Sink (`FenceLang` field; default
+      empty, no language).
+    - Context wrapped in its own fenced block under a `**Context:**`
+      bold label, only if non-empty.
+  - **Header:** `# N events from <format>` once first event arrives.
+  - **Footer:** `---` separator, then a bulleted summary list with
+    the same fields as the text footer. Suppressed by `NoFooter`.
+- **Tests** (`internal/output/markdown_test.go`):
+  - Golden tests under `internal/output/testdata/markdown/`. Same
+    five-case minimum as text and JSON.
+  - `TestMarkdownSink_FenceLanguage`: setting `FenceLang="python"`
+    produces ` ```python ` fences.
+  - `TestMarkdownSink_NoFooter`.
+  - `TestMarkdownSink_StreamingEmitsBeforeEOF` (parallel to text).
+- **Docs:**
+  - Godoc on `MarkdownSink`, `FenceLang`.
+
+### M7.4 — Property tests across all three Sinks
+
+Promote the cross-cutting invariants to single-source-of-truth tests.
+
+- **DoD:**
+  - `TestSinks_DeterministicForFixedInput`: same `[]Event` fed to
+    each Sink twice → byte-equal output both times. Runs against
+    every Sink in the package.
+  - `TestSinks_StreamingEmitsBeforeEOF`: same `testutil.SlowReader`
+    helper from M2.2, repeated for each Sink in turn.
+  - `TestSinks_NoFooterFlagHonoured`: feed identical input twice,
+    once with `NoFooter=true` and once without; assert the output
+    differs only by the footer block.
+  - `TestSinks_FooterReflectsCounters`: synthesise a
+    `BudgetCounters` value with known fields, run a fixture, parse
+    the footer (JSON: directly; text/markdown: by line-matching
+    the printed counters) and assert each counter is reflected.
+- **Tests:** the property tests are the deliverable.
+- **Docs:**
+  - Reference these tests from
+    [testing.md](./.opencode/rules/testing.md) under the existing
+    property-test section, alongside the pipeline property tests.
+
+### M7 exit criteria
+
+- All four sub-items ticked.
+- `make check` clean.
+- M7 milestone drift check: SCHEMA.md `schema_version` matches
+  `output.SchemaVersion`; every field in SCHEMA.md's event and
+  summary tables is exercised by at least one JSON golden test;
+  ARCHITECTURE.md output-formats example for the text encoder
+  matches what `TextSink` actually emits.
+- The CLI is **not** wired in M7; the Sinks are constructed and
+  tested directly. M8 wires `--output`, `--no-footer`,
+  `--output-streaming`.
 
 ---
 
 ## M8 — CLI surface
 
-- [ ] `cmd/distill-ai/flags.go`: cobra flag definitions
-- [ ] `cmd/distill-ai/run.go`: wires flags → pipeline opts
-- [ ] Positional `FORMAT` + `FILE...` parsing
-- [ ] Stdin/file input handling (multi-file = concatenated stream)
-- [ ] Exit code mapping (0/1/2/3) per ARCHITECTURE
-- [ ] `--help` text matches ARCHITECTURE flag list
-- [ ] `--version` from build-time ldflags
-- [ ] `-v` / `--verbose` writes pipeline diagnostics to stderr
+Final user-facing surface: flag parsing, subcommand dispatch, file vs
+stdin input, exit-code mapping. Everything M0–M7 built is hidden from
+the user without this milestone.
 
-### Subcommands
+Cross-references
+[ARCHITECTURE.md § Flags](./ARCHITECTURE.md#flags),
+[§ Exit codes](./ARCHITECTURE.md#exit-codes),
+[flag-policy rule](./.opencode/rules/flag-policy.md) (a flag is a
+one-way door — read this before suggesting any addition).
 
-- [ ] `list-formats`: prints registered formats with version/source
-- [ ] `detect FILE`: prints chosen format + confidence + runner-up
-- [ ] `explain FILE`: dry-run; annotates kept/dropped/why
-- [ ] `completions [bash|zsh|fish]`: generate shell completion
-- [ ] `version`: build version + commit + date
+M8 builds on M3 (autodetect, the `detect` subcommand stub), M5
+(dedupe and collapse Options), M6 (budget Options, `BudgetCounters`),
+and M7 (Sinks). It introduces `cobra` as the CLI framework — see
+M8.1 for the dependency justification. Each item below lists DoD,
+required tests, and required doc updates per the
+[alignment rule](./.opencode/rules/alignment.md).
+
+### M8.1 — Adopt `cobra` for flag and subcommand handling
+
+The current `cmd/distill-ai/main.go` is a hand-rolled switch with two
+verbs. M8's flag matrix and subcommand tree make a dependency
+worthwhile.
+
+- **DoD:**
+  - Add `github.com/spf13/cobra` and `github.com/spf13/pflag`
+    (cobra's transitive flag library) as dependencies. Justified
+    in the commit body per
+    [dependencies rule](./.opencode/rules/dependencies.md): the
+    flag matrix in
+    [ARCHITECTURE.md § Flags](./ARCHITECTURE.md#flags) has 17
+    flags across four groups, plus six subcommands with their own
+    flags. Hand-rolled `flag` package handling would not let us
+    ship the `completions [bash|zsh|fish]` subcommand (which is a
+    selling point per the original design) — cobra generates that
+    for free. No CGo, MIT-licensed, both libraries already vendored
+    by many Go CLIs (kubectl, helm, gh) so they're well-trodden.
+  - Update [ARCHITECTURE.md § Dependencies](./ARCHITECTURE.md#dependencies)
+    to list cobra and pflag.
+  - Re-architect `cmd/distill-ai/main.go`:
+    - `main()` calls `root.Execute()`.
+    - `root` is a `*cobra.Command` defined in a new
+      `cmd/distill-ai/root.go`.
+    - The existing `detect` subcommand moves to its existing
+      `detect.go` but adopts the cobra signature.
+- **Tests** (`cmd/distill-ai/root_test.go`):
+  - `TestRoot_HelpExitsZero`.
+  - `TestRoot_UnknownSubcommandExitsTwo`.
+  - `TestRoot_VersionPrintsBuildInfo`.
+- **Docs:**
+  - ARCHITECTURE dependencies update.
+  - Godoc on the new exported pieces (likely none; main package).
+
+### M8.2 — `distill-ai run` (the default pipeline command)
+
+The verb that distills. Default subcommand when none is given, so
+`cmd | distill-ai` works without arguments.
+
+- **DoD:**
+  - `cmd/distill-ai/run.go` defines a `runCmd` cobra command that:
+    1. Resolves input: positional `FILE...` if given, else stdin.
+       Multi-file input is concatenated with a `\n` separator (each
+       file's content emitted, then a newline, then the next file's
+       content) so a single format detection covers the whole
+       stream. If files have heterogeneous formats, the user should
+       run distill-ai per file; M8 documents this limitation in
+       `--help`.
+    2. Resolves format: explicit positional `FORMAT` argument or
+       `--auto` autodetect (the default). `--strict` is honoured.
+    3. Constructs `pipeline.Options` from flags.
+    4. Constructs a Sink from `--output` and `--no-footer`.
+    5. Calls `pipeline.Build` and `Pipeline.Run`.
+    6. Maps the result to an exit code per M8.3.
+  - All flags listed in
+    [ARCHITECTURE.md § Flags](./ARCHITECTURE.md#flags) are
+    registered:
+    - **Input/format:** `--auto` (default true), `--list-formats`,
+      and positional `FORMAT`.
+    - **Filtering:** `--keep-vendor`, `--keep-warnings`,
+      `--severity`, `--max-events`, `--context`.
+    - **Deduplication:** `--dedupe` (default on for streaming, off
+      for batch — implemented as a `--dedupe-window` non-zero
+      default in pipe mode, zero in batch mode), `--no-dedupe`,
+      `--dedupe-window`.
+    - **Output:** `--output`, `--budget`, `--no-footer`.
+    - **Behaviour:** `--explain`, `--strict`, `--passthrough`,
+      `--tokenizer`.
+    - **Standard:** `-h` / `--help`, `-v` / `--verbose`,
+      `--version`.
+  - **`--max-events`, `--keep-warnings`, `--severity`, `--context`,
+    `--explain`, `--passthrough`, `--list-formats`** are
+    registered with proper godoc/help text but their pipeline
+    plumbing lands in a follow-up commit within this milestone
+    (M8.2.x) so reviewers can see flag wiring separately from
+    feature wiring. Each gets its own commit body explaining
+    where the option attaches inside `pipeline.Options`.
+  - **`-v` / `--verbose`** writes pipeline diagnostics to stderr:
+    chosen format, sample bytes consumed, per-stage event count
+    on EOF. Nothing on stdout, ever.
+  - **`--version`** uses the ldflag-injected `version`, `commit`,
+    `date` from `main.go`.
+- **Tests** (`cmd/distill-ai/run_test.go`):
+  - `TestRun_StdinEndToEnd`: pipe a known fixture in, assert
+    expected output and exit code 0.
+  - `TestRun_FileInput`: same as above but from a tempfile.
+  - `TestRun_MultiFileConcatenation`: two tempfiles, identical
+    format, output matches `cat f1 f2 | distill-ai`.
+  - `TestRun_ExplicitFormatBeatsAutodetect`: positional `FORMAT`
+    overrides what autodetect would have chosen.
+  - `TestRun_NoEventsExitsOne`: clean input produces exit code 1.
+  - `TestRun_BudgetDropsExitsThree`: tight budget forces drops
+    → exit code 3; the dropped count is in stderr when `-v`.
+  - `TestRun_StrictUnknownFormatExitsTwo`: feed binary garbage
+    with `--strict` → exit code 2.
+  - `TestRun_VerboseWritesToStderr`: stdout is parseable distilled
+    output; stderr has the diagnostic line.
+  - `TestRun_HelpMatchesFlagList`: parse `--help` output, assert
+    every flag listed in
+    [ARCHITECTURE.md § Flags](./ARCHITECTURE.md#flags) appears in
+    `--help` (drift guard). Update both in the same commit when a
+    flag is added.
+- **Docs:**
+  - Godoc on every flag (cobra renders this into `--help`).
+  - Update README.md usage section with two new examples:
+    `pytest -v | distill-ai` and `distill-ai run failure.log`.
+  - Update ARCHITECTURE.md flag list if any flag's behaviour
+    differs from the original sketch (e.g., the multi-file
+    concatenation rule).
+
+### M8.3 — Exit-code mapping
+
+Make the four exit codes (0/1/2/3) authoritative.
+
+- **DoD:**
+  - A new `cmd/distill-ai/exitcode.go` with named constants:
+    - `ExitOK = 0`
+    - `ExitNoEvents = 1`
+    - `ExitError = 2`
+    - `ExitPartial = 3`
+  - `runCmd` returns these as follows:
+    - `2` if argument parsing or IO setup failed, **before** the
+      pipeline runs.
+    - `2` if `Pipeline.Run` returns a non-context-canceled error.
+    - `1` if `Pipeline.Run` succeeds but the Sink reports zero
+      events emitted (read via Sink counters — `TextSink` /
+      `JSONSink` / `MarkdownSink` expose an `EventsEmitted()`
+      method).
+    - `3` if `Pipeline.Run` succeeds and
+      `Pipeline.BudgetCounters.ForcedDrops()` is true.
+    - `0` otherwise.
+  - **Streaming vs batch.** In streaming JSON mode the summary
+    line carries `exit_code`; M7's JSONSink takes the exit code
+    from `JSONSink.ExitCode`. M8 wires the value after `Run`
+    returns and before the Sink writes its trailer. Since
+    streaming Sinks have already started writing, the exit code
+    is finalised at end-of-stream — the Sink reserves it for the
+    trailer.
+  - `runCmd` returns an `int` (not `error`) so the cobra runner
+    can map cleanly. Inside the function it converts errors to
+    the right code via a small `mapError` helper.
+- **Tests:**
+  - `TestExitCode_NoEvents`.
+  - `TestExitCode_BudgetForcedDrops`.
+  - `TestExitCode_PipelineError`.
+  - `TestExitCode_FlagParseError`.
+- **Docs:**
+  - Godoc on each constant referencing
+    [ARCHITECTURE.md § Exit codes](./ARCHITECTURE.md#exit-codes).
+  - Cross-link from ARCHITECTURE.md back to the constants so the
+    spec and the implementation stay anchored.
+
+### M8.4 — `list-formats` subcommand
+
+- **DoD:**
+  - `distill-ai list-formats` prints one line per registered
+    format, columns: name, version (always `"1"` for now;
+    placeholder for future), source (path of the package the
+    format is registered from, or `"builtin"` for in-tree
+    formats). Output goes to stdout.
+  - Sort by name (matches `formats.All()` deterministic order
+    from M1.3).
+  - Exit code 0 on success.
+- **Tests** (`cmd/distill-ai/list_formats_test.go`):
+  - `TestListFormats_OutputIncludesGeneric`: once `generic` lands
+    in M9 it must appear; pre-M9 the test asserts at least the
+    test-only `passthrough` format if any.
+  - `TestListFormats_DeterministicOrder`: run twice, byte-equal
+    output.
+- **Docs:**
+  - Help text.
+  - README mention in the usage list.
+
+### M8.5 — `detect FILE` subcommand (cobra adaptation)
+
+The detect subcommand exists from M3.3; M8 ports it onto the cobra
+root and adds flags.
+
+- **DoD:**
+  - `distill-ai detect FILE` works as in M3.3.
+  - `--strict` flag respected (exit 2 instead of falling back to
+    `generic`).
+  - Output unchanged from M3.3 so existing scripts keep working.
+- **Tests:**
+  - Existing M3.3 tests retained; add
+    `TestDetectCmd_StrictExitsTwoOnLowConfidence`.
+- **Docs:** Help text update; ARCHITECTURE.md detect subcommand
+  section already documents the behaviour.
+
+### M8.6 — `explain FILE` subcommand
+
+Dry-run mode: annotate kept/dropped/why without writing distilled
+output. Built atop the existing pipeline with a special Sink that
+serialises the decisions instead of the events.
+
+- **DoD:**
+  - `distill-ai explain FILE` reads input, runs the full pipeline,
+    and emits a per-event diagnostic line:
+    `kept` or `dropped:<reason>` plus the event Title and
+    Location.
+  - Reasons: `severity-filter`, `budget`, `dedupe-evicted`,
+    `vendor-collapsed`.
+  - A new `ExplainSink` in `internal/output/` (added in this
+    commit, not M7 — `explain` is sufficiently specialised that
+    it lives in M8 alongside the subcommand that uses it).
+  - **Capturing drop reasons.** Each existing Stage emits a
+    distinct event tag on its drops: BudgetStage on drop emits a
+    sentinel "explain event" on a side-channel that ExplainSink
+    drains; DedupeStage similarly on eviction (note: M5 currently
+    forwards dedupe-evicted events with `Count` updated, not as
+    "drops" — explain mode interprets a `Count > 1` event as
+    "K-1 dedupe drops"). CollapseStage's drops are counted on
+    each Event's `FramesCollapsed` so no side-channel needed.
+  - **Stage instrumentation.** To avoid adding a side-channel that
+    leaks into the non-explain code path, ExplainSink is fed by
+    wrapping each Stage with an instrumented variant that records
+    drops to a shared `ExplainLog` value. The wrappers live in
+    `internal/pipeline/explain.go` and are only used by the
+    explain command. Detailed plumbing decided at implementation
+    time; the constraint is: zero impact on the non-explain code
+    path.
+- **Tests:**
+  - `TestExplainCmd_AnnotatesDrops`: fixture with known drops
+    produces expected annotated output.
+  - `TestExplainCmd_NoFalseDrops`: clean input → every line says
+    `kept`.
+- **Docs:**
+  - Help text.
+  - README example.
+  - `docs/explain.md` if the format needs more than the godoc
+    can cover.
+
+### M8.7 — `completions [bash|zsh|fish]` subcommand
+
+Cobra generates these for free; M8 only has to wire them.
+
+- **DoD:**
+  - `distill-ai completions bash` prints a bash completion script
+    to stdout; similarly for zsh and fish.
+  - Exit code 0 on success, 2 on unknown shell.
+- **Tests:**
+  - `TestCompletions_BashOutputIsNonEmpty` (don't pin to specific
+    contents — cobra's output is its concern).
+  - `TestCompletions_UnknownShellErrors`.
+- **Docs:** Help text and a one-line README note.
+
+### M8.8 — `version` subcommand
+
+Already covered by the top-level `--version` flag but exposed as a
+subcommand too for consistency (some CLIs require this; cheap to
+ship).
+
+- **DoD:**
+  - `distill-ai version` prints `version`, `commit`, `date` from
+    ldflags, one per line.
+  - Exit code 0.
+- **Tests:**
+  - `TestVersionCmd_PrintsBuildInfo`.
+- **Docs:** Help text; mentioned in README under "Build info".
+
+### M8 exit criteria
+
+- All eight sub-items ticked.
+- `make check` clean; binary builds on linux/darwin/windows ×
+  amd64/arm64 (verified by the existing CI matrix, no new work
+  needed).
+- M8 milestone drift check: every flag listed in
+  [ARCHITECTURE.md § Flags](./ARCHITECTURE.md#flags) is exercised
+  by at least one test; every subcommand listed has its own test
+  file; README's usage section names every subcommand the CLI
+  ships; SCHEMA.md `summary.exit_code` field is wired end-to-end
+  through `JSONSink.ExitCode`.
+- M8 is the milestone after which `distill-ai` is end-to-end usable
+  by a human or an agent. M9–M12 add formats; M13 adds config;
+  M14 promotes the library API; M15 polishes docs.
 
 ---
 
