@@ -300,6 +300,19 @@ stdin ──▶ TeeReader (sample for detect) ──▶ Format.Parse() ──▶
 Each stage is a goroutine reading from a channel and writing to the next.
 Backpressure handled naturally. Cancellation via `context.Context`.
 
+Implementation in `internal/pipeline/`:
+
+- **`Source`** produces Events. `FormatSource` wraps a `Format.Parse`.
+- **`Stage`** transforms an Event stream. `PassthroughStage` is the
+  no-op identity; real stages — dedupe (M5), frame collapse (M5),
+  budget enforcement (M6) — implement the same interface.
+- **`Sink`** consumes the tail of the stream. Encoders (M7) are Sinks.
+- **`Pipeline`** wires one Source, an ordered list of Stages, and one
+  Sink. `Pipeline.Run(ctx)` is the entry point.
+- A single `BufferSize` (default 16) sizes the relay channel from the
+  Source and propagates down the chain via `cap(in)` so every
+  inter-stage channel is equally bounded.
+
 ### Autodetection
 
 1. Read first 4KB of input via `TeeReader` (so it's not consumed).

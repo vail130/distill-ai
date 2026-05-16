@@ -182,7 +182,7 @@ goroutine pipeline with backpressure. Cross-references
 
 M2 builds on M1; nothing in M2 should land before M1 ships.
 
-### M2.1 — `internal/pipeline/pipeline.go`: orchestration skeleton
+### M2.1 — `internal/pipeline/pipeline.go`: orchestration skeleton ✅
 
 Define the pipeline shape with stub stages (no-op pass-through).
 
