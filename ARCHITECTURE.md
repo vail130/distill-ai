@@ -236,6 +236,14 @@ pkg/
     distill/              # exported API for library use
 ```
 
+The `pkg/distill` package is the stable public library API. Until M14
+lands the streaming `Distill(ctx, r, opts) (<-chan Event, error)` entry
+point, this package exposes type aliases only (`Event`, `Severity`,
+`Format`, `ParseOpts`, etc.), letting downstream code import the
+public path so M14 doesn't have to rearrange imports. Internal
+packages (`internal/event`, `internal/formats`, etc.) are not part of
+the API contract and may change without a version bump.
+
 ### Core types
 
 ```go
