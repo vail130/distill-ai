@@ -1,0 +1,25 @@
+Makefile
+  ab2bb0b85a01f798 1-87
+.golangci.yml
+  ab2bb0b85a01f798 1-96
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "057029ed8781668d9cf9fd26ff13fe687ece82c5",
+  "prompts": {
+    "ab2bb0b85a01f798": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1d1396929ffelA77PVRH1hlfH1",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 399,
+      "overriden_lines": 0
+    }
+  }
+}
