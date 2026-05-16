@@ -10,15 +10,15 @@ list and [AGENTS.md](./AGENTS.md) for code/commit conventions.
 
 ## M0 — Project scaffolding
 
-- [ ] `go.mod` with module path `github.com/<owner>/distill-ai` (decide owner)
-- [ ] Go version pin (1.22+)
-- [ ] `cmd/distill-ai/main.go` minimal entry point
-- [ ] Top-level `Makefile` or `justfile` with `build`, `test`, `lint`, `install`
-- [ ] `.golangci.yml` linter config
-- [ ] GitHub Actions / GitLab CI: build + test + lint on push
-- [ ] Release workflow: cross-compile linux/darwin/windows × amd64/arm64
-- [ ] `goreleaser` config for tagged releases
-- [ ] Decide and document binary distribution: Homebrew tap, GitHub Releases, `go install`
+- [x] `go.mod` with module path `github.com/vail130/distill-ai`
+- [x] Go version pin (1.26)
+- [x] `cmd/distill-ai/main.go` minimal entry point
+- [x] Top-level `Makefile` with `build`, `test`, `lint`, `install`, `tidy`, `bench`, `release-dry-run`
+- [x] `.golangci.yml` linter config (v2 schema)
+- [x] GitHub Actions: build + test + lint on push (linux/darwin/windows matrix)
+- [x] Release workflow: cross-compile linux/darwin/windows × amd64/arm64 via goreleaser
+- [x] `goreleaser` config for tagged releases
+- [ ] Decide and document binary distribution: Homebrew tap, GitHub Releases, `go install` (deferred to M16)
 
 ---
 
