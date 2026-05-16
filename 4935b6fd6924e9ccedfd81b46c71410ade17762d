@@ -1,0 +1,27 @@
+.github/workflows/release.yml
+  ab2bb0b85a01f798 1-30
+.github/workflows/ci.yml
+  ab2bb0b85a01f798 1-63
+.goreleaser.yaml
+  ab2bb0b85a01f798 1-109
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "4935b6fd6924e9ccedfd81b46c71410ade17762d",
+  "prompts": {
+    "ab2bb0b85a01f798": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1d1396929ffelA77PVRH1hlfH1",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": null,
+      "messages": [],
+      "total_additions": 281,
+      "total_deletions": 9,
+      "accepted_lines": 469,
+      "overriden_lines": 0
+    }
+  }
+}
