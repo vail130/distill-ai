@@ -1,0 +1,109 @@
+# goreleaser config.
+# https://goreleaser.com
+#
+# Local snapshot build:
+#   make release-dry-run
+#
+# Real release: push a tag (vX.Y.Z); the release.yml workflow runs goreleaser.
+
+version: 2
+
+project_name: distill-ai
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: distill-ai
+    main: ./cmd/distill-ai
+    binary: distill-ai
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
+      - -X main.date={{.Date}}
+
+archives:
+  - id: default
+    formats: [tar.gz]
+    name_template: >-
+      {{ .ProjectName }}_{{ .Version }}_
+      {{- if eq .Os "darwin" }}macos
+      {{- else }}{{ .Os }}{{ end }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else }}{{ .Arch }}{{ end }}
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files:
+      - LICENSE
+      - README.md
+      - CHANGELOG.md
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  use: github
+  sort: asc
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\(.+\))??!?:.+$'
+      order: 0
+    - title: Bug fixes
+      regexp: '^.*?fix(\(.+\))??!?:.+$'
+      order: 1
+    - title: Performance
+      regexp: '^.*?perf(\(.+\))??!?:.+$'
+      order: 2
+    - title: Other
+      order: 999
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^chore:"
+      - "^ci:"
+      - merge conflict
+      - Merge pull request
+      - Merge remote-tracking branch
+
+release:
+  github:
+    owner: vail130
+    name: distill-ai
+  draft: false
+  prerelease: auto
+  mode: replace
+  header: |
+    ## distill-ai {{ .Tag }}
+
+    See [CHANGELOG.md](https://github.com/vail130/distill-ai/blob/main/CHANGELOG.md)
+    for the full changelog.
+  footer: |
+    ---
+
+    **Install:**
+
+    ```bash
+    go install github.com/vail130/distill-ai/cmd/distill-ai@{{ .Tag }}
+    ```
