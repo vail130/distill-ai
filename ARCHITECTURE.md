@@ -440,6 +440,15 @@ logs land in v1.1.
 
 **MCP server:** deferred to v1.2. Useful but adds scope.
 
+**Source-code distillation:** deferred to v1.3. The `Event` / `Format`
+machinery generalises naturally to source files (one Event per
+exported symbol, signature, type definition) but the language parsers
+and binary-size implications are large enough to defer past v1.0. See
+[TODO.md § v1.3](./TODO.md#v13--code-distillation) for milestones
+M17–M21, and
+[ADR-0001](./docs/decisions/0001-reject-cgo-tree-sitter-prefer-wasm.md)
+for the parser-toolchain decision.
+
 ## Dependencies
 
 Lean by design.
