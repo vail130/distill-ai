@@ -1,0 +1,27 @@
+internal/tokens/benchmark_test.go
+  ab2bb0b85a01f798 1-47
+TODO.md
+  ab2bb0b85a01f798 390
+.opencode/rules/performance.md
+  ab2bb0b85a01f798 10-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "27b2d972a2921f4ecf02731a7889e028713c5561",
+  "prompts": {
+    "ab2bb0b85a01f798": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1d1396929ffelA77PVRH1hlfH1",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 54,
+      "total_deletions": 1,
+      "accepted_lines": 1306,
+      "overriden_lines": 0
+    }
+  }
+}
