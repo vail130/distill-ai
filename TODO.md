@@ -477,7 +477,7 @@ the shared config struct so M6 (budget enforcer) can consume it.
 
 ---
 
-## M5 — Event processing
+## M5 — Event processing ✅
 
 Two complementary noise-reduction passes that turn the raw Event
 stream into something an LLM can actually use: dedupe identical
@@ -495,7 +495,7 @@ shape from M2 does not change. Each item below lists Definition of
 Done (DoD), required tests, and required doc updates per the
 [alignment rule](./.opencode/rules/alignment.md).
 
-### M5.1 — `internal/event/dedupe.go`: bounded LRU dedupe
+### M5.1 — `internal/event/dedupe.go`: bounded LRU dedupe ✅
 
 Collapse identical Events into a single Event with `Count > 1` so a
 flaky test that fires 4,000 times doesn't blow the budget.
@@ -591,7 +591,7 @@ flaky test that fires 4,000 times doesn't blow the budget.
     "periodic dedupe flush every N events" is from an earlier
     design and needs updating in the same commit).
 
-### M5.2 — `internal/event/collapse.go`: stack frame collapse
+### M5.2 — `internal/event/collapse.go`: stack frame collapse ✅
 
 Mark vendor frames in a stack and collapse contiguous runs of them,
 reducing 30-frame Java stacks to "3 user frames + 27 vendor
@@ -676,7 +676,7 @@ frames collapsed".
     M9–M12 can link to it. Per the alignment rule, the doc lands in
     the same commit as the patterns.
 
-### M5.3 — Wire DedupeStage and CollapseStage into Pipeline options
+### M5.3 — Wire DedupeStage and CollapseStage into Pipeline options ✅
 
 Connect the two stages to the pipeline's configuration so the CLI
 (M8) only has to pass flag values through.

@@ -303,15 +303,28 @@ Backpressure handled naturally. Cancellation via `context.Context`.
 Implementation in `internal/pipeline/`:
 
 - **`Source`** produces Events. `FormatSource` wraps a `Format.Parse`.
-- **`Stage`** transforms an Event stream. `PassthroughStage` is the
-  no-op identity; real stages — dedupe (M5), frame collapse (M5),
-  budget enforcement (M6) — implement the same interface.
+- **`Stage`** transforms an Event stream. The shipped stages are
+  `CollapseStage` (M5, drops vendor-frame runs and counts them in
+  `FramesCollapsed`) and `DedupeStage` (M5, bounded-LRU collapse of
+  identical Events into a single `Count > 1` entry). `PassthroughStage`
+  is the no-op identity, used in tests. Budget enforcement (M6) plugs
+  in as another Stage.
 - **`Sink`** consumes the tail of the stream. Encoders (M7) are Sinks.
 - **`Pipeline`** wires one Source, an ordered list of Stages, and one
   Sink. `Pipeline.Run(ctx)` is the entry point.
+- **`Build(src, sink, Options{})`** is the supported constructor; it
+  returns a Pipeline with `[CollapseStage, DedupeStage]` pre-wired in
+  the documented order (collapse before dedupe so dedupe signatures
+  key on the post-collapse frame layout). Field-level Pipeline
+  construction is reserved for tests substituting custom Stages.
 - A single `BufferSize` (default 16) sizes the relay channel from the
   Source and propagates down the chain via `cap(in)` so every
   inter-stage channel is equally bounded.
+
+Vendor-frame classification is centralised in `internal/event`; the
+pattern catalogue lives in [docs/formats/vendor-frames.md](./docs/formats/vendor-frames.md)
+so format authors add patterns in one place instead of per-format
+tables.
 
 ### Autodetection
 

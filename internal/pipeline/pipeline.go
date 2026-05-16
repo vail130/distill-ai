@@ -3,13 +3,15 @@
 // connected to its neighbours by a bounded channel of Events;
 // backpressure is the natural consequence of bounded channels.
 //
-// In milestone M2 (the current state) only the skeleton ships: a
-// FormatSource that wraps a formats.Format, a PassthroughStage that
-// does nothing, and the Sink interface (with a stub event-counting
-// implementation in the tests). The real stages — dedupe (M5), frame
-// collapse (M5), budget enforcement (M6) — and the real Sinks (text /
-// json / markdown encoders, M7) plug in by replacing the stub Stage /
-// Sink values; the Pipeline shape stays the same.
+// Build is the supported constructor: it returns a Pipeline with
+// the standard stage chain (CollapseStage → DedupeStage) wired in
+// the documented order. Field-level Pipeline construction remains
+// available for tests that need to substitute custom Stages or for
+// the PassthroughStage no-op identity.
+//
+// Budget enforcement (M6) and the real Sinks (text / json / markdown
+// encoders, M7) plug in by inserting another Stage and replacing the
+// Sink; the Pipeline shape stays the same.
 package pipeline
 
 import (
@@ -179,9 +181,9 @@ func (s *FormatSource) Source(ctx context.Context) (<-chan event.Event, error) {
 }
 
 // PassthroughStage is the identity Stage: every Event read from in is
-// forwarded to out unchanged. Useful as a placeholder for stages that
-// land in later milestones (M5 dedupe, M5 collapse, M6 budget). It is
-// also handy in tests as a non-trivial baseline.
+// forwarded to out unchanged. Useful as a placeholder for budget
+// enforcement (M6) and as a non-trivial baseline in tests. CollapseStage
+// and DedupeStage (M5) are real Stages; see Build.
 type PassthroughStage struct{}
 
 // Run implements Stage.
