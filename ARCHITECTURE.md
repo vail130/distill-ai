@@ -112,28 +112,37 @@ Agents and CI use these.
 
 ### `text` (default)
 
-Compact human + LLM readable:
+Compact human + LLM readable. The encoder is `output.TextSink` in
+`internal/output/text.go`; the per-event block shape is documented on
+that type's godoc and exercised by golden tests under
+`internal/output/testdata/text/`.
 
 ```
-3 events from pytest
+events from pytest
 
-[1] FAIL tests/api/test_auth.py::test_login_redirect
+[1] ERROR AssertionError: expected 302, got 200
+  at tests/api/test_auth.py:47
   AssertionError: expected 302, got 200
-  at test_auth.py:47
   context:
-    45:     response = client.post("/login", data=creds)
-    46:     assert response.status_code == 302
-    47:>    assert response.headers["location"] == "/dashboard"
+        response = client.post("/login", data=creds)
+        assert response.status_code == 302
+    >   assert response.headers["location"] == "/dashboard"
 
-[2] FAIL tests/api/test_auth.py::test_logout_clears_session
+[2] ERROR KeyError: 'session_id'
+  at auth/views.py:112
   KeyError: 'session_id'
-  at auth/views.py:112 (called from test_auth.py:89)
   ... 8 vendor frames collapsed
+  (×4)
 
 ---
-distilled 8,432 lines → 24 lines (340 tokens)
-dropped: 8,388 lines (passing tests, warnings, vendor frames)
+distilled 8,432 lines → 13 lines (340 tokens, heuristic)
+dropped: 0 events, 3 deduped, 8 vendor frames
 ```
+
+The header line ("events from `<format>`") streams as the first
+event arrives; the per-event count appears in the footer rather than
+the header because the encoder is streaming and the total is not
+known until input closes. `--no-footer` suppresses the `---` block.
 
 ### `json`
 

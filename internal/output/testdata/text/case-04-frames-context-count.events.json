@@ -1,0 +1,29 @@
+{
+  "format_name": "pytest",
+  "input_lines": 12000,
+  "estimator_name": "heuristic",
+  "events": [
+    {
+      "severity": "error",
+      "kind": "test_failure",
+      "title": "KeyError: 'session_id'",
+      "location": {"file": "auth/views.py", "line": 112, "column": null},
+      "body": [
+        "KeyError: 'session_id'",
+        "  raise KeyError('session_id')"
+      ],
+      "context": [
+        "    response = client.post(\"/login\", data=creds)",
+        "    assert response.status_code == 302",
+        ">   assert response.headers[\"location\"] == \"/dashboard\""
+      ],
+      "frames": [
+        {"file": "tests/api/test_auth.py", "line": 89, "function": "test_logout_clears_session", "vendor": false},
+        {"file": "auth/views.py", "line": 112, "function": "logout", "vendor": false}
+      ],
+      "frames_collapsed": 8,
+      "count": 4,
+      "truncated": false
+    }
+  ]
+}

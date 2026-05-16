@@ -1,0 +1,16 @@
+events from pytest
+
+[1] ERROR KeyError: 'session_id'
+  at auth/views.py:112
+  KeyError: 'session_id'
+    raise KeyError('session_id')
+  context:
+        response = client.post("/login", data=creds)
+        assert response.status_code == 302
+    >   assert response.headers["location"] == "/dashboard"
+  ... 8 vendor frames collapsed
+  (×4)
+
+---
+distilled 12,000 lines → 13 lines (0 tokens, heuristic)
+dropped: 0 events, 3 deduped, 8 vendor frames

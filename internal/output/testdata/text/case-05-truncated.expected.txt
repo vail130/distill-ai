@@ -1,0 +1,11 @@
+events from gotest
+
+[1] ERROR runtime error: index out of range [5] with length 3
+  at main.go:42
+  panic: runtime error: index out of range
+  ... [truncated by --budget]
+  [truncated by --budget]
+
+---
+distilled 50,000 lines → 8 lines (0 tokens, tiktoken)
+dropped: 0 events, 0 deduped, 0 vendor frames

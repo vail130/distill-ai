@@ -1,0 +1,10 @@
+events from pytest
+
+[1] ERROR AssertionError: expected 302, got 200
+  at tests/api/test_auth.py:47
+  AssertionError: expected 302, got 200
+    at test_auth.py:47
+
+---
+distilled 842 lines → 7 lines (0 tokens, heuristic)
+dropped: 0 events, 0 deduped, 0 vendor frames
