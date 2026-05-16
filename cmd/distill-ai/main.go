@@ -1,11 +1,13 @@
-// Command distill-ai distills noisy command output (test runs, application
-// logs, stack traces) into a compact, structured form for LLM consumption.
+// Command distill-ai distills noisy command output (test runs,
+// application logs, stack traces) into a compact, structured form for
+// LLM consumption.
 //
-// See ARCHITECTURE.md for the design.
+// See ARCHITECTURE.md for the design and the README for usage.
 package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 )
 
@@ -17,36 +19,54 @@ var (
 )
 
 func main() {
-	if err := run(os.Args[1:]); err != nil {
-		fmt.Fprintln(os.Stderr, "distill-ai:", err)
-		os.Exit(2)
-	}
+	code := run(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)
+	os.Exit(code)
 }
 
-func run(args []string) error {
+// run is main's testable core. It parses args, dispatches to the
+// appropriate subcommand, and returns the process exit code. stdin,
+// stdout, and stderr are passed in so tests can substitute buffers.
+func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	// Top-level flags consume early returns before subcommand dispatch.
 	for _, a := range args {
 		switch a {
 		case "-v", "--version":
-			fmt.Printf("distill-ai %s (commit %s, built %s)\n", version, commit, date)
-			return nil
+			fmt.Fprintf(stdout, "distill-ai %s (commit %s, built %s)\n", version, commit, date)
+			return 0
 		case "-h", "--help":
-			printHelp()
-			return nil
-		default:
-			return fmt.Errorf("unknown flag %q (this is a placeholder build; see --help)", a)
+			printHelp(stdout)
+			return 0
 		}
 	}
-	printHelp()
-	return nil
+	if len(args) == 0 {
+		printHelp(stdout)
+		return 0
+	}
+	// First positional is the subcommand (or the format when
+	// piping; M8 wires the full CLI). Today only `detect` is
+	// implemented.
+	switch args[0] {
+	case "detect":
+		return cmdDetect(args[1:], stdin, stdout, stderr)
+	default:
+		fmt.Fprintf(stderr, "distill-ai: unknown subcommand or flag %q\n", args[0])
+		fmt.Fprintln(stderr, "Run 'distill-ai --help' for usage.")
+		return 2
+	}
 }
 
-func printHelp() {
-	fmt.Println(`distill-ai — compress logs and test output for LLM consumption
+func printHelp(w io.Writer) {
+	fmt.Fprintln(w, `distill-ai — compress logs and test output for LLM consumption
 
 Usage:
-  cmd | distill-ai [FORMAT] [OPTIONS]
-  distill-ai [FORMAT] [OPTIONS] FILE...
+  distill-ai detect FILE       Identify which format a file is in.
 
-This is a placeholder build. The full CLI is under development.
-See https://github.com/vail130/distill-ai for status.`)
+  cmd | distill-ai             (Pipeline mode lands in M8.)
+
+Flags:
+  -h, --help     Show this help.
+  -v, --version  Show version.
+
+This is an early development build. The full pipeline CLI lands in M8.
+See https://github.com/vail130/distill-ai for the roadmap.`)
 }

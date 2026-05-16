@@ -51,6 +51,10 @@ pytest 2>&1 | distill-ai --output=json | jq .
 
 # Markdown output for pasting into chat
 pytest 2>&1 | distill-ai --output=markdown
+
+# Identify a file's format without running the full pipeline
+distill-ai detect pytest-output.log
+distill-ai detect -          # read stdin
 ```
 
 ### Integration with coding agents

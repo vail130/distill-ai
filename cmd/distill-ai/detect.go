@@ -1,0 +1,96 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+
+	"github.com/vail130/distill-ai/internal/detect"
+)
+
+// cmdDetect handles `distill-ai detect FILE`. It runs the detector
+// against the file (or stdin when FILE is "-") and prints a
+// human-readable summary: chosen format, confidence, sample size,
+// and the runner-up format with its confidence.
+//
+// Exit codes:
+//
+//	0  Detection produced a specific format ≥ ConfidenceMinDetect.
+//	1  Detection fell back to the generic format, or no format
+//	   matched and there is no generic registered.
+//	2  Invalid arguments or I/O failure.
+func cmdDetect(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+	if len(args) == 0 {
+		fmt.Fprintln(stderr, "distill-ai detect: missing FILE argument")
+		fmt.Fprintln(stderr, "Usage: distill-ai detect FILE")
+		fmt.Fprintln(stderr, "       distill-ai detect -        (read stdin)")
+		return 2
+	}
+	if len(args) > 1 {
+		fmt.Fprintf(stderr, "distill-ai detect: expected exactly one FILE argument, got %d\n", len(args))
+		return 2
+	}
+	path := args[0]
+	r, source, closer, err := openInput(path, stdin)
+	if err != nil {
+		fmt.Fprintf(stderr, "distill-ai detect: %v\n", err)
+		return 2
+	}
+	if closer != nil {
+		defer func() { _ = closer.Close() }() // best-effort close; nothing we can do on failure
+	}
+	res, err := detect.Detect(context.Background(), r, detect.Opts{})
+	if err != nil {
+		// ErrNoFormat is a "no match" result, not an internal
+		// failure. Surface it as exit 1 with a helpful message.
+		if errors.Is(err, detect.ErrNoFormat) {
+			fmt.Fprintf(stderr, "distill-ai: no format matched %s\n", source)
+			fmt.Fprintln(stderr, "Hint: no specific format scored above the detection threshold")
+			fmt.Fprintln(stderr, "      and no generic fallback is registered yet (lands in M9).")
+			return 1
+		}
+		fmt.Fprintf(stderr, "distill-ai: detect %s: %v\n", source, err)
+		return 2
+	}
+	printDetectResult(stdout, source, res)
+	if res.FellBackToGeneric {
+		return 1
+	}
+	return 0
+}
+
+// openInput resolves the FILE argument: '-' reads from stdin, anything
+// else opens that path. The returned source is what we print in
+// diagnostics; closer is non-nil when the caller must close it.
+func openInput(path string, stdin io.Reader) (r io.Reader, source string, closer io.Closer, err error) {
+	if path == "-" {
+		return stdin, "stdin", nil, nil
+	}
+	// The path is a user-supplied CLI argument; opening arbitrary
+	// user-named files is the entire point of a `detect FILE` command.
+	f, err := os.Open(path) //nolint:gosec // G304/G703 path-from-arg is intentional
+	if err != nil {
+		// os.Open's error already names the path; don't double-name.
+		return nil, path, nil, err
+	}
+	return f, path, f, nil
+}
+
+// printDetectResult writes the detector outcome to w in a human-
+// readable, parseable shape: stable key: value lines so tests can
+// grep / parse without depending on prose.
+func printDetectResult(w io.Writer, source string, res *detect.Result) {
+	fmt.Fprintf(w, "source: %s\n", source)
+	fmt.Fprintf(w, "format: %s\n", res.Format.Name())
+	fmt.Fprintf(w, "confidence: %.2f\n", float64(res.Confidence))
+	fmt.Fprintf(w, "sample_bytes: %d\n", len(res.Sample))
+	fmt.Fprintf(w, "fellback_to_generic: %t\n", res.FellBackToGeneric)
+	if res.Runner != nil {
+		fmt.Fprintf(w, "runner: %s\n", res.Runner.Name())
+		fmt.Fprintf(w, "runner_confidence: %.2f\n", float64(res.RunnerConfidence))
+	} else {
+		fmt.Fprintln(w, "runner: (none)")
+	}
+}
