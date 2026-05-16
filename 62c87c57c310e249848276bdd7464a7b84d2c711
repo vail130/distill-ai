@@ -1,0 +1,44 @@
+internal/pipeline/build_test.go
+  88e9712c2700c6c6 10-21,28,58,78,91,118,132-233
+ARCHITECTURE.md
+  88e9712c2700c6c6 308-312,315-318,322-328
+TODO.md
+  88e9712c2700c6c6 845
+internal/pipeline/build.go
+  88e9712c2700c6c6 3-8,12-14,29-34,36-40,46-48,50-55,57-69,73-84,86
+internal/pipeline/pipeline.go
+  88e9712c2700c6c6 85-92
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "62c87c57c310e249848276bdd7464a7b84d2c711",
+  "prompts": {
+    "88e9712c2700c6c6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1cde89cadffegPygUZrDQ0Q7L7",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 203,
+      "total_deletions": 28,
+      "accepted_lines": 203,
+      "overriden_lines": 0
+    },
+    "a7d9760ae4253f17": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1cdf09137ffe9iw0JQdD76VgtP",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 1676,
+      "overriden_lines": 1
+    }
+  }
+}
