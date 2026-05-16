@@ -257,7 +257,7 @@ Before M3 lands more stages, prove the existing skeleton doesn't leak.
 
 ---
 
-## M3 — Format autodetection
+## M3 — Format autodetection ✅
 
 Read a sample, ask every registered format `Detect()`, pick the winner,
 hand the rest of the stream to that format's `Parse()`.
@@ -311,7 +311,7 @@ Cross-references
     wiring in M8).
   - Add to `ARCHITECTURE.md` flag list with exit-code mapping.
 
-### M3.3 — `distill-ai detect FILE` subcommand
+### M3.3 — `distill-ai detect FILE` subcommand ✅
 
 Expose the detector standalone so users (and tests) can ask "what is
 this?" without running a full pipeline.

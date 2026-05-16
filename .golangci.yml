@@ -24,6 +24,15 @@ linters:
     - unused
     - whitespace
   settings:
+    errcheck:
+      # fmt.Fprint*(stdout/stderr, ...) errors are conventionally
+      # ignored in CLI code: there's nothing useful to do if stdout
+      # is closed. Forcing every call to assign to _ adds noise
+      # without catching real bugs.
+      exclude-functions:
+        - fmt.Fprintf
+        - fmt.Fprintln
+        - fmt.Fprint
     errorlint:
       errorf: true
       asserts: true
