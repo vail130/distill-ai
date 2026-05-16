@@ -142,7 +142,7 @@ Thread-safe registration so formats self-register via `init()`.
     with concrete `Register()` example if the API differs from the
     sketch already there.
 
-### M1.4 — `pkg/distill/`: stub public package
+### M1.4 — `pkg/distill/`: stub public package ✅
 
 Reserve the public library API surface so M14's work doesn't have to
 restructure internal imports.

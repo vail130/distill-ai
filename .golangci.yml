@@ -70,6 +70,12 @@ linters:
           - errcheck
           - gosec
           - unparam
+      # QF1011/ST1023 flag explicit LHS types as redundant. In the
+      # public-API alias tests under pkg/distill, the explicit types
+      # are the test: dropping them defeats the compile-time alias
+      # check. Exclude there.
+      - path: pkg/distill/.*_test\.go
+        text: "QF1011|ST1023"
     paths:
       - third_party$
       - builtin$
