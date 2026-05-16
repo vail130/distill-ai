@@ -1,0 +1,29 @@
+{
+  "format_name": "pytest",
+  "input_lines": 2500,
+  "streaming": true,
+  "estimator_name": "tiktoken",
+  "exit_code": 3,
+  "events": [
+    {
+      "severity": "error",
+      "kind": "test_failure",
+      "title": "AssertionError",
+      "location": {"file": "t.py", "line": 9, "column": null},
+      "body": ["AssertionError: 1 != 2"],
+      "frames_collapsed": 0,
+      "count": 1,
+      "truncated": false
+    },
+    {
+      "severity": "error",
+      "kind": "panic",
+      "title": "runtime error",
+      "location": {"file": "u.py", "line": 22, "column": null},
+      "body": ["panic: divide by zero", "... [truncated by --budget]"],
+      "frames_collapsed": 0,
+      "count": 1,
+      "truncated": true
+    }
+  ]
+}

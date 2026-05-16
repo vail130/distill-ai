@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "format": "gotest",
+  "events": [
+    {
+      "severity": "error",
+      "kind": "panic",
+      "title": "runtime error: index out of range [5] with length 3",
+      "location": {
+        "file": "main.go",
+        "line": 42,
+        "column": null
+      },
+      "body": [
+        "panic: runtime error: index out of range",
+        "... [truncated by --budget]"
+      ],
+      "frames_collapsed": 0,
+      "count": 1,
+      "truncated": true
+    }
+  ],
+  "summary": {
+    "input_lines": 50000,
+    "output_lines": 0,
+    "events_found": 1,
+    "events_emitted": 1,
+    "events_deduped": 0,
+    "events_dropped_budget": 0,
+    "frames_collapsed": 0,
+    "estimated_tokens": 0,
+    "estimator": "tiktoken",
+    "exit_code": 0
+  }
+}

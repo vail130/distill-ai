@@ -1,0 +1,3 @@
+{"schema_version":1,"format":"pytest","event":{"severity":"error","kind":"test_failure","title":"AssertionError","location":{"file":"t.py","line":9,"column":null},"body":["AssertionError: 1 != 2"],"frames_collapsed":0,"count":1,"truncated":false}}
+{"schema_version":1,"format":"pytest","event":{"severity":"error","kind":"panic","title":"runtime error","location":{"file":"u.py","line":22,"column":null},"body":["panic: divide by zero","... [truncated by --budget]"],"frames_collapsed":0,"count":1,"truncated":true}}
+{"schema_version":1,"format":"pytest","summary":{"input_lines":2500,"output_lines":2,"events_found":2,"events_emitted":2,"events_deduped":0,"events_dropped_budget":0,"frames_collapsed":0,"estimated_tokens":0,"estimator":"tiktoken","exit_code":3}}
