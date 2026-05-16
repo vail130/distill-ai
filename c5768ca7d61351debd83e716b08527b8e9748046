@@ -1,0 +1,42 @@
+ARCHITECTURE.md
+  88e9712c2700c6c6 375-376,379-400
+internal/pipeline/budget_test.go
+  88e9712c2700c6c6 1-408
+TODO.md
+  88e9712c2700c6c6 760
+internal/pipeline/budget.go
+  88e9712c2700c6c6 1-290
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "c5768ca7d61351debd83e716b08527b8e9748046",
+  "prompts": {
+    "88e9712c2700c6c6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1cde89cadffegPygUZrDQ0Q7L7",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 789,
+      "total_deletions": 42,
+      "accepted_lines": 723,
+      "overriden_lines": 0
+    },
+    "a7d9760ae4253f17": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1cdf09137ffe9iw0JQdD76VgtP",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 1677,
+      "total_deletions": 0,
+      "accepted_lines": 1676,
+      "overriden_lines": 1
+    }
+  }
+}
