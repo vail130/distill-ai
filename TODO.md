@@ -50,7 +50,7 @@ Each item below lists Definition of Done (DoD), required tests, and
 required doc updates per the
 [alignment rule](./AGENTS.md#documentation-and-test-alignment-hard-rule).
 
-### M1.1 — `internal/event/event.go`: core types
+### M1.1 — `internal/event/event.go`: core types ✅
 
 Define the data model every format emits and every encoder consumes.
 
