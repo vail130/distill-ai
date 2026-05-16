@@ -1,0 +1,68 @@
+internal/output/output.go
+  27cf09bbe10e7fdd 1-127
+internal/output/testdata/text/case-04-frames-context-count.events.json
+  27cf09bbe10e7fdd 1-29
+internal/output/testdata/text/case-05-truncated.events.json
+  27cf09bbe10e7fdd 1-21
+internal/output/testdata/text/case-01-empty.expected.txt
+  27cf09bbe10e7fdd 1-4
+internal/output/golden_test.go
+  27cf09bbe10e7fdd 1-105
+internal/output/testdata/text/case-05-truncated.expected.txt
+  27cf09bbe10e7fdd 1-11
+internal/output/testdata/text/case-02-single.expected.txt
+  27cf09bbe10e7fdd 1-10
+internal/output/text.go
+  27cf09bbe10e7fdd 1-231
+internal/output/testdata/text/case-06-no-footer.expected.txt
+  27cf09bbe10e7fdd 1-6
+internal/output/text_test.go
+  27cf09bbe10e7fdd 1-249
+internal/output/testdata/text/case-01-empty.events.json
+  27cf09bbe10e7fdd 1-5
+internal/output/testdata/text/case-03-multi.expected.txt
+  27cf09bbe10e7fdd 1-17
+ARCHITECTURE.md
+  27cf09bbe10e7fdd 115-118,121,123-124,127-129,131-132,135,138-139,142-145
+internal/output/testdata/text/case-04-frames-context-count.expected.txt
+  27cf09bbe10e7fdd 1-16
+internal/output/testdata/text/case-03-multi.events.json
+  27cf09bbe10e7fdd 1-37
+internal/output/testdata/text/case-02-single.events.json
+  27cf09bbe10e7fdd 1-20
+internal/output/testdata/text/case-06-no-footer.events.json
+  27cf09bbe10e7fdd 1-18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "e9d4563c62415c9f0b5b9ad996cd765b7d7cf0c2",
+  "prompts": {
+    "27cf09bbe10e7fdd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1cdd8df5bffehxMD8Q1B3K8d32",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 964,
+      "total_deletions": 49,
+      "accepted_lines": 927,
+      "overriden_lines": 0
+    },
+    "88e9712c2700c6c6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1cde89cadffegPygUZrDQ0Q7L7",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 2241,
+      "total_deletions": 0,
+      "accepted_lines": 2232,
+      "overriden_lines": 9
+    }
+  }
+}
