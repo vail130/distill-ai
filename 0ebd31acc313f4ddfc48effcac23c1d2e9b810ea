@@ -1,0 +1,27 @@
+.github/PULL_REQUEST_TEMPLATE.md
+  ab2bb0b85a01f798 6-9,31-53,58,60,63,69-96,98-99,111-112
+CONTRIBUTING.md
+  ab2bb0b85a01f798 92-98,105-110
+AGENTS.md
+  ab2bb0b85a01f798 32-97,128-131,141-144
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "0ebd31acc313f4ddfc48effcac23c1d2e9b810ea",
+  "prompts": {
+    "ab2bb0b85a01f798": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1d1396929ffelA77PVRH1hlfH1",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 1613,
+      "total_deletions": 48,
+      "accepted_lines": 1594,
+      "overriden_lines": 0
+    }
+  }
+}
