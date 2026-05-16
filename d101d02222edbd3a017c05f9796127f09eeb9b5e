@@ -1,0 +1,35 @@
+ARCHITECTURE.md
+  ab2bb0b85a01f798 487-491
+internal/tokens/tiktoken_test.go
+  ab2bb0b85a01f798 1-160
+internal/tokens/byname.go
+  ab2bb0b85a01f798 1-30
+internal/tokens/testing.go
+  ab2bb0b85a01f798 1-12
+go.mod
+  ab2bb0b85a01f798 4-13
+TODO.md
+  ab2bb0b85a01f798 344,406,446
+internal/tokens/tiktoken.go
+  ab2bb0b85a01f798 1-102
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "d101d02222edbd3a017c05f9796127f09eeb9b5e",
+  "prompts": {
+    "ab2bb0b85a01f798": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1d1396929ffelA77PVRH1hlfH1",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 324,
+      "total_deletions": 6,
+      "accepted_lines": 1572,
+      "overriden_lines": 2
+    }
+  }
+}
