@@ -1,0 +1,31 @@
+ARCHITECTURE.md
+  ab2bb0b85a01f798 303-315
+TODO.md
+  ab2bb0b85a01f798 185
+internal/pipeline/pipeline.go
+  ab2bb0b85a01f798 1-209
+internal/pipeline/pipeline_test.go
+  ab2bb0b85a01f798 1-330
+internal/pipeline/group.go
+  ab2bb0b85a01f798 1-49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "fccf621ea809819032511114660498c14398b41c",
+  "prompts": {
+    "ab2bb0b85a01f798": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1d1396929ffelA77PVRH1hlfH1",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 1809,
+      "total_deletions": 8,
+      "accepted_lines": 1801,
+      "overriden_lines": 1
+    }
+  }
+}
