@@ -1,0 +1,31 @@
+pkg/distill/distill_test.go
+  ab2bb0b85a01f798 1-61
+pkg/distill/distill.go
+  ab2bb0b85a01f798 1-53
+ARCHITECTURE.md
+  ab2bb0b85a01f798 239-246
+TODO.md
+  ab2bb0b85a01f798 145
+.golangci.yml
+  ab2bb0b85a01f798 73-78
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "c003ccf2940a2ad2acf73e17e83a400dccdc465f",
+  "prompts": {
+    "ab2bb0b85a01f798": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1d1396929ffelA77PVRH1hlfH1",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 184,
+      "total_deletions": 56,
+      "accepted_lines": 1268,
+      "overriden_lines": 1
+    }
+  }
+}
