@@ -1,0 +1,33 @@
+internal/pipeline/pipeline_test.go
+  ab2bb0b85a01f798 4,19-22,31-34,43-44
+internal/testutil/slowreader_test.go
+  ab2bb0b85a01f798 1-106
+internal/testutil/slowreader.go
+  ab2bb0b85a01f798 1-82
+TODO.md
+  ab2bb0b85a01f798 215
+.opencode/rules/testing.md
+  ab2bb0b85a01f798 34-36,38-41,48-52
+internal/pipeline/property_test.go
+  ab2bb0b85a01f798 1-164
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "83c76a7f9b22d54469cd05777de0594d735eeaeb",
+  "prompts": {
+    "ab2bb0b85a01f798": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1d1396929ffelA77PVRH1hlfH1",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 377,
+      "total_deletions": 15,
+      "accepted_lines": 1576,
+      "overriden_lines": 1
+    }
+  }
+}
