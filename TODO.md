@@ -387,7 +387,7 @@ overestimation with a built-in safety margin.
     [ARCHITECTURE.md § Token estimation](./ARCHITECTURE.md#token-estimation)
     if the constants or shape differ from the sketch there.
 
-### M4.2 — Throughput benchmark for Heuristic
+### M4.2 — Throughput benchmark for Heuristic ✅
 
 - **DoD:**
   - `BenchmarkHeuristic_Estimate` reports MB/sec via `b.SetBytes`.
