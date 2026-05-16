@@ -1,0 +1,46 @@
+internal/event/dedupe_test.go
+  a05c3ab13323b529 1-233
+internal/event/dedupe.go
+  a05c3ab13323b529 1-126
+internal/pipeline/dedupe.go
+  a05c3ab13323b529 1-64
+internal/pipeline/dedupe_test.go
+  a05c3ab13323b529 1-241
+TODO.md
+  a05c3ab13323b529 516-523,525-541,547-552,554,556,558-580,585-587,590-592
+ARCHITECTURE.md
+  a05c3ab13323b529 346-355
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "65a8cd6e41d4f0a87a5121e4539929444b26461c",
+  "prompts": {
+    "a05c3ab13323b529": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1ce1946acffeXnzWxZt73oS3tB",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 769,
+      "total_deletions": 85,
+      "accepted_lines": 736,
+      "overriden_lines": 0
+    },
+    "ab2bb0b85a01f798": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1d1396929ffelA77PVRH1hlfH1",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 1266,
+      "overriden_lines": 5
+    }
+  }
+}
