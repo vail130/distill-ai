@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "format": "pytest",
+  "events": [],
+  "summary": {
+    "input_lines": 100,
+    "output_lines": 0,
+    "events_found": 0,
+    "events_emitted": 0,
+    "events_deduped": 0,
+    "events_dropped_budget": 0,
+    "frames_collapsed": 0,
+    "estimated_tokens": 0,
+    "estimator": "heuristic",
+    "exit_code": 0
+  }
+}

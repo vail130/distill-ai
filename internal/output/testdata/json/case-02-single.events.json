@@ -1,0 +1,20 @@
+{
+  "format_name": "pytest",
+  "input_lines": 842,
+  "estimator_name": "heuristic",
+  "events": [
+    {
+      "severity": "error",
+      "kind": "test_failure",
+      "title": "AssertionError: expected 302, got 200",
+      "location": {"file": "tests/api/test_auth.py", "line": 47, "column": null},
+      "body": [
+        "AssertionError: expected 302, got 200",
+        "  at test_auth.py:47"
+      ],
+      "frames_collapsed": 0,
+      "count": 1,
+      "truncated": false
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "format": "pytest",
+  "events": [
+    {
+      "severity": "error",
+      "kind": "test_failure",
+      "title": "AssertionError: expected 302, got 200",
+      "location": {
+        "file": "tests/api/test_auth.py",
+        "line": 47,
+        "column": null
+      },
+      "body": [
+        "AssertionError: expected 302, got 200"
+      ],
+      "frames_collapsed": 0,
+      "count": 1,
+      "truncated": false
+    },
+    {
+      "severity": "warn",
+      "kind": "warning",
+      "title": "DeprecationWarning: use foo() instead of bar()",
+      "location": null,
+      "body": [
+        "DeprecationWarning: use foo() instead of bar()"
+      ],
+      "frames_collapsed": 0,
+      "count": 1,
+      "truncated": false
+    },
+    {
+      "severity": "error",
+      "kind": "test_error",
+      "title": "fixture 'db' not found",
+      "location": {
+        "file": "tests/conftest.py",
+        "line": 12,
+        "column": null
+      },
+      "body": [
+        "E       fixture 'db' not found",
+        "ERROR tests/test_db.py::test_insert"
+      ],
+      "frames_collapsed": 0,
+      "count": 1,
+      "truncated": false
+    }
+  ],
+  "summary": {
+    "input_lines": 8432,
+    "output_lines": 0,
+    "events_found": 3,
+    "events_emitted": 3,
+    "events_deduped": 0,
+    "events_dropped_budget": 0,
+    "frames_collapsed": 0,
+    "estimated_tokens": 0,
+    "estimator": "heuristic",
+    "exit_code": 0
+  }
+}

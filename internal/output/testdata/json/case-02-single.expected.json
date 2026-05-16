@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "format": "pytest",
+  "events": [
+    {
+      "severity": "error",
+      "kind": "test_failure",
+      "title": "AssertionError: expected 302, got 200",
+      "location": {
+        "file": "tests/api/test_auth.py",
+        "line": 47,
+        "column": null
+      },
+      "body": [
+        "AssertionError: expected 302, got 200",
+        "  at test_auth.py:47"
+      ],
+      "frames_collapsed": 0,
+      "count": 1,
+      "truncated": false
+    }
+  ],
+  "summary": {
+    "input_lines": 842,
+    "output_lines": 0,
+    "events_found": 1,
+    "events_emitted": 1,
+    "events_deduped": 0,
+    "events_dropped_budget": 0,
+    "frames_collapsed": 0,
+    "estimated_tokens": 0,
+    "estimator": "heuristic",
+    "exit_code": 0
+  }
+}

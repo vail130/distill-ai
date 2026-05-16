@@ -148,6 +148,17 @@ Per-format kind values are documented in each format's
 | `estimator`             | string  | Estimator used: `heuristic` or `tiktoken`.        |
 | `exit_code`             | integer | Final exit code (0, 1, 2, or 3).                  |
 
+The summary object is always present in JSON output. `--no-footer`
+suppresses the human-readable footer block in the `text` and
+`markdown` encoders only; for JSON, the summary is part of the
+schema and is not optional. Tooling that wants a JSON object
+without a summary should ignore the field instead of toggling the
+flag.
+
+In streaming (ndjson) mode the summary appears on the final line as
+its own top-level object, after every `event` line; in batch mode
+it lives under the `summary` key of the single top-level object.
+
 ## Versioning
 
 - `schema_version` is the first field of every top-level object so

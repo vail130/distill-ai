@@ -1,0 +1,19 @@
+{
+  "format_name": "k8s",
+  "input_lines": 1000,
+  "streaming": true,
+  "estimator_name": "heuristic",
+  "events": [
+    {
+      "severity": "warn",
+      "kind": "warning",
+      "title": "pod restart loop",
+      "location": null,
+      "body": ["pod foo restarted 3 times in 1m"],
+      "frames_collapsed": 0,
+      "count": 3,
+      "truncated": false,
+      "metadata": {"c_namespace": "ns", "a_pod": "foo", "b_container": "main"}
+    }
+  ]
+}

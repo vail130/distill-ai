@@ -1,0 +1,2 @@
+{"schema_version":1,"format":"k8s","event":{"severity":"warn","kind":"warning","title":"pod restart loop","location":null,"body":["pod foo restarted 3 times in 1m"],"frames_collapsed":0,"count":3,"truncated":false,"metadata":{"a_pod":"foo","b_container":"main","c_namespace":"ns"}}}
+{"schema_version":1,"format":"k8s","summary":{"input_lines":1000,"output_lines":1,"events_found":1,"events_emitted":1,"events_deduped":2,"events_dropped_budget":0,"frames_collapsed":0,"estimated_tokens":0,"estimator":"heuristic","exit_code":0}}
