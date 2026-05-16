@@ -1,0 +1,17 @@
+events from pytest
+
+[1] ERROR AssertionError: expected 302, got 200
+  at tests/api/test_auth.py:47
+  AssertionError: expected 302, got 200
+
+[2] WARN DeprecationWarning: use foo() instead of bar()
+  DeprecationWarning: use foo() instead of bar()
+
+[3] ERROR fixture 'db' not found
+  at tests/conftest.py:12
+  E       fixture 'db' not found
+  ERROR tests/test_db.py::test_insert
+
+---
+distilled 8,432 lines → 14 lines (0 tokens, heuristic)
+dropped: 0 events, 0 deduped, 0 vendor frames

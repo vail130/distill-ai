@@ -1,0 +1,21 @@
+{
+  "format_name": "gotest",
+  "input_lines": 50000,
+  "estimator_name": "tiktoken",
+  "no_footer": false,
+  "events": [
+    {
+      "severity": "error",
+      "kind": "panic",
+      "title": "runtime error: index out of range [5] with length 3",
+      "location": {"file": "main.go", "line": 42, "column": null},
+      "body": [
+        "panic: runtime error: index out of range",
+        "... [truncated by --budget]"
+      ],
+      "frames_collapsed": 0,
+      "count": 1,
+      "truncated": true
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+events from pytest
+
+[1] ERROR AssertionError: nope
+  at t.py:1
+  AssertionError: nope
+
