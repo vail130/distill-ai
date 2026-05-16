@@ -1,0 +1,66 @@
+internal/output/testdata/markdown/case-06-no-footer.expected.md
+  27cf09bbe10e7fdd 1-10
+internal/output/testdata/markdown/case-02-single.expected.md
+  27cf09bbe10e7fdd 1-19
+internal/output/testdata/markdown/case-02-single.events.json
+  27cf09bbe10e7fdd 1-20
+internal/output/testdata/markdown/case-07-fence-python.events.json
+  27cf09bbe10e7fdd 1-24
+internal/output/testdata/markdown/case-04-frames-context-count.expected.md
+  27cf09bbe10e7fdd 1-29
+internal/output/testdata/markdown/case-04-frames-context-count.events.json
+  27cf09bbe10e7fdd 1-29
+internal/output/testdata/markdown/case-03-multi.expected.md
+  27cf09bbe10e7fdd 1-33
+internal/output/testdata/markdown/case-03-multi.events.json
+  27cf09bbe10e7fdd 1-37
+internal/output/testdata/markdown/case-01-empty.expected.md
+  27cf09bbe10e7fdd 1-9
+internal/output/testdata/markdown/case-05-truncated.expected.md
+  27cf09bbe10e7fdd 1-20
+internal/output/testdata/markdown/case-07-fence-python.expected.md
+  27cf09bbe10e7fdd 1-25
+internal/output/testdata/markdown/case-01-empty.events.json
+  27cf09bbe10e7fdd 1-5
+internal/output/testdata/markdown/case-06-no-footer.events.json
+  27cf09bbe10e7fdd 1-18
+internal/output/markdown_test.go
+  27cf09bbe10e7fdd 1-124
+internal/output/markdown.go
+  27cf09bbe10e7fdd 1-211
+internal/output/testdata/markdown/case-05-truncated.events.json
+  27cf09bbe10e7fdd 1-21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "09b9e8f49424239cb1615f200bcbd7db4fea0340",
+  "prompts": {
+    "27cf09bbe10e7fdd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1cdd8df5bffehxMD8Q1B3K8d32",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 640,
+      "total_deletions": 6,
+      "accepted_lines": 634,
+      "overriden_lines": 0
+    },
+    "88e9712c2700c6c6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1cde89cadffegPygUZrDQ0Q7L7",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 2241,
+      "overriden_lines": 0
+    }
+  }
+}
