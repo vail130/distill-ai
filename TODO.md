@@ -20,10 +20,10 @@ Each milestone ends with **exit criteria** — a milestone-level drift
 check before the milestone is marked complete (see
 [alignment.md § Enforcement](./.opencode/rules/alignment.md#enforcement)).
 
-Milestones M1–M8 are scoped this way today. Per the working agreement,
-the next three open milestones are kept fully scoped at all times — so
-as M6 lands, M9 gets scoped; as M7 lands, M10 gets scoped; and so on.
-M9–M16 are sketched but not yet scoped.
+Milestones M1–M8 and M10 are scoped this way today. Per the working
+agreement, the next three open milestones are kept fully scoped at all
+times — so as M7 lands, M10 gets scoped; as M8 lands, M11 gets scoped;
+and so on. M9 and M11–M16 are sketched but not yet scoped.
 
 ---
 
@@ -926,7 +926,7 @@ code 3. M6 prepares the signal; M8 reads it.
 
 ---
 
-## M7 — Output encoders
+## M7 — Output encoders ✅
 
 Three Sinks that turn the Event stream into bytes a user (or an LLM)
 can read: compact `text` (the default), schema-versioned `json` /
@@ -949,7 +949,7 @@ item below lists Definition of Done (DoD), required tests, and
 required doc updates per the
 [alignment rule](./.opencode/rules/alignment.md).
 
-### M7.1 — `internal/output/text.go`: default compact encoder
+### M7.1 — `internal/output/text.go`: default compact encoder ✅
 
 Match the example output in
 [ARCHITECTURE.md § Output formats § text](./ARCHITECTURE.md#output-formats).
@@ -1007,7 +1007,7 @@ Match the example output in
   - Update [README.md](./README.md) once the CLI is wired in M8;
     M7 only needs godoc + the existing ARCHITECTURE example.
 
-### M7.2 — `internal/output/json.go`: schema-versioned JSON / ndjson
+### M7.2 — `internal/output/json.go`: schema-versioned JSON / ndjson ✅
 
 Match the schema in
 [docs/formats/SCHEMA.md](./docs/formats/SCHEMA.md) exactly.
@@ -1081,7 +1081,7 @@ Match the schema in
   - Update [output-stability rule](./.opencode/rules/output-stability.md)
     if any drift-guard test name changes.
 
-### M7.3 — `internal/output/markdown.go`: markdown encoder
+### M7.3 — `internal/output/markdown.go`: markdown encoder ✅
 
 Same content as the text encoder, wrapped in markdown headings and
 fenced blocks for direct paste into chat.
@@ -1111,7 +1111,7 @@ fenced blocks for direct paste into chat.
 - **Docs:**
   - Godoc on `MarkdownSink`, `FenceLang`.
 
-### M7.4 — Property tests across all three Sinks
+### M7.4 — Property tests across all three Sinks ✅
 
 Promote the cross-cutting invariants to single-source-of-truth tests.
 
@@ -1459,15 +1459,254 @@ ship).
 
 ## M10 — pytest format
 
-- [ ] `internal/formats/pytest/pytest.go`
-- [ ] `Detect`: `=== FAILURES ===`, `=== test session starts ===` markers
-- [ ] Parse failure blocks: test ID, assertion, file:line, source context
-- [ ] Parse error blocks (collection errors, fixture failures)
-- [ ] Parse short test summary info section
-- [ ] Skip passing tests entirely
-- [ ] Handle `-v` and non-`-v` output shapes
-- [ ] Handle `--tb=short` / `--tb=long` / `--tb=line`
-- [ ] Fixtures: clean run, single fail, multi fail, errors, parametrised, xfail/xpass, warnings, collection error
+The first real format parser, and the canonical example every later
+format (jest, gotest, generic) modelled on. M10 implements
+`formats.Format` for pytest — detect by terminal markers, parse
+`=== FAILURES ===` and `=== ERRORS ===` blocks, emit one Event per
+failure or collection error, skip passing tests entirely. Streaming-
+first per ARCHITECTURE.md § Pipeline: every Event is forwarded as the
+trailing newline of its block is consumed; the parser never buffers
+the whole input.
+
+Cross-references
+[ARCHITECTURE.md § Format plugin contract](./ARCHITECTURE.md#format-plugin-contract),
+[docs/formats/SCHEMA.md § Kind values](./docs/formats/SCHEMA.md#kind-values).
+
+M10 builds on M1 (`Format` interface, `formats.Register`), M3
+(autodetection — pytest must return `Confidence=1.0` on a clear hit,
+< 0.6 on ambiguous input), and M7 (the output encoders that render
+the Events this format emits). Each item below lists Definition of
+Done, required tests, and required doc updates per the
+[alignment rule](./.opencode/rules/alignment.md).
+
+### M10.1 — `internal/formats/pytest/pytest.go`: skeleton + Detect
+
+Land the package, register it, and implement `Format.Detect`. No
+parsing yet — `Parse` returns an empty channel — so M3 autodetection
+exercises the new format end-to-end before the heavy parser arrives.
+
+- **DoD:**
+  - New package `internal/formats/pytest` exporting `Format` (a
+    value, not an interface — implements `formats.Format`).
+  - `func init() { formats.Register(Format{}) }` so the registry
+    picks it up automatically.
+  - `Name() string` returns `"pytest"`.
+  - `Detect(sample []byte) Confidence`:
+    - `1.0` when the sample contains `=== test session starts ===`
+      or `=== FAILURES ===`.
+    - `0.8` when the sample contains a `>` assertion line plus
+      either `conftest.py` or `pytest.ini` fragments.
+    - `0.0` otherwise.
+    - The threshold constants live in package-level `const`s named
+      `confidenceClearMarker = 1.0`, `confidenceFuzzy = 0.8` so the
+      file is reviewable without context-switching to the test.
+  - `Parse(ctx, r, opts)` returns an immediately-closed channel for
+    M10.1; M10.2–M10.4 fill it in. The early stub lets autodetect
+    and CLI plumbing work against pytest before the real parser
+    lands.
+- **Tests** (`internal/formats/pytest/pytest_test.go`):
+  - `TestPytest_DetectClearMarker`: feed the literal
+    `=== test session starts ===` line; assert `Confidence == 1.0`.
+  - `TestPytest_DetectFailuresMarker`: feed `=== FAILURES ===`;
+    assert `1.0`.
+  - `TestPytest_DetectFuzzy`: feed a chunk containing both
+    `conftest.py` and an `>` assertion line; assert `0.8`.
+  - `TestPytest_DetectNegative`: feed unrelated text (a Go build
+    log) and assert `0.0`.
+  - `TestPytest_RegisteredAtInit`: import the package for its side
+    effect, then call `formats.Get("pytest")` and assert
+    `(format, true)`.
+  - `TestPytest_ParseEmptyStub`: ensure `Parse` returns a closed
+    channel without error so M3 detection paths work end-to-end
+    against the stubbed parser.
+- **Docs:**
+  - Godoc on `Format`, `Detect`, `Parse`, and the confidence
+    constants.
+  - New `docs/formats/pytest.md` with the section skeleton (intro,
+    detection markers, what's extracted, what's dropped, example
+    I/O). M10.1 fills in detection + intro; M10.2–M10.4 extend.
+  - Update [README.md](./README.md) format list once it exists
+    (currently only mentioned in the usage examples).
+
+### M10.2 — Parse `=== FAILURES ===` blocks (long-form traceback)
+
+The common case: `pytest --tb=long` (the default). Each FAILURE block
+runs from the underlined test name to the next block delimiter; the
+parser emits one Event per block with severity=error, kind=test_failure.
+
+- **DoD:**
+  - The parser is a `bufio.Scanner`-driven state machine over
+    `r io.Reader`. No buffering of the whole input: as soon as a
+    block's terminating delimiter is consumed, the Event is forwarded.
+  - State machine states:
+    `stateSession` (pre-FAILURES, lines discarded),
+    `stateFailureHeader` (matching `___ test_id ___` underline),
+    `stateFailureBody` (accumulating body until next header / divider),
+    `stateSummary` (`=== short test summary info ===` and beyond).
+  - The emitted Event for a failure block has:
+    - `Severity = SeverityError`.
+    - `Kind = "test_failure"`.
+    - `Title` = the assertion / exception line (first non-blank line
+      starting with `E   `, falling back to the last body line if
+      no `E   ` line exists).
+    - `Location` = the file:line printed in the traceback's bottom
+      frame (`>   assert ...` line preceded by `path/to/file.py:LN:`).
+    - `Body` = the verbatim block lines including the underlined
+      test name, the assertion, and the traceback.
+    - `Metadata["test_id"]` = the test ID parsed from the underlined
+      header (e.g., `tests/api/test_auth.py::test_login_redirect`).
+  - Frames are **not** populated in M10.2; the bare traceback lines
+    live in `Body`. Frame extraction is M10.4 alongside `--tb=short`.
+  - All passing tests, dots, progress lines, and the `===` dividers
+    between sections are dropped on the floor — they never produce
+    Events.
+- **Tests** (extends `pytest_test.go`):
+  - `TestPytest_ParseSingleFailure`: a fixture with one failing
+    test; assert one Event with the expected title, location, and
+    body.
+  - `TestPytest_ParseMultiFailure`: three failures; three Events,
+    each with the correct test_id.
+  - `TestPytest_ParseSkipsPassing`: a fixture with one pass and one
+    fail; only the fail emits an Event.
+  - `TestPytest_ParseStreaming`: use `testutil.SlowReader` to drip
+    a multi-failure fixture; assert at least one Event arrives
+    before the source closes.
+  - `TestPytest_ParseDeterministic`: same input twice → byte-equal
+    sequence of Events (property test, ties into the project's
+    determinism invariant).
+- **Docs:**
+  - Extend `docs/formats/pytest.md`: example failure block + the
+    Event it produces.
+  - No SCHEMA.md change — `test_failure` is already listed under
+    pytest's kind values.
+
+### M10.3 — Parse `=== ERRORS ===` and collection errors
+
+Errors are pytest's term for failures before a test can run: fixture
+errors, import errors, syntax errors in test modules, missing
+conftest pieces.
+
+- **DoD:**
+  - When the state machine sees `=== ERRORS ===`, it transitions to
+    a `stateErrorBody` shape parallel to `stateFailureBody`.
+  - One Event per error block with:
+    - `Severity = SeverityError`.
+    - `Kind = "test_error"` (for in-test errors like a fixture
+      failure).
+    - `Kind = "collection_error"` when the error is in the
+      collection phase (detected by the surrounding marker
+      `=== ERRORS ===` appearing **before** any `=== test session
+      starts ===` failures section, or by the error block header
+      mentioning "during collection").
+    - `Title` = the error type and message (e.g.,
+      `fixture 'db' not found`).
+    - `Location` = the file:line printed in the error traceback.
+    - `Body` = the verbatim error block.
+    - `Metadata["test_id"]` populated when the error is per-test
+      (not for top-level collection errors).
+- **Tests:**
+  - `TestPytest_ParseFixtureError`: fixture-not-found case; one
+    Event with `Kind="test_error"`.
+  - `TestPytest_ParseCollectionError`: conftest.py syntax error;
+    one Event with `Kind="collection_error"`, no `test_id`.
+  - `TestPytest_ParseErrorAndFailureMix`: fixture with one error
+    block and one failure block; two Events with the right Kinds.
+- **Docs:**
+  - Extend `docs/formats/pytest.md` with collection-error example
+    and the difference between `test_error` and `collection_error`.
+
+### M10.4 — Stack frame extraction and `--tb` shape handling
+
+Populate `Event.Frames` from the traceback and handle pytest's three
+non-default `--tb` settings (`short`, `line`, `native`).
+
+- **DoD:**
+  - Frame extraction runs after the block-body accumulator captures
+    the verbatim lines: a small regex matches
+    `(path)(:\d+):.*` traceback lines and emits one `StackFrame`
+    per match. The `Vendor` flag is left false — the M5
+    CollapseStage takes over from there. Frames are emitted only
+    when at least one line matches; otherwise `Frames` stays nil.
+  - `--tb=short` produces a compact `file:line: message` traceback;
+    the parser detects it by the absence of indented continuation
+    lines after the test header and still emits one frame.
+  - `--tb=line` emits a single-line summary per failure. The parser
+    falls back to `Body=[that line]` and `Frames=nil`.
+  - `--tb=native` is treated identically to `--tb=long` — Python's
+    own traceback shape — and the existing extraction works.
+  - The state machine handles `-v` and non-`-v` shapes uniformly:
+    the only difference is the test-collection lines at the top,
+    which are discarded either way.
+  - Warning blocks (`=== warnings summary ===`) are parsed into
+    Events with `Severity=SeverityWarn`, `Kind="warning"`. Each
+    warning is one Event; the warning's source-file location is
+    extracted into `Location` when present.
+- **Tests:**
+  - `TestPytest_ParseExtractsFrames`: a default `--tb=long` fixture
+    yields Events with `len(Frames) > 0`, the bottom frame being
+    user code.
+  - `TestPytest_ParseTbShort`: same logical failure as above but
+    with `--tb=short` output; one Event with one frame.
+  - `TestPytest_ParseTbLine`: `--tb=line` output; Event has
+    `Frames=nil` and the one-line summary in `Body`.
+  - `TestPytest_ParseVerboseSameAsTerse`: same fixture rendered
+    once with `-v` and once without; the Events emitted are
+    identical (modulo the test_id appearing in both paths).
+  - `TestPytest_ParseWarnings`: a fixture with `--tb=long` plus a
+    `=== warnings summary ===` block emits the failure Events
+    first, then the warning Events.
+- **Docs:**
+  - Extend `docs/formats/pytest.md`: the four `--tb` shapes side by
+    side, the rule for when Frames is populated vs nil, the warning
+    handling.
+
+### M10.5 — Fixtures and ARCHITECTURE update
+
+Tie M10 off with the canonical fixture set per
+[CONTRIBUTING.md § Adding a format](./CONTRIBUTING.md#adding-a-format)
+and the format-list update.
+
+- **DoD:**
+  - Eight fixtures under `internal/formats/pytest/testdata/`:
+    `clean.input` (no failures, parser emits nothing),
+    `single-fail.input`, `multi-fail.input`, `errors.input`,
+    `parametrised.input`, `xfail-xpass.input`, `warnings.input`,
+    `collection-error.input`. Each has a `*.expected` companion in
+    the format the format-test harness reads (the harness lands in
+    M10.1, modelled on the output package's golden helper).
+  - The harness supports `go test -update ./...` to regenerate
+    fixtures, matching the output package pattern.
+  - ARCHITECTURE.md format list updated to mention `pytest` as
+    "shipped" rather than "planned".
+  - `formats.All()` (after the side-effect import) includes pytest
+    in alphabetical position — verified by a new test in
+    `cmd/distill-ai/list_formats_test.go` once M8.4 lands, and
+    informally by the existing `TestRegistry_AllIsSorted`.
+- **Tests:**
+  - `TestPytest_Goldens`: harness walks `testdata/`, runs the parser
+    on each `.input`, marshals Events to JSON, diffs against
+    `.expected`. Run with `-update` to regenerate.
+  - `TestPytest_FixtureCount`: hard assertion that exactly the
+    eight enumerated fixtures exist, so future drift is caught.
+- **Docs:**
+  - `docs/formats/pytest.md` finalised: detection markers, every
+    parsed event kind with an example, what's dropped, the eight
+    fixtures referenced by file name.
+  - ARCHITECTURE.md updated per DoD.
+
+### M10 exit criteria
+
+- All five sub-items ticked.
+- `make check` clean; no race hits; no goroutine leaks.
+- M10 milestone drift check: `formats.Get("pytest")` returns the
+  registered Format; `docs/formats/pytest.md` exists and describes
+  every Event kind the parser emits; SCHEMA.md's pytest kind values
+  list matches the parser's emitted kinds; the eight fixtures live
+  under `internal/formats/pytest/testdata/` with `*.input` +
+  `*.expected` pairs.
+- Pytest is the first format to ship end-to-end. M11 (jest), M12
+  (gotest), and M9 (generic fallback) are scoped after M10 lands so
+  the canonical implementation they copy is real, not aspirational.
 
 ---
 
