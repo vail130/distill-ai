@@ -1,0 +1,31 @@
+internal/formats/format.go
+  ab2bb0b85a01f798 1-95
+internal/formats/format_test.go
+  ab2bb0b85a01f798 1-96
+internal/formats/example_test.go
+  ab2bb0b85a01f798 1-72
+CONTRIBUTING.md
+  ab2bb0b85a01f798 75-79,180-182
+TODO.md
+  ab2bb0b85a01f798 91
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "549493b79e33d4e21cbd47262f71b681f67aa2dc",
+  "prompts": {
+    "ab2bb0b85a01f798": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1d1396929ffelA77PVRH1hlfH1",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 272,
+      "total_deletions": 2,
+      "accepted_lines": 1408,
+      "overriden_lines": 4
+    }
+  }
+}
