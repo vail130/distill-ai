@@ -52,6 +52,21 @@ type BudgetCounters struct {
 	EstimatedTokens int
 }
 
+// ForcedDrops reports whether the BudgetStage had to drop or
+// truncate at least one Event to fit the budget. The CLI (M8) maps
+// this to exit code 3; library callers (M14) can do the same.
+// Safe to call on a nil receiver and on a zero-value BudgetCounters
+// — both return false, so pipelines without a BudgetStage report
+// "no forced drops" without the caller having to nil-check first.
+//
+// See ARCHITECTURE.md § Exit codes for the full contract.
+func (c *BudgetCounters) ForcedDrops() bool {
+	if c == nil {
+		return false
+	}
+	return c.EventsDroppedBudget > 0 || c.EventsTruncated > 0
+}
+
 // BudgetStage caps the total estimated token cost of the Event stream
 // at Budget. It buffers the entire input, sorts by descending
 // Severity (error → warn → info) with arrival-order tie-breaking,

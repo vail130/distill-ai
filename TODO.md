@@ -734,7 +734,7 @@ Connect the two stages to the pipeline's configuration so the CLI
 
 ---
 
-## M6 — Budget enforcement
+## M6 — Budget enforcement ✅
 
 Enforce a target output token count via `--budget=N`. The budget
 stage sits at the tail of the pipeline (after Collapse and Dedupe,
@@ -884,7 +884,7 @@ Make the budget controllable from the same `Options` value the CLI
   - Mention the new chain shape and the `Build` error return in
     [ARCHITECTURE.md § Pipeline](./ARCHITECTURE.md#pipeline).
 
-### M6.3 — Exit code 3 plumbing
+### M6.3 — Exit code 3 plumbing ✅
 
 The CLI maps "BudgetStage dropped or truncated content" to exit
 code 3. M6 prepares the signal; M8 reads it.
