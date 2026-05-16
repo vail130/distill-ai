@@ -375,8 +375,11 @@ A new format adds one file:
 package rails
 
 import (
-    "distill-ai/internal/event"
-    "distill-ai/internal/formats"
+    "context"
+    "io"
+
+    "github.com/vail130/distill-ai/internal/event"
+    "github.com/vail130/distill-ai/internal/formats"
 )
 
 func init() {
@@ -387,14 +390,21 @@ type Format struct{}
 
 func (f *Format) Name() string { return "rails" }
 
-func (f *Format) Detect(sample []byte) formats.Confidence {
+func (f *Format) Detect(sample []byte) event.Confidence {
     // regex / heuristic checks
 }
 
 func (f *Format) Parse(ctx context.Context, r io.Reader, opts formats.ParseOpts) (<-chan event.Event, error) {
-    // scanner loop, emit events
+    // scanner loop, emit events; close channel on EOF or ctx cancel
 }
 ```
+
+`formats.Register` panics on duplicate names or nil / empty-name
+Formats; both are programmer errors caught at init time rather than at
+runtime. Get and All are the read APIs: `Get(name)` for CLI lookup,
+`All()` for the detector's parallel fan-out and `list-formats`. All
+returns formats sorted alphabetically by Name so output ordering is
+reproducible across runs.
 
 Registry picks it up via `init()`. No central list to edit.
 
