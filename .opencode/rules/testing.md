@@ -33,15 +33,28 @@ Invariants that must hold across every format and every output encoder:
 
 - **Determinism:** same input twice → byte-identical output. Enforced
   by `TestPipeline_Determinism` and `TestPipeline_DeterminismFromBytes`
-  in `internal/pipeline/property_test.go`.
+  in `internal/pipeline/property_test.go`, and by
+  `TestSinks_DeterministicForFixedInput` in
+  `internal/output/property_test.go` for each output encoder.
 - **Streaming:** events emit before EOF, not buffered until EOF.
   Enforced by `TestPipeline_StreamingEmitsBeforeEOF`, which uses
   `testutil.SlowReader` to feed bytes at a measurable interval and
   asserts that the first Event reaches the Sink before the entire
-  input could possibly have arrived.
+  input could possibly have arrived. The encoders are themselves
+  exercised by `TestSinks_StreamingEmitsBeforeEOF` (note: `JSONSink`
+  with `Streaming=false` is buffered by design — the schema
+  commits to a single top-level object — and is excluded).
+- **Footer toggle:** `--no-footer` (a.k.a. `NoFooter` on each Sink) is
+  uniformly honoured by text/markdown encoders and is a documented
+  no-op on the JSON encoder, where the summary is part of the schema.
+  Enforced by `TestSinks_NoFooterFlagHonoured` and
+  `TestSinks_FooterReflectsCounters`.
 - **Schema-version stability:** JSON output round-trips through the
   documented schema (enforced today by
-  `TestEvent_JSONSchemaMatchesDoc`).
+  `TestEvent_JSONSchemaMatchesDoc` and by
+  `TestJSONSink_SchemaVersionMatchesDoc`, which cross-checks
+  `output.SchemaVersion` against the SCHEMA.md "Current schema version"
+  line).
 
 These are not optional. Property tests are part of the contract.
 
