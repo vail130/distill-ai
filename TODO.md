@@ -174,7 +174,7 @@ restructure internal imports.
 
 ---
 
-## M2 — Pipeline plumbing
+## M2 — Pipeline plumbing ✅
 
 Wire detect → parse → dedupe → collapse → budget → emit as a
 goroutine pipeline with backpressure. Cross-references
@@ -230,7 +230,7 @@ Promote the design's two big invariants to enforceable tests.
   - Reference these tests from
     [testing.md](./.opencode/rules/testing.md).
 
-### M2.3 — Backpressure & goroutine safety audit
+### M2.3 — Backpressure & goroutine safety audit ✅
 
 Before M3 lands more stages, prove the existing skeleton doesn't leak.
 

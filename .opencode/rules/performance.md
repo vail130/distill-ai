@@ -14,8 +14,13 @@ its consumer runs. It must be fast and bounded.
   is the dominant contributor; see ARCHITECTURE.md § Token estimation.
 - **Memory:** bounded. Dedupe LRU has a configurable cap. No unbounded
   buffers anywhere — neither full-input buffering nor unbounded
-  channel queues. Verified by `TestPipeline_BoundedMemory` (M2.3) on
-  synthetic 10GB input.
+  channel queues. Verified by `TestPipeline_BoundedMemory_PeakSampling`
+  (M2.3): pipes 8 MB of synthetic input through a discarding sink
+  while a goroutine samples `runtime.MemStats.HeapAlloc` at 1 ms
+  intervals; peak live heap must stay under a 16 MB ceiling. The
+  theoretical bound is `BufferSize × (len(Stages) + 1) × sizeof(Event)`
+  plus the parser's scratch buffer (≤ 64 KB for a `bufio.Scanner`),
+  well under the ceiling for any realistic pipeline shape.
 
 ## Soft expectations
 
