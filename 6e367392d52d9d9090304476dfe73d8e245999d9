@@ -1,0 +1,36 @@
+TODO.md
+  cc340a98d1f4d6e8 23,25-26,1452-1884
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "6e367392d52d9d9090304476dfe73d8e245999d9",
+  "prompts": {
+    "88e9712c2700c6c6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1cde89cadffegPygUZrDQ0Q7L7",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 2259,
+      "overriden_lines": 25
+    },
+    "cc340a98d1f4d6e8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1cdb6b072ffexXBt41e0kV5rwJ",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 1661,
+      "total_deletions": 101,
+      "accepted_lines": 1570,
+      "overriden_lines": 0
+    }
+  }
+}
