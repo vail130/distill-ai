@@ -1,0 +1,37 @@
+CONTRIBUTING.md
+  ab2bb0b85a01f798 1-165
+TODO.md
+  ab2bb0b85a01f798 1-267
+CHANGELOG.md
+  ab2bb0b85a01f798 1-37
+ARCHITECTURE.md
+  ab2bb0b85a01f798 1-447
+CODE_OF_CONDUCT.md
+  ab2bb0b85a01f798 1-84
+README.md
+  ab2bb0b85a01f798 2-79
+SECURITY.md
+  ab2bb0b85a01f798 1-67
+AGENTS.md
+  ab2bb0b85a01f798 1-136
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "c3ea40705040a15ffed9296b7fde5bf597346551",
+  "prompts": {
+    "ab2bb0b85a01f798": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1d1396929ffelA77PVRH1hlfH1",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 1839,
+      "overriden_lines": 0
+    }
+  }
+}
