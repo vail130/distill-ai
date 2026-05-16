@@ -513,70 +513,83 @@ flaky test that fires 4,000 times doesn't blow the budget.
   - `New(window int) *Deduper` constructs a Deduper with a fixed
     capacity. `window <= 0` is treated as "off" — the Deduper still
     satisfies the API but every Event passes through with `Count=1`.
-  - `Observe(ev Event) (out Event, emit bool)` is the streaming
-    entry point. On first sight of a signature: store the Event with
-    its index, return `(ev with Count=1, true)`. On a duplicate
-    within the window: bump the stored Event's `Count`, move it to
-    the front of the LRU, return `(_, false)` so the caller drops
-    the duplicate from the stream.
+  - `Observe(ev Event) (evicted Event, hasEvicted bool)` is the
+    streaming entry point. On first sight of a signature: store the
+    Event with `Count=1` at the front of the LRU. If insertion
+    pushes capacity over `window`, the oldest entry is evicted and
+    returned with `hasEvicted=true`. On a duplicate within the
+    window: bump the stored Event's `Count`, move it to the front
+    of the LRU, return `hasEvicted=false`. Either way, the caller
+    forwards the evicted Event (if any) downstream.
   - `Flush() []Event` returns all in-flight Events with their final
-    `Count` values, in LRU recency order (most-recently-seen first,
-    matching the order in which they were "promoted"). Used by
-    batch-mode callers and by the streaming flush hook below.
-  - `DedupeStage` implements `pipeline.Stage`. Each incoming Event
-    is fed through `Observe`; emitted Events flow through unchanged.
-    On `in` close, `DedupeStage` calls `Flush` and emits each Event
-    whose `Count > 1` and whose first-emit had `Count == 1` — i.e.,
-    only the *follow-up* count gets flushed, so consumers see a
-    single Event per signature with the final `Count`. (This means
-    the stream emits the Event eagerly with `Count=1` for latency,
-    then re-emits with the corrected `Count` at flush. M5.3
-    documents this two-emit pattern in the encoder contract.)
+    `Count` values, in LRU recency order (oldest first, so the
+    relative order in which entries first appeared is preserved).
+    Used by `DedupeStage` to drain remaining entries when the
+    upstream channel closes.
+  - **Eviction-emit only.** The stage emits an Event downstream
+    exactly once per signature: at LRU eviction, or at flush. No
+    "two-emit pattern", no eager Count=1 then re-emit. Consumers
+    therefore see one Event per signature with the final `Count`.
+    The cost is per-event latency: an Event is delayed in the LRU
+    until either `window` more distinct events arrive or the input
+    closes. The `--dedupe-window=N` flag (wired in M8) controls
+    that latency directly; window=0 disables dedupe entirely and
+    every Event flows through unmodified with `Count=1`.
+  - `DedupeStage` implements `pipeline.Stage`. For each incoming
+    Event: call `Observe`; if it returned an evicted Event, forward
+    that downstream. On `in` close, call `Flush` and forward each
+    remaining Event downstream in the order returned.
   - Concurrency: `Deduper` is **not** goroutine-safe; one
     `DedupeStage` owns one `Deduper` from a single goroutine. The
     pipeline already provides that constraint.
   - Zero dependencies beyond `container/list` and `hash/fnv`.
 - **Tests** (`internal/event/dedupe_test.go`):
-  - `TestDeduper_FirstSightEmits`: an Event seen once round-trips
-    with `Count=1, emit=true`.
-  - `TestDeduper_DuplicateBumpsCount`: same signature twice → second
-    `Observe` returns `emit=false`; `Flush` reports `Count=2`.
-  - `TestDeduper_DistinctTitlesDoNotCollide`: two Events with the
-    same Location but different Titles emit separately.
-  - `TestDeduper_DistinctLocationsDoNotCollide`: two Events with the
-    same Title but different file:line emit separately.
-  - `TestDeduper_NilLocationHashesAsTitleOnly`: two Events with
-    `Location=nil` and identical Title collapse; one with a Title
-    that happens to contain the would-be hash separator does not
-    collide with anything (signature is hashed, not concatenated
-    verbatim).
-  - `TestDeduper_EvictionOldestOut`: window=3, observe 4 distinct
-    signatures, then re-observe the first — it should re-emit as
-    new (not as a duplicate) because it was evicted.
-  - `TestDeduper_WindowZeroDisables`: window=0, every Event passes
-    through with `emit=true, Count=1`; `Flush` returns no events.
-  - `TestDeduper_FlushOrder`: LRU recency order, most-recent first.
-  - `TestDedupeStage_StreamingPassthrough`: stage in a pipeline,
-    feed 100 unique events, assert all 100 emerge in order with
+  - `TestDeduper_FirstSightDoesNotEvict`: an Event seen once
+    returns `hasEvicted=false`; `Flush` returns that Event with
     `Count=1`.
-  - `TestDedupeStage_StreamingDeduplicates`: feed 10 distinct + 10
-    of the same Event, assert 11 events emerge (10 originals +
-    1 final flush carrying `Count=11` for the duplicated one).
+  - `TestDeduper_DuplicateBumpsCount`: same signature twice → both
+    `Observe` calls return `hasEvicted=false`; `Flush` reports
+    `Count=2`.
+  - `TestDeduper_DistinctTitlesDoNotCollide`: two Events with the
+    same Location but different Titles flush separately.
+  - `TestDeduper_DistinctLocationsDoNotCollide`: two Events with the
+    same Title but different file:line flush separately.
+  - `TestDeduper_NilLocationHashesAsTitleOnly`: two Events with
+    `Location=nil` and identical Title collapse; an Event whose
+    Title literally contains the hash separator byte does not
+    collide with a different Title/Location combination (signature
+    is hashed, not concatenated verbatim).
+  - `TestDeduper_EvictionEmitsOldest`: window=3, observe 4 distinct
+    signatures — the 4th Observe call returns `hasEvicted=true`
+    carrying the first-observed Event with `Count=1`.
+  - `TestDeduper_ReObserveAfterEviction`: after an entry is evicted,
+    re-observing the same signature treats it as new (its old
+    `Count` is gone).
+  - `TestDeduper_WindowZeroDisables`: window=0, every `Observe`
+    returns `hasEvicted=true` carrying the input Event unchanged
+    with `Count=1`; `Flush` returns no events.
+  - `TestDeduper_FlushOrderOldestFirst`: insertion-order
+    preservation; Flush returns entries in the order they first
+    appeared.
+  - `TestDedupeStage_PassthroughDistinct`: stage in a pipeline,
+    feed 100 unique events with window=100, assert all 100 emerge
+    in order with `Count=1` (none evicted in flight, all flushed).
+  - `TestDedupeStage_DeduplicatesIdentical`: feed 10 distinct + 10
+    copies of one of those Events, assert 10 events emerge each
+    with the correct `Count` (one with `Count=11`, nine with
+    `Count=1`).
   - `TestDedupeStage_ContextCancellation`: cancel mid-stream, stage
     drains and exits, no goroutine leak.
 - **Docs:**
   - Godoc on `Deduper`, `New`, `Observe`, `Flush`, `Signature`,
-    `DedupeStage`. Explain the two-emit pattern (emit eagerly with
-    `Count=1`, re-emit on flush with final `Count`) on `DedupeStage`
-    so encoder authors expect to see the same signature twice.
+    `DedupeStage`. Explain the eviction-emit contract on
+    `DedupeStage` so encoder authors don't expect duplicate
+    signatures.
   - Update
     [ARCHITECTURE.md § Streaming behaviour](./ARCHITECTURE.md#streaming-behaviour)
-    if the flush cadence or `Count` semantics differ from the
-    sketch.
-  - Add a `dedupe` row to the schema doc's `count` field if the
-    two-emit pattern is observable on the JSON output. (Currently
-    it's not — the encoder is M7 — but the schema must agree once
-    M7 lands; record the expectation in `docs/formats/SCHEMA.md`.)
+    so it documents eviction-emit (the existing line about
+    "periodic dedupe flush every N events" is from an earlier
+    design and needs updating in the same commit).
 
 ### M5.2 — `internal/event/collapse.go`: stack frame collapse
 

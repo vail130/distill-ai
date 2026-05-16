@@ -343,12 +343,19 @@ Signatures are cheap regex matches on known markers:
 
 ### Streaming behaviour
 
-- `--dedupe` in stream mode uses a bounded LRU keyed by event signature
-  (`hash(title + location)`).
+- `--dedupe` uses a bounded LRU keyed by event signature
+  (`hash(title + location)`). Signature is FNV-64a over a sentinel byte
+  plus the Title and (when set) `File:Line`; see `event.Signature`.
+- The dedupe stage emits each Event downstream exactly once — at LRU
+  eviction or when the upstream channel closes. No two-emit pattern;
+  encoders see one Event per signature with the final `Count`. The
+  cost is per-event latency: an Event is delayed in the LRU until
+  either `--dedupe-window=N` more distinct events arrive or the input
+  closes. `--dedupe-window=0` disables dedupe (every Event passes
+  through with `Count=1`).
 - Output emitters write incrementally as events arrive.
 - JSON emitter uses `ndjson` (one event per line) when input is unbounded;
   switches to canonical JSON when input is bounded (file mode).
-- Periodic dedupe flush every N events or M seconds in stream mode.
 
 ### Budget enforcement
 
