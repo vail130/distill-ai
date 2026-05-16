@@ -1,0 +1,29 @@
+internal/tokens/estimate_test.go
+  ab2bb0b85a01f798 1-147
+internal/tokens/estimate.go
+  ab2bb0b85a01f798 1-110
+ARCHITECTURE.md
+  ab2bb0b85a01f798 381-383,388-390
+TODO.md
+  ab2bb0b85a01f798 358
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "cda8348bc9a8cf75db64fcf17b22eb4dcfe57870",
+  "prompts": {
+    "ab2bb0b85a01f798": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1d1396929ffelA77PVRH1hlfH1",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 264,
+      "total_deletions": 4,
+      "accepted_lines": 1511,
+      "overriden_lines": 5
+    }
+  }
+}
