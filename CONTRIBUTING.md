@@ -22,7 +22,7 @@ day-to-day code conventions (used by both humans and AI agents), read
 
 ## Development setup
 
-You need Go 1.22+.
+You need Go 1.26+.
 
 ```bash
 git clone https://github.com/<owner>/distill-ai
