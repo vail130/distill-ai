@@ -1,0 +1,35 @@
+.github/ISSUE_TEMPLATE/feature_request.md
+  ab2bb0b85a01f798 1-46
+.github/PULL_REQUEST_TEMPLATE.md
+  ab2bb0b85a01f798 1-56
+.github/ISSUE_TEMPLATE/config.yml
+  ab2bb0b85a01f798 1-8
+docs/COMPARISON.md
+  ab2bb0b85a01f798 1-141
+.github/ISSUE_TEMPLATE/bug_report.md
+  ab2bb0b85a01f798 1-45
+.github/ISSUE_TEMPLATE/format_request.md
+  ab2bb0b85a01f798 1-78
+docs/formats/SCHEMA.md
+  ab2bb0b85a01f798 1-184
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "a225f78dc6e6154902481208199c1e5ffdad103b",
+  "prompts": {
+    "ab2bb0b85a01f798": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1d1396929ffelA77PVRH1hlfH1",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 558,
+      "overriden_lines": 0
+    }
+  }
+}
