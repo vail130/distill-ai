@@ -484,7 +484,11 @@ Lean by design.
 - **CLI:** `spf13/cobra` (subcommands, completions, mature).
 - **Config:** `BurntSushi/toml` (lighter than viper; we don't need viper's
   multi-source merging).
-- **Token estimation:** `pkoukk/tiktoken-go` for opt-in tiktoken support.
+- **Token estimation:** `pkoukk/tiktoken-go` (the BPE encoder) plus
+  `pkoukk/tiktoken-go-loader` (offline vocab loader so first init
+  doesn't hit the network). Used only when `--tokenizer=tiktoken` is
+  selected; the default heuristic estimator has zero dependencies.
+  Transitive: `dlclark/regexp2`. All pure Go, MIT, no CGo.
 - **JSON:** stdlib `encoding/json`.
 - **Testing:** stdlib + golden files under `testdata/`. Every format
   ships 5-10 fixture inputs with expected outputs.
