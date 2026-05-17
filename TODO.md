@@ -1401,7 +1401,7 @@ serialises the decisions instead of the events.
   - `docs/explain.md` if the format needs more than the godoc
     can cover.
 
-### M8.7 — `completions [bash|zsh|fish]` subcommand
+### M8.7 — `completions [bash|zsh|fish]` subcommand ✅
 
 Cobra generates these for free; M8 only has to wire them.
 

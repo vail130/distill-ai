@@ -65,6 +65,9 @@ distill-ai detect -          # read stdin
 
 # List every format the binary knows about
 distill-ai list-formats
+
+# Shell completion (bash | zsh | fish | powershell)
+source <(distill-ai completions bash)
 ```
 
 ### Exit codes
