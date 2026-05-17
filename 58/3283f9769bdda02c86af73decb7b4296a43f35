@@ -1,0 +1,38 @@
+.opencode/rules/testing.md
+  78f5fa7238861741 54-55,57-67
+internal/output/property_test.go
+  78f5fa7238861741 6,253-319
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "583283f9769bdda02c86af73decb7b4296a43f35",
+  "prompts": {
+    "78f5fa7238861741": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1cc3a6cf6ffeZwdo2JZM4UmsZO",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 81,
+      "total_deletions": 3,
+      "accepted_lines": 81,
+      "overriden_lines": 0
+    },
+    "a4b56f8d8a5c8bb6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1ccc6d91fffevYfV8e2nUu5pES",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 3819,
+      "overriden_lines": 0
+    }
+  }
+}
