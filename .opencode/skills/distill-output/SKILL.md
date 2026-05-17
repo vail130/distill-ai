@@ -43,17 +43,19 @@ source of truth.
 
 The full CLI surface — flags, subcommands, exit codes — landed in
 **M8**. The **generic fallback** landed in **M9.1** (registration +
-detect floor), **M9.2** (severity-anchored scanner), and **M9.3**
-(traceback / panic block accumulation with parsed stack frames).
-Real command output — Python tracebacks, Go panics, JVM stack
-dumps, ERROR / WARN lines — now distills end-to-end. `cmd |
+detect floor), **M9.2** (severity-anchored scanner), **M9.3**
+(traceback / panic block accumulation with parsed stack frames),
+and **M9.4** (severity-filter plumbing: `--severity` /
+`--keep-warnings` / `--context` thread end-to-end into the
+parser). Real command output — Python tracebacks, Go panics, JVM
+stack dumps, ERROR / WARN lines — now distills end-to-end. `cmd |
 distill-ai` is the canonical invocation: it reads stdin,
 autodetects the format, and distils to stdout.
 
 The remaining gap is the **specific format set**. Until M10/M11/M12
 ship gotest/pytest/jest, every invocation falls back to `generic`.
-M9.4 wires `--severity` / `--keep-warnings`. Use `--strict` to
-turn the fallback into a hard error (exit 2) for CI.
+M9.5 ships the canonical fixture set. Use `--strict` to turn the
+fallback into a hard error (exit 2) for CI.
 
 The full surface today is enumerated in the manifest below.
 

@@ -157,11 +157,17 @@ type pending struct {
 //
 // Memory is bounded: at most contextLines + 1 + contextLines
 // strings live at any time, regardless of input size.
+//
+// Severity filtering happens inside the loop, not as a downstream
+// Stage, because dropping a low-severity anchor line also frees
+// its post-context window. The filtered line stays in preCtx so
+// the next surviving Event can still include it as context.
 func parseStream(ctx context.Context, r io.Reader, opts formats.ParseOpts, out chan<- event.Event) error {
 	contextLines := opts.ContextLines
 	if contextLines <= 0 {
 		contextLines = defaultContextLines
 	}
+	minSeverity := effectiveMinSeverity(opts)
 	scanner := bufio.NewScanner(r)
 	// Allow long lines (bufio default is 64 KiB; some test outputs
 	// emit longer JSON-formatted error lines). Cap at 1 MiB so
@@ -218,7 +224,7 @@ func parseStream(ctx context.Context, r io.Reader, opts formats.ParseOpts, out c
 		// does not deduplicate adjacent matches into a single
 		// Event." If a previous Event is still pending, flush it
 		// first with whatever post-context it managed to gather.
-		if rule != nil {
+		if rule != nil && severityAtLeast(rule.severity, minSeverity) {
 			if cur != nil {
 				if len(cur.postContext) > 0 {
 					cur.ev.Context = append(cur.ev.Context, cur.postContext...)
@@ -345,6 +351,51 @@ func (r *ringBuffer) push(s string) {
 		r.next = 0
 		r.filled = true
 	}
+}
+
+// severityWeight assigns a numeric weight to each severity for the
+// MinSeverity comparison. Higher weight = more severe.
+func severityWeight(s event.Severity) int {
+	switch s {
+	case event.SeverityError:
+		return 3
+	case event.SeverityWarn:
+		return 2
+	case event.SeverityInfo:
+		return 1
+	default:
+		// Unknown severities sort below info so a parser that
+		// emits something unexpected doesn't accidentally pass
+		// every filter.
+		return 0
+	}
+}
+
+// severityAtLeast reports whether got is at least as severe as
+// minimum. Total over the documented Severity constants.
+func severityAtLeast(got, minimum event.Severity) bool {
+	return severityWeight(got) >= severityWeight(minimum)
+}
+
+// effectiveMinSeverity reads opts and returns the minimum Severity
+// the parser should emit. Rules:
+//
+//   - Zero-value MinSeverity is treated as SeverityError (the
+//     format-default for generic).
+//   - KeepWarnings=true drops the effective minimum to SeverityWarn
+//     unless MinSeverity is already lower (e.g. SeverityInfo).
+//   - An explicit MinSeverity ALWAYS wins over the KeepWarnings=false
+//     default: setting MinSeverity=SeverityInfo emits warnings even
+//     without KeepWarnings.
+func effectiveMinSeverity(opts formats.ParseOpts) event.Severity {
+	floor := opts.MinSeverity
+	if floor == "" {
+		floor = event.SeverityError
+	}
+	if opts.KeepWarnings && severityWeight(floor) > severityWeight(event.SeverityWarn) {
+		return event.SeverityWarn
+	}
+	return floor
 }
 
 // snapshot returns the ring's contents in chronological order

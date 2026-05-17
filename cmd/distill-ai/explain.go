@@ -96,7 +96,12 @@ func runExplain(cmd *cobra.Command, args []string, fl *runFlags) error {
 			chosen.Name(), sourceLabel, len(sample))
 	}
 	opts := buildPipelineOptions(fl)
-	src := &pipeline.FormatSource{Format: chosen, Reader: stream}
+	parseOpts, err := buildParseOpts(fl)
+	if err != nil {
+		fmt.Fprintf(stderr, "distill-ai explain: %v\n", err)
+		return &exitCodeError{code: ExitError}
+	}
+	src := &pipeline.FormatSource{Format: chosen, Reader: stream, Opts: parseOpts}
 	log := &pipeline.ExplainLog{}
 	sink := &output.ExplainSink{
 		Writer: stdout,

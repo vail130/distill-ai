@@ -80,6 +80,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   input (`TestGeneric_ParseBoundedMemory` pins a 16 MiB peak-heap
   ceiling for 1.25 MiB of innocuous lines); no goroutine leak on
   cancellation.
+- M9.4: severity-filter plumbing for the `generic` format. Adds
+  `MinSeverity` and `KeepWarnings` fields to `formats.ParseOpts`;
+  the generic scanner honours both inside its anchor loop so
+  filtered lines free their post-context window for the next
+  surviving Event (filtered anchors still slide into the
+  pre-context ring, so surviving Events see them as context).
+  `--severity=error|warn|info` and `--keep-warnings` on the
+  `run` and `explain` subcommands now thread end-to-end through
+  `buildParseOpts` → `pipeline.FormatSource.Opts`; `--context=N`
+  threads through the same path. Bad `--severity` values now
+  produce an "invalid --severity" diagnostic with exit 2 instead
+  of silently falling back to the default. Closes the M9.4 entry
+  in KNOWN_ISSUES.md (`ParseOpts` was missing fields M8 already
+  accepted on the CLI). End-to-end coverage by
+  `TestRun_SeverityFiltersWarnings`, `TestRun_KeepWarningsEndToEnd`,
+  `TestRun_SeverityFlagAcceptsWarn`, `TestRun_SeverityFlagInvalidValue`,
+  `TestRun_ContextLinesHonoured`, `TestRun_ExplainHonoursSeverityFilter`.
 - M9.3: traceback / panic block accumulation for the `generic`
   format. When the scanner anchors a `traceback` or `panic` Event,
   it switches into block mode: subsequent lines extend
