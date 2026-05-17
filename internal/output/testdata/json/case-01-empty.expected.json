@@ -12,6 +12,6 @@
     "frames_collapsed": 0,
     "estimated_tokens": 0,
     "estimator": "heuristic",
-    "exit_code": 0
+    "exit_code": 1
   }
 }
