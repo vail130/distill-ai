@@ -1,0 +1,41 @@
+.opencode/skills/distill-output/SKILL.md
+  a4b56f8d8a5c8bb6 42,44-56,64-65,67-68,79-82,88,96-97
+cmd/distill-ai/root_test.go
+  a4b56f8d8a5c8bb6 1-6,9-36,44,46-48,51-74,83,87,94-108
+cmd/distill-ai/run_test.go
+  a4b56f8d8a5c8bb6 1-193,195-200,203-210,212-350
+cmd/distill-ai/root.go
+  a4b56f8d8a5c8bb6 1-9,11-28,37-54,60-64,67,86,107-133,135-138,140-163
+TODO.md
+  a4b56f8d8a5c8bb6 1171,1206
+test/integration/integration_test.go
+  a4b56f8d8a5c8bb6 259-265,267-282,285-291,293-295,297-298,302-326,489-500,505-510
+ARCHITECTURE.md
+  a4b56f8d8a5c8bb6 552-555
+cmd/distill-ai/main_test.go
+  a4b56f8d8a5c8bb6 54-67,70-71,75-86,88,90,92-99,198-203
+README.md
+  a4b56f8d8a5c8bb6 43-46,48,59-60,67-74
+cmd/distill-ai/run.go
+  a4b56f8d8a5c8bb6 1-138,140-155,160-166,168-171,173-184,186-187,189-199,201-207,209-210,212-230,232-233,248-446
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "6f3b712e235029c7825aba32574c109d98996ce6",
+  "prompts": {
+    "a4b56f8d8a5c8bb6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1ccc6d91fffevYfV8e2nUu5pES",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 2,
+      "accepted_lines": 997,
+      "overriden_lines": 0
+    }
+  }
+}

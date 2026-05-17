@@ -1,0 +1,23 @@
+opencode.json
+  a4b56f8d8a5c8bb6 5-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "b7cc2b1b6602b411678f99b679c05c51714f496a",
+  "prompts": {
+    "a4b56f8d8a5c8bb6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1ccc6d91fffevYfV8e2nUu5pES",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 1053,
+      "total_deletions": 75,
+      "accepted_lines": 7,
+      "overriden_lines": 0
+    }
+  }
+}
