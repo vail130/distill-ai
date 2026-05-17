@@ -176,10 +176,47 @@ Title re-derivation:
 
 ## Filtering semantics
 
-(M9.4 wires `--severity` and `--keep-warnings`. This section
-documents the precedence rules — `MinSeverity` vs `KeepWarnings`,
-and the rule that filtering happens inside the parser so a
-filtered anchor's context is freed for the next Event.)
+The generic scanner honours two `formats.ParseOpts` fields fed by
+the CLI's `--severity` and `--keep-warnings` flags:
+
+- `MinSeverity` — empty value defaults to `event.SeverityError`.
+- `KeepWarnings` — when true, drops the effective minimum to
+  `event.SeverityWarn`.
+
+Precedence (read top-down; first matching rule wins):
+
+| `MinSeverity` | `KeepWarnings` | Effective minimum |
+|---------------|----------------|--------------------|
+| any           | true           | `warn` (unless MinSeverity is lower than warn — see below) |
+| `info`        | false          | `info` (explicit setting wins; emits errors + warnings) |
+| `warn`        | false          | `warn` |
+| `error` / "" | false           | `error` |
+
+An anchor line whose severity is below the effective minimum is
+**dropped at the anchor stage** rather than emitted as an Event,
+but the line still slides into the pre-context ring. Surviving
+Events therefore see filtered anchors as ordinary context lines.
+This matches the rule "drop the anchor, keep the surrounding lines
+as context."
+
+### Example
+
+Input:
+
+```text
+WARN: low memory
+ERROR: thing broke
+```
+
+With defaults: one Event for `ERROR: thing broke`; the `WARN:` line
+appears in its `context`.
+
+With `--keep-warnings`: two Events, one for each anchor.
+
+With `--severity=warn`: same as `--keep-warnings`.
+
+With `--severity=bogus`: the CLI rejects the flag with exit 2 and a
+`invalid --severity` diagnostic.
 
 ## Fixtures
 

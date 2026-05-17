@@ -92,4 +92,26 @@ type ParseOpts struct {
 	// happens in internal/event.collapse (M5); parsers only set
 	// StackFrame.Vendor.
 	KeepVendor bool
+
+	// MinSeverity is the lowest severity a parser should emit. The
+	// zero value (empty Severity) means "format-default", which the
+	// generic format treats as event.SeverityError. KeepWarnings
+	// overrides this — see below.
+	//
+	// Per-format opt-in: not every Format honours this field. The
+	// generic format (M9.4) does; specific formats (gotest, pytest,
+	// jest) wire it in when their milestones land. SCHEMA.md
+	// documents per-format opt-in so consumers don't expect a
+	// pipeline-wide guarantee.
+	MinSeverity event.Severity
+
+	// KeepWarnings, when true, drops the effective minimum severity
+	// to warn regardless of MinSeverity. Matches ARCHITECTURE.md's
+	// `--keep-warnings` flag: a one-shot bump for the common
+	// "errors only when errors exist, otherwise everything" case.
+	//
+	// Precedence: if MinSeverity is explicitly set to SeverityInfo,
+	// the parser still emits warnings (the explicit MinSeverity
+	// wins over KeepWarnings=false).
+	KeepWarnings bool
 }

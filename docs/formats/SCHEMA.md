@@ -104,6 +104,25 @@ Each line is a self-contained JSON object. The final line is a
 - `warn` — non-fatal but notable (deprecation, skipped test with reason, timeout retry).
 - `info` — neutral notable events (used sparingly; most info is dropped).
 
+### Severity filtering (per-format opt-in)
+
+`distill-ai` exposes `--severity=error|warn|info` and `--keep-warnings`
+on the `run` and `explain` commands. These flow into the parser as
+`formats.ParseOpts.MinSeverity` and `formats.ParseOpts.KeepWarnings`.
+
+Filtering is **per-format opt-in**: not every Format honours these
+fields. As of M9.4:
+
+- **generic** honours both. The default is error-only;
+  `--keep-warnings` or `--severity=warn|info` also emits warnings.
+  An explicit `--severity=info` emits warnings even without
+  `--keep-warnings` (the explicit setting wins). Lines filtered as
+  anchors still appear in the surviving Events' `context` slices.
+- **pytest** / **jest** / **gotest**: not yet wired (their
+  milestones haven't shipped). Consumers should not expect a
+  pipeline-wide guarantee — read each format's `docs/formats/<name>.md`
+  to see whether filtering is honoured.
+
 ### Kind values
 
 `kind` is format-specific. Currently emitted values:

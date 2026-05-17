@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/vail130/distill-ai/internal/detect"
+	"github.com/vail130/distill-ai/internal/event"
 	"github.com/vail130/distill-ai/internal/formats"
 	"github.com/vail130/distill-ai/internal/output"
 	"github.com/vail130/distill-ai/internal/pipeline"
@@ -111,13 +112,13 @@ func registerRunFlags(cmd *cobra.Command, fl *runFlags) {
 	cmd.Flags().BoolVar(&fl.keepVendor, "keep-vendor", false,
 		"Leave vendor / stdlib stack frames in the output instead of collapsing them.")
 	cmd.Flags().BoolVar(&fl.keepWarnings, "keep-warnings", false,
-		"Include warnings alongside errors. (Plumbing lands in M8.2.x; the flag is registered now so the help is complete.)")
+		"Include warnings alongside errors. Per-format opt-in; honoured by 'generic' as of M9.4.")
 	cmd.Flags().StringVar(&fl.severity, "severity", "",
-		"Minimum severity to keep (error|warn|info). Empty means format-default. (Plumbing lands in M8.2.x.)")
+		"Minimum severity to keep (error|warn|info). Empty means format-default (error). Per-format opt-in; honoured by 'generic' as of M9.4.")
 	cmd.Flags().IntVar(&fl.maxEvents, "max-events", 0,
 		"Cap the total number of events emitted. Zero means no cap. (Plumbing lands in M8.2.x.)")
 	cmd.Flags().IntVar(&fl.context, "context", 0,
-		"Lines of context around each event. Zero means format-default. (Plumbing lands in M8.2.x.)")
+		"Lines of context around each event. Zero means format-default (3 for 'generic').")
 	// Deduplication.
 	cmd.Flags().BoolVar(&fl.dedupe, "dedupe", false,
 		"Enable LRU deduplication of identical events. Default window is 1024; override with --dedupe-window.")
@@ -197,7 +198,12 @@ func runRun(cmd *cobra.Command, args []string, fl *runFlags) error {
 			chosen.Name(), sourceLabel, len(sample))
 	}
 	opts := buildPipelineOptions(fl)
-	src := &pipeline.FormatSource{Format: chosen, Reader: stream}
+	parseOpts, err := buildParseOpts(fl)
+	if err != nil {
+		fmt.Fprintf(stderr, "distill-ai run: %v\n", err)
+		return &exitCodeError{code: ExitError}
+	}
+	src := &pipeline.FormatSource{Format: chosen, Reader: stream, Opts: parseOpts}
 	sink, sinkInfo := newSinkFromFlags(fl, chosen.Name(), stdout)
 	pipe, err := pipeline.Build(src, sink, opts)
 	if err != nil {
@@ -321,6 +327,27 @@ func attachCounters(s pipeline.Sink, c *pipeline.BudgetCounters) {
 	case *output.MarkdownSink:
 		sink.Counters = c
 	}
+}
+
+// buildParseOpts translates the parsing-related runFlags into a
+// formats.ParseOpts value forwarded to Format.Parse via
+// FormatSource.Opts. Returns an error for invalid --severity values
+// so the user sees a clear message rather than a silent "default
+// took effect" surprise.
+func buildParseOpts(fl *runFlags) (formats.ParseOpts, error) {
+	opts := formats.ParseOpts{
+		ContextLines: fl.context,
+		KeepVendor:   fl.keepVendor,
+		KeepWarnings: fl.keepWarnings,
+	}
+	if fl.severity != "" {
+		sev, err := event.ParseSeverity(fl.severity)
+		if err != nil {
+			return formats.ParseOpts{}, fmt.Errorf("invalid --severity %q (want error|warn|info)", fl.severity)
+		}
+		opts.MinSeverity = sev
+	}
+	return opts, nil
 }
 
 // buildPipelineOptions translates runFlags into pipeline.Options. The

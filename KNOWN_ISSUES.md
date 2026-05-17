@@ -9,38 +9,7 @@ Format: one issue per heading, with **Observed**, **Why it matters**,
 **Owning milestone**, and **Recommendation**. Tick the issue off by
 deleting it once the recommendation lands.
 
-## 1. `ParseOpts` is missing fields M8 already accepts on the CLI
-
-**Observed.** Today's
-[`internal/formats/format.go`](./internal/formats/format.go) `ParseOpts`
-carries `ContextLines` and `KeepVendor` only. The `run` and `explain`
-help text registers `--max-events`, `--keep-warnings`, `--severity`,
-`--passthrough`, `--context` with "Plumbing lands in M8.2.x" notes.
-The follow-up commits never landed; the flags are accepted but inert.
-
-M9.4 plans to add `MinSeverity` and `KeepWarnings` to `ParseOpts`
-but doesn't acknowledge the existing CLI-side gap. Post-M9 the
-generic parser will honour those fields when called via the library
-API but the `--keep-warnings` / `--severity` CLI flags will still not
-thread through.
-
-**Why it matters.** Inert flags are worse than absent flags: they
-suggest the user can control behaviour they actually can't. The
-manifest in
-[`SKILL.md`](./.opencode/skills/distill-output/SKILL.md) lists every
-flag the binary accepts; a flag that's wired to nothing still passes
-the drift-guard test and ships looking complete.
-
-**Owning milestone.** M9.4.
-
-**Recommendation.** Add an explicit DoD bullet to M9.4: "the
-existing `--severity`, `--keep-warnings`, `--context` flags now map
-into `ParseOpts.MinSeverity`, `ParseOpts.KeepWarnings`,
-`ParseOpts.ContextLines` end-to-end, verified by
-`TestRun_KeepWarningsEndToEnd`, `TestRun_SeverityFiltersWarnings`,
-and `TestRun_ContextLinesHonoured`."
-
-## 2. `--max-events` and `--passthrough` have no owning milestone
+## 1. `--max-events` and `--passthrough` have no owning milestone
 
 **Observed.** Today the binary accepts `--max-events=N` and
 `--passthrough` with help text saying "Plumbing lands in M8.2.x".
@@ -69,7 +38,7 @@ behaviour), or remove the flags from help text and the SKILL.md
 manifest until they have a real plan. Don't carry them forward
 silently.
 
-## 3. Integration suite has no positive-distillation test for generic
+## 2. Integration suite has no positive-distillation test for generic
 
 **Observed.**
 [`test/integration/integration_test.go`](./test/integration/integration_test.go)
@@ -105,7 +74,7 @@ events depending on the fixture) or 0 (with events) — pick the
 fixture so the expected exit code is unambiguous — and a substring of
 the expected Event title appears on stdout.
 
-## 4. `Source` interface mid-stream error contract is broken
+## 3. `Source` interface mid-stream error contract is broken
 
 **Observed.**
 [`Source.Source(ctx)`](./internal/pipeline/pipeline.go) returns

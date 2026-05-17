@@ -1765,7 +1765,7 @@ trailing lines until the block terminator.
     Python traceback, a Go panic, and a JVM exception, each with
     the Event the scanner produces.
 
-### M9.4 — Wire `--keep-warnings` and `--severity` filter semantics
+### M9.4 — Wire `--keep-warnings` and `--severity` filter semantics ✅
 
 M9 is the first format whose v1 surface exposes both warnings and
 errors. The `--keep-warnings` and `--severity` CLI flags (wired in
