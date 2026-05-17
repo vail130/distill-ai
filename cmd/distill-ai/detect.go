@@ -7,11 +7,13 @@ import (
 	"io"
 	"os"
 
+	"github.com/spf13/cobra"
+
 	"github.com/vail130/distill-ai/internal/detect"
 )
 
-// cmdDetect handles `distill-ai detect FILE`. It runs the detector
-// against the file (or stdin when FILE is "-") and prints a
+// newDetectCmd returns the cobra command for `distill-ai detect FILE`.
+// The command identifies which format a file is in and prints a
 // human-readable summary: chosen format, confidence, sample size,
 // and the runner-up format with its confidence.
 //
@@ -21,22 +23,49 @@ import (
 //	1  Detection fell back to the generic format, or no format
 //	   matched and there is no generic registered.
 //	2  Invalid arguments or I/O failure.
-func cmdDetect(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
+func newDetectCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "detect FILE",
+		Short: "Identify which format a file is in.",
+		Long: `detect runs the format autodetector against FILE (or stdin
+when FILE is "-") and prints stable key:value lines describing the
+chosen format, its confidence, the sample size consumed, and the
+runner-up format.
+
+This subcommand exists so users (and tests) can ask "what is this?"
+without running a full distillation pipeline.`,
+		// We do our own arg validation so error messages match the
+		// pre-cobra wording exactly. cobra.ExactArgs would print
+		// "accepts 1 arg(s)" which existing tests don't grep for.
+		Args:               cobra.ArbitraryArgs,
+		DisableFlagParsing: false,
+		RunE:               runDetect,
+	}
+}
+
+// runDetect is the cobra RunE entry point. It validates arguments,
+// opens the input, runs the detector, and prints the result. Errors
+// returned from this function carry an embedded exit code so run()
+// can translate them.
+func runDetect(cmd *cobra.Command, args []string) error {
+	stdout := cmd.OutOrStdout()
+	stderr := cmd.ErrOrStderr()
+	stdin := cmd.InOrStdin()
 	if len(args) == 0 {
 		fmt.Fprintln(stderr, "distill-ai detect: missing FILE argument")
 		fmt.Fprintln(stderr, "Usage: distill-ai detect FILE")
 		fmt.Fprintln(stderr, "       distill-ai detect -        (read stdin)")
-		return 2
+		return &exitCodeError{code: 2}
 	}
 	if len(args) > 1 {
 		fmt.Fprintf(stderr, "distill-ai detect: expected exactly one FILE argument, got %d\n", len(args))
-		return 2
+		return &exitCodeError{code: 2}
 	}
 	path := args[0]
 	r, source, closer, err := openInput(path, stdin)
 	if err != nil {
 		fmt.Fprintf(stderr, "distill-ai detect: %v\n", err)
-		return 2
+		return &exitCodeError{code: 2}
 	}
 	if closer != nil {
 		defer func() { _ = closer.Close() }() // best-effort close; nothing we can do on failure
@@ -49,16 +78,16 @@ func cmdDetect(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 			fmt.Fprintf(stderr, "distill-ai: no format matched %s\n", source)
 			fmt.Fprintln(stderr, "Hint: no specific format scored above the detection threshold")
 			fmt.Fprintln(stderr, "      and no generic fallback is registered yet (lands in M9).")
-			return 1
+			return &exitCodeError{code: 1}
 		}
 		fmt.Fprintf(stderr, "distill-ai: detect %s: %v\n", source, err)
-		return 2
+		return &exitCodeError{code: 2}
 	}
 	printDetectResult(stdout, source, res)
 	if res.FellBackToGeneric {
-		return 1
+		return &exitCodeError{code: 1}
 	}
-	return 0
+	return nil
 }
 
 // openInput resolves the FILE argument: '-' reads from stdin, anything

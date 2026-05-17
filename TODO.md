@@ -1168,7 +1168,7 @@ M8.1 for the dependency justification. Each item below lists DoD,
 required tests, and required doc updates per the
 [alignment rule](./.opencode/rules/alignment.md).
 
-### M8.1 — Adopt `cobra` for flag and subcommand handling
+### M8.1 — Adopt `cobra` for flag and subcommand handling ✅
 
 The current `cmd/distill-ai/main.go` is a hand-rolled switch with two
 verbs. M8's flag matrix and subcommand tree make a dependency
