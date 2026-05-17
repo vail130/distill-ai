@@ -1565,7 +1565,7 @@ scanner arrives.
     note that low-confidence input still detects as `generic` by
     default and `--strict` is the way to reject it.
 
-### M9.2 — Severity-anchored event scanner
+### M9.2 — Severity-anchored event scanner ✅
 
 The core scan loop: read line-by-line, anchor an Event on every line
 that matches the severity catalogue, capture N lines of context

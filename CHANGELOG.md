@@ -56,13 +56,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - M9.1: `generic` format skeleton registered under the reserved
   name. Implements `formats.Format`; `Detect` returns
   `confidenceFloor = 0.1` on any severity-anchored line and 0
-  otherwise. `Parse` returns an immediately-closed channel for now
-  — the M9.2 commit fills in the severity-anchored scanner. The
-  side-effect import in `cmd/distill-ai/register.go` wires the
-  package into the production binary so the detector's fallback
-  path resolves end-to-end. Closes the "no generic fallback
-  registered yet" gap that the M3 detector's help text and the
-  integration suite called out.
+  otherwise. `Parse` returned an immediately-closed channel; M9.2
+  filled in the scanner. The side-effect import in
+  `cmd/distill-ai/register.go` wires the package into the
+  production binary so the detector's fallback path resolves
+  end-to-end. Closes the "no generic fallback registered yet" gap
+  that the M3 detector's help text and the integration suite
+  called out.
+- M9.2: severity-anchored event scanner for the `generic` format.
+  `bufio.Scanner`-driven, with a bounded rolling window
+  (`2*contextLines + 1` strings, regardless of input size). Emits
+  one `Event` per line matching the package catalogue
+  (`ERROR` / `FATAL` / `panic:` / `Exception:` / `Traceback ` /
+  `WARN(ING)` / `Deprecation` / `Warning:` / `W\d{4}:`), with
+  configurable pre/post context (default 3 lines each).
+  Catalogue evaluation matches against an ANSI-stripped copy of
+  the line so coloured anchors still anchor; `Event.Body` keeps
+  the raw bytes. Best-effort `Location` extraction via a
+  `path:line(:col)?` regex that requires a `/` or `\` in the path
+  segment so `host:port` pairs don't false-positive. Streaming-
+  friendly (first Event emerges well before EOF; verified by
+  `TestGeneric_ParseStreaming`); bounded-memory under adversarial
+  input (`TestGeneric_ParseBoundedMemory` pins a 16 MiB peak-heap
+  ceiling for 1.25 MiB of innocuous lines); no goroutine leak on
+  cancellation. M9.3 will extend the scanner with traceback /
+  panic block accumulation; M9.4 wires `--severity` and
+  `--keep-warnings`.
 
 ### Changed
 

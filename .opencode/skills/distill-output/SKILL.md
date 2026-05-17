@@ -42,20 +42,21 @@ source of truth.
 ## State of play
 
 The full CLI surface — flags, subcommands, exit codes — landed in
-**M8**. The **generic fallback** landed in **M9.1**: every invocation
-against real input now produces a result (distilled events once the
-M9.2+ scanner ships, an empty result with exit 1 today). `cmd |
-distill-ai` is the canonical invocation: it reads stdin, autodetects
-the format, and distils to stdout. `run` is the default subcommand
-so the explicit form `cmd | distill-ai run` is equivalent and only
-needed when you want positional `FORMAT` / `FILE...` arguments.
+**M8**. The **generic fallback** landed in **M9.1** (registration +
+detect floor) and **M9.2** (severity-anchored scanner). Real
+command output now distills end-to-end via the generic fallback
+when no specific format claims it. `cmd | distill-ai` is the
+canonical invocation: it reads stdin, autodetects the format, and
+distils to stdout.
 
 The remaining gap is the **specific format set**. Until M10/M11/M12
-ship gotest/pytest/jest, the only registered format is `generic` —
-which always falls back (confidence below the detection threshold
-by design) and today emits no events because the scanner itself
-is a stub (M9.2 fills it in). Use `--strict` to turn that fallback
-into a hard error (exit 2) for CI.
+ship gotest/pytest/jest, every invocation falls back to `generic`
+— which now extracts `ERROR` / `FATAL` / `panic:` / `Exception:` /
+`Traceback ` / `WARN` lines as Events with surrounding context.
+M9.3 adds multi-line traceback / panic block extraction with
+parsed stack frames; M9.4 wires `--severity` / `--keep-warnings`.
+Use `--strict` to turn the fallback into a hard error (exit 2)
+for CI.
 
 The full surface today is enumerated in the manifest below.
 
@@ -83,9 +84,10 @@ loudly otherwise.
 Invocation forms today:
 
 - `cmd | ./bin/distill-ai` — read stdin, autodetect, distil to
-  stdout. After M9.1 this always succeeds (exit 1 with "no events
-  found" until M9.2 fills in the scanner; exit 0 with distilled
-  output thereafter). Use `--strict` to reject low-confidence input.
+  stdout. After M9.2 this returns distilled Events for any input
+  containing `ERROR` / `panic` / `Exception` / `WARN` / etc.;
+  inputs with no severity markers exit 1 with "no events found".
+  Use `--strict` to reject low-confidence input.
 - `./bin/distill-ai run [FORMAT] [FILE...]` — explicit form. Useful
   when you want to pass multiple files, force a specific format, or
   bypass autodetection with `--auto=false`.
@@ -113,9 +115,10 @@ The dogfooding loop today:
    ./bin/distill-ai`.
 2. Detection always resolves: either to a specific format (once
    M10/M11/M12 ship) or to the `generic` fallback.
-3. Until M9.2 fills in the scanner, the generic format emits no
-   events on real input — the post-M9.1 pipeline succeeds but is
-   effectively a no-op. M9.2 makes step 1 return distilled events.
+3. The generic scanner extracts ERROR / WARN / panic / Exception /
+   Traceback / FATAL lines with surrounding context. M9.3 will add
+   multi-line block extraction for tracebacks and panics; M9.4
+   adds `--severity` / `--keep-warnings` plumbing.
 
 ## Recipes
 

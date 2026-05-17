@@ -45,27 +45,52 @@ The real, richer catalogue used at parse time lives in M9.2.
 
 ## What gets extracted
 
-(Once M9.2 / M9.3 / M9.4 land. M9.1 ships the skeleton: a
-registered `Format` whose `Parse` returns an immediately-closed
-channel, so the detector's fallback path can be exercised
-end-to-end while the scanner is being written.)
+After M9.2 the scanner runs line-by-line through a `bufio.Scanner`
+and:
 
-- One `Event` per line that matches the severity catalogue.
+- Emits one `Event` per line that matches the severity catalogue.
 - Severity and `Kind` come from the matched pattern. Kinds emitted:
   `error_line`, `warning_line`, `traceback`, `panic`, `exception`.
-- `Title` is the matched line with leading ANSI escapes stripped.
-- `Body` keeps the original line(s) verbatim — ANSI included — so
+- `Title` is the matched line with ANSI escape sequences stripped
+  and trailing whitespace trimmed.
+- `Body` keeps the original line verbatim — ANSI included — so
   the user sees what actually arrived.
 - `Context` carries up to N lines before and after the anchor
-  (default 3 each). Lines that themselves match the catalogue are
-  still included as context; the scanner does not deduplicate
-  adjacent matches into a single Event.
+  (default 3 each, configurable via `ParseOpts.ContextLines` —
+  the CLI `--context=N` plumbing lands later). Lines that
+  themselves match the catalogue are still included as context;
+  the scanner does not deduplicate adjacent matches into a single
+  Event.
 - `Location` is best-effort: if the anchor line contains a
-  `path:line` pair where the path has at least one `/` or `\`
-  separator, the parser populates `Event.Location`. Bare
+  `path:line(:col)?` pair where the path has at least one `/` or
+  `\` separator, the parser populates `Event.Location`. Bare
   `host:port` pairs are not treated as paths.
 - `Frames` is populated for `traceback` and `panic` Events when
-  M9.3 lands; for every other Kind it stays nil.
+  M9.3 lands; for every other Kind it stays nil today.
+
+### Catalogue (v1)
+
+The catalogue is evaluated in order; first match wins. Listed
+specific kinds first so e.g. `Traceback ` outranks generic
+`Error:`.
+
+| Pattern (regex)                | Kind            | Severity |
+|--------------------------------|-----------------|----------|
+| `\bTraceback `                 | `traceback`     | error    |
+| `^panic:`                      | `panic`         | error    |
+| `\bException:`                 | `exception`     | error    |
+| `\bERROR\b`                    | `error_line`    | error    |
+| `\bFATAL\b`                    | `error_line`    | error    |
+| `(?i)\bcaused by:`             | `error_line`    | error    |
+| `\bError:`                     | `error_line`    | error    |
+| `\bWARN(?:ING)?\b`             | `warning_line`  | warn     |
+| `\bDeprecation\b`              | `warning_line`  | warn     |
+| `^W\d{4}:`                     | `warning_line`  | warn     |
+| `\bWarning:`                   | `warning_line`  | warn     |
+
+The catalogue is matched against an ANSI-stripped copy of the
+line, so a coloured anchor like `\x1b[31mERROR\x1b[0m: thing`
+still anchors. Body keeps the original (coloured) line.
 
 ## What gets dropped
 
@@ -81,8 +106,39 @@ end-to-end while the scanner is being written.)
 
 ## Example I/O
 
-(Filled in during M9.2 / M9.3 / M9.5. For now this section is a
-placeholder so future contributors know where the example goes.)
+Input:
+
+```text
+info: connecting
+info: ready
+ERROR: connection to db:5432 refused
+debug: retrying
+debug: gave up
+```
+
+Resulting Event (JSON view):
+
+```json
+{
+  "severity": "error",
+  "kind": "error_line",
+  "title": "ERROR: connection to db:5432 refused",
+  "location": null,
+  "body": ["ERROR: connection to db:5432 refused"],
+  "context": [
+    "info: connecting",
+    "info: ready",
+    "debug: retrying",
+    "debug: gave up"
+  ]
+}
+```
+
+The bare `db:5432` does not register as a `Location` because the
+heuristic requires at least one `/` or `\` in the path segment.
+
+Block extraction for `traceback` / `panic` (multi-line body, with
+parsed frames) lands in M9.3.
 
 ## Filtering semantics
 
