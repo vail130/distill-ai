@@ -37,9 +37,12 @@ noise.
   WARN markers, Python tracebacks, Go panics, and JVM stack dumps.
   Used whenever no specific format claims the input. Documented at
   [docs/formats/generic.md](./docs/formats/generic.md).
-- `gotest` (planned, M10), `pytest` (planned, M11), `jest` (planned, M12) —
-  test-runner formats with structured failure / panic / build-failure
-  extraction.
+- `gotest` (M10, detect-only — parser lands in M10.2) — recognises
+  `go test` output: `--- FAIL:` headers, package `FAIL\t<pkg>`
+  summaries, `=== RUN` headers, and bare goroutine panics. Documented
+  at [docs/formats/gotest.md](./docs/formats/gotest.md).
+- `pytest` (planned, M11), `jest` (planned, M12) — test-runner formats
+  with structured failure / panic / build-failure extraction.
 
 Use `distill-ai list-formats` to see what's wired into your binary,
 and `distill-ai detect FILE` to ask the autodetector which format it

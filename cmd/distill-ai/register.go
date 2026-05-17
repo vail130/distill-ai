@@ -16,4 +16,8 @@ import (
 	// uses it whenever no specific format scores above
 	// event.ConfidenceMinDetect.
 	_ "github.com/vail130/distill-ai/internal/formats/generic"
+
+	// gotest parses `go test` output. Detect anchors on
+	// `--- FAIL:`, `FAIL\t<pkg>`, and `=== RUN`.
+	_ "github.com/vail130/distill-ai/internal/formats/gotest"
 )
