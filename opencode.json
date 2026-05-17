@@ -2,5 +2,11 @@
   "$schema": "https://opencode.ai/config.json",
   "instructions": [
     ".opencode/rules/*.md"
-  ]
+  ],
+  "permission": {
+    "bash": {
+      "./bin/distill-ai": "allow",
+      "./bin/distill-ai *": "allow"
+    }
+  }
 }
