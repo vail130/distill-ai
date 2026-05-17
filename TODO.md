@@ -1279,7 +1279,7 @@ The verb that distills. Default subcommand when none is given, so
     differs from the original sketch (e.g., the multi-file
     concatenation rule).
 
-### M8.3 — Exit-code mapping
+### M8.3 — Exit-code mapping ✅
 
 Make the four exit codes (0/1/2/3) authoritative.
 

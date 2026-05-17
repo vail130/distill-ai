@@ -55,17 +55,17 @@ func runDetect(cmd *cobra.Command, args []string) error {
 		fmt.Fprintln(stderr, "distill-ai detect: missing FILE argument")
 		fmt.Fprintln(stderr, "Usage: distill-ai detect FILE")
 		fmt.Fprintln(stderr, "       distill-ai detect -        (read stdin)")
-		return &exitCodeError{code: 2}
+		return &exitCodeError{code: ExitError}
 	}
 	if len(args) > 1 {
 		fmt.Fprintf(stderr, "distill-ai detect: expected exactly one FILE argument, got %d\n", len(args))
-		return &exitCodeError{code: 2}
+		return &exitCodeError{code: ExitError}
 	}
 	path := args[0]
 	r, source, closer, err := openInput(path, stdin)
 	if err != nil {
 		fmt.Fprintf(stderr, "distill-ai detect: %v\n", err)
-		return &exitCodeError{code: 2}
+		return &exitCodeError{code: ExitError}
 	}
 	if closer != nil {
 		defer func() { _ = closer.Close() }() // best-effort close; nothing we can do on failure
@@ -78,14 +78,14 @@ func runDetect(cmd *cobra.Command, args []string) error {
 			fmt.Fprintf(stderr, "distill-ai: no format matched %s\n", source)
 			fmt.Fprintln(stderr, "Hint: no specific format scored above the detection threshold")
 			fmt.Fprintln(stderr, "      and no generic fallback is registered yet (lands in M9).")
-			return &exitCodeError{code: 1}
+			return &exitCodeError{code: ExitNoEvents}
 		}
 		fmt.Fprintf(stderr, "distill-ai: detect %s: %v\n", source, err)
-		return &exitCodeError{code: 2}
+		return &exitCodeError{code: ExitError}
 	}
 	printDetectResult(stdout, source, res)
 	if res.FellBackToGeneric {
-		return &exitCodeError{code: 1}
+		return &exitCodeError{code: ExitNoEvents}
 	}
 	return nil
 }

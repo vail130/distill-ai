@@ -108,9 +108,26 @@ Total ~15. Resist adding more without strong justification.
 - `3` — partial: ran successfully but dropped or truncated content
   to fit `--budget`. The source-of-truth for this code is
   `BudgetCounters.ForcedDrops()` on the Pipeline's `BudgetCounters`
-  field (M6.3); CLI wiring lands in M8. The method is safe on a nil
-  receiver, so pipelines without a `BudgetStage` cleanly report
-  "no forced drops" without the caller having to nil-check.
+  field (M6.3). The method is safe on a nil receiver, so pipelines
+  without a `BudgetStage` cleanly report "no forced drops" without
+  the caller having to nil-check.
+
+The values live as named constants in
+[`cmd/distill-ai/exitcode.go`](./cmd/distill-ai/exitcode.go)
+(`ExitOK`, `ExitNoEvents`, `ExitError`, `ExitPartial`). Every CLI
+return path uses the constants; tests anchor them to the documented
+values so renumbering breaks the test suite loudly before it breaks
+agents.
+
+**Precedence** when multiple terminal conditions hold:
+
+```
+ExitError  > ExitPartial > ExitNoEvents > ExitOK
+```
+
+`ExitPartial` wins over `ExitNoEvents` deliberately: if the budget
+dropped every event so nothing emerged, the caller cares more that
+the budget was the cause than that the output is empty.
 
 Agents and CI use these.
 
