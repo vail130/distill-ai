@@ -1,0 +1,36 @@
+docs/formats/SCHEMA.md
+  78f5fa7238861741 114
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "51ede7c68605fe1fbfc3351a456507cac2902418",
+  "prompts": {
+    "78f5fa7238861741": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1cc3a6cf6ffeZwdo2JZM4UmsZO",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 1,
+      "total_deletions": 1,
+      "accepted_lines": 1,
+      "overriden_lines": 0
+    },
+    "a4b56f8d8a5c8bb6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1ccc6d91fffevYfV8e2nUu5pES",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 3848,
+      "overriden_lines": 1
+    }
+  }
+}
