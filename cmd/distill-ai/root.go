@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 // newRootCmd returns a fresh root *cobra.Command wired with every
@@ -25,9 +26,14 @@ func newRootCmd(stdin io.Reader, stdout, stderr io.Writer) *cobra.Command {
 (test runs, application logs, stack traces) into a compact,
 structured form suitable for LLM context windows or human triage.
 
-This is an early development build. The full pipeline CLI lands in M8;
-today only the 'detect' subcommand is wired. See ARCHITECTURE.md and
-TODO.md for the roadmap.`,
+The default invocation (` + "`cmd | distill-ai`" + `) reads from stdin,
+autodetects the format, and emits the distilled stream to stdout.
+Use the 'run' subcommand explicitly when you want positional FILE
+arguments and an explicit FORMAT.
+
+This is an early development build. Several flags are registered but
+not yet plumbed; their help text says "(plumbing lands in M8.x)".
+See ARCHITECTURE.md and TODO.md for the roadmap.`,
 		// Suppress cobra's default behaviours that conflict with
 		// the testing seam: we want errors returned, not printed,
 		// and we don't want usage printed on every error.
@@ -46,18 +52,56 @@ TODO.md for the roadmap.`,
 	// keeps its existing `distill-ai <version>...` shape rather
 	// than the cobra default of `distill-ai version <version>`.
 	root.SetVersionTemplate("distill-ai {{.Version}}\n")
-	// -v is reserved for --verbose in M8.2; for now we wire it as
-	// a synonym for --version so the existing CLI surface
-	// (-v / --version) keeps working. M8.2 reassigns -v to verbose
-	// and the version short-flag goes away.
-	root.Flags().BoolP("version", "v", false, "Show version.")
+	// --version is the cobra-managed flag (driven by root.Version).
+	// -v moved from --version to --verbose in M8.2; the run
+	// subcommand owns the -v binding now. The version flag stays
+	// long-form only at the root level.
+	root.Flags().Bool("version", false, "Show version.")
 	// Hide cobra's auto-generated `completion` subcommand until
 	// M8.7 explicitly wires shell completion. Leaving it visible
 	// would expose a verb that isn't documented in --help / docs
 	// yet, and the integration test's drift guard would flag it.
 	root.CompletionOptions.DisableDefaultCmd = true
+	runCmd := newRunCmd()
+	root.AddCommand(runCmd)
 	root.AddCommand(newDetectCmd())
+	// Make run the default subcommand so `cmd | distill-ai` and
+	// `distill-ai FORMAT FILE` work without typing `run`. Cobra
+	// doesn't have a first-class "default subcommand" concept;
+	// the idiom is to wire the root's RunE to the same function
+	// the subcommand uses. The flags must also be visible on the
+	// root command so users can write `distill-ai --output=json`
+	// without `run`. We solve this by replaying the run command's
+	// flag set onto the root, sharing the same backing struct.
+	mergeFlags(root, runCmd)
+	root.RunE = runCmd.RunE
+	// Accept arbitrary positional args at the root. Without this,
+	// cobra refuses to dispatch to root.RunE when the user types
+	// `distill-ai pytest some.log` — it sees "pytest" as an unknown
+	// subcommand and bails. cobra.ArbitraryArgs disables the
+	// strict-subcommand check; runRun (and splitRunArgs) then
+	// decides whether the first positional is a format name or a
+	// file path.
+	root.Args = cobra.ArbitraryArgs
 	return root
+}
+
+// mergeFlags copies every flag defined on src onto dst so the user
+// can spell `distill-ai --flag` at the root level instead of
+// `distill-ai run --flag`. The flag.Flag pointers are shared, which
+// means the same backing struct receives parses from either path.
+//
+// Help text on the root reflects the merged flag set; that's a
+// trade-off — the root help is busier — but the common-case
+// invocation (`cmd | distill-ai`) needs the flags to work at the
+// root level for the design to feel like a Unix filter.
+func mergeFlags(dst, src *cobra.Command) {
+	src.Flags().VisitAll(func(f *pflag.Flag) {
+		if dst.Flags().Lookup(f.Name) != nil {
+			return
+		}
+		dst.Flags().AddFlag(f)
+	})
 }
 
 // run is the testable entry point. It builds a fresh root command,

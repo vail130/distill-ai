@@ -39,18 +39,33 @@ The integration test suite (see `test/integration/`) re-builds on
 each run via `go test`; outside that path, `make build` is the single
 source of truth.
 
-## The "before M8" gap
+## The "before specific formats" gap
 
-The end-to-end pipeline CLI (the `run` verb) lands in **M8**. Until
-M8 ships, `./bin/distill-ai` only supports the surface enumerated in
-the manifest below.
+The end-to-end pipeline CLI (the `run` verb) landed in **M8.2**. The
+`run` subcommand is the default — `cmd | distill-ai` is the canonical
+invocation — and most flags from
+[ARCHITECTURE.md § Flags](../../../ARCHITECTURE.md#flags) are wired.
+
+The remaining gap is the **format set**. Until M9 ships the generic
+fallback, every `distill-ai` invocation against real input fails with
+exit code 2 ("no format matched") because no specific format is
+registered in the production binary. The integration test suite
+deliberately pins this gap so M9 / M10 / M11 / M12 each surface as a
+visible behaviour change.
+
+The full surface today is enumerated in the manifest below.
 
 <!-- BEGIN cli-surface -->
 ```surface
-subcommands: detect
-flags: --help, --version, -h, -v
+subcommands: detect, run
+flags: --help, --version, -h, --auto, --keep-vendor, --dedupe, --no-dedupe, --output, --output-streaming, --budget, --no-footer, --strict, --tokenizer
 ```
 <!-- END cli-surface -->
+<!-- BEGIN cli-surface-future -->
+```surface
+subcommands: list-formats, explain, completions, version
+```
+<!-- END cli-surface-future -->
 
 That manifest is **machine-parsed by the integration test suite**
 (see `TestSkill_DocumentsCurrentCLISurface` in
@@ -61,12 +76,16 @@ commit that wires the surface. The test fails loudly otherwise.
 
 Detailed forms today:
 
+- `./bin/distill-ai` — read stdin, autodetect, distil to stdout
+  (currently fails with exit 2 until M9 ships the generic fallback).
+- `./bin/distill-ai run FORMAT FILE...` — explicit format and file
+  inputs.
 - `./bin/distill-ai detect FILE` — detect the format of a single file.
 - `./bin/distill-ai detect -`    — same, reading stdin.
 - `./bin/distill-ai --version`
 - `./bin/distill-ai --help`
 
-So during the M0–M7 phase the dogfooding loop is:
+The dogfooding loop today (M9–M12 still in flight):
 
 1. Run the noisy command, capture to a tempfile.
 2. Use `detect` to confirm the format autodetector picks the right
@@ -74,7 +93,8 @@ So during the M0–M7 phase the dogfooding loop is:
 3. Read the captured file directly if `detect` produced the wrong
    verdict — the file is your test fixture for the format parser.
 
-Once M8 lands, this collapses to `noisy-command | ./bin/distill-ai`.
+Once M9–M12 land specific formats, this collapses to
+`noisy-command | ./bin/distill-ai`.
 
 ## Recipes
 

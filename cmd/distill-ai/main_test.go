@@ -51,22 +51,52 @@ func TestRun_VersionReturnsZero(t *testing.T) {
 	}
 }
 
-func TestRun_NoArgsPrintsHelp(t *testing.T) {
+// TestRun_NoArgsEmptyStdinExitsOne pins the M8.2 behaviour change:
+// `distill-ai` with no args reads stdin, runs the pipeline, and
+// exits 1 ("no events found") when stdin is empty. The pre-M8.2
+// behaviour was to print help and exit 0; that has moved to the
+// explicit `--help` path tested by TestRun_HelpReturnsZero.
+func TestRun_NoArgsEmptyStdinExitsOne(t *testing.T) {
+	// We need at least one format registered for autodetect to run;
+	// without any, the run path bails out at "no format matched"
+	// (exit 2). Register a generic stub so the empty-stdin path is
+	// reachable; it returns no events, which the Sink reports as
+	// exit 1.
+	formats.ResetForTest()
+	t.Cleanup(formats.ResetForTest)
+	formats.Register(&fakeFormat{name: "generic", score: 0})
 	var stdout, stderr bytes.Buffer
 	code := run(nil, strings.NewReader(""), &stdout, &stderr)
-	if code != 0 {
-		t.Errorf("exit code = %d, want 0", code)
+	if code != 1 {
+		t.Errorf("exit code = %d, want 1 (empty input → no events); stderr=%q stdout=%q", code, stderr.String(), stdout.String())
 	}
 }
 
-func TestRun_UnknownSubcommandReturnsTwo(t *testing.T) {
+// TestRun_UnknownPositionalTreatedAsFile pins the M8.2 routing rule:
+// the root command accepts ArbitraryArgs so it can be the default
+// `run` dispatch. A positional that is neither a registered format
+// nor an existing subcommand is treated as a filename, and an
+// unreadable file produces exit 2 with a "no such file" diagnostic.
+//
+// This replaces the pre-M8.2 "unknown subcommand" test path. Cobra
+// still rejects unknown verbs that are preceded by a registered
+// subcommand (e.g., `distill-ai detect bogus` errors with a useful
+// "no such file"), but a bare unknown positional now flows to the
+// run command's input resolver.
+func TestRun_UnknownPositionalTreatedAsFile(t *testing.T) {
 	var stdout, stderr bytes.Buffer
-	code := run([]string{"bogus"}, strings.NewReader(""), &stdout, &stderr)
+	code := run([]string{"definitely-not-a-real-file"}, strings.NewReader(""), &stdout, &stderr)
 	if code != 2 {
-		t.Errorf("exit code = %d, want 2", code)
+		t.Errorf("exit code = %d, want 2; stderr=%q", code, stderr.String())
 	}
-	if !strings.Contains(stderr.String(), "unknown subcommand") {
-		t.Errorf("stderr did not mention unknown subcommand: %q", stderr.String())
+	// The OS-level "file not found" error wording differs between
+	// Unix ("no such file or directory") and Windows ("The system
+	// cannot find the file specified."). We assert only on the
+	// filename and the "open" prefix from os.Open's wrapped error,
+	// both of which are portable.
+	got := stderr.String()
+	if !strings.Contains(got, "open ") || !strings.Contains(got, "definitely-not-a-real-file") {
+		t.Errorf("stderr should mention 'open <name>'; got %q", got)
 	}
 }
 

@@ -40,8 +40,12 @@ pytest 2>&1 | distill-ai
 # Explicit format (faster, skips detection)
 pytest 2>&1 | distill-ai pytest
 
+# Run against one or more files explicitly
+distill-ai run pytest failure.log
+distill-ai run failure.log         # autodetect
+
 # Streaming
-kubectl logs -f my-pod | distill-ai k8s
+kubectl logs -f my-pod | distill-ai
 
 # Fit output to a token budget
 pytest 2>&1 | distill-ai --budget=2000
@@ -52,10 +56,22 @@ pytest 2>&1 | distill-ai --output=json | jq .
 # Markdown output for pasting into chat
 pytest 2>&1 | distill-ai --output=markdown
 
+# Verbose: see which format the detector picked, on stderr
+pytest 2>&1 | distill-ai -v
+
 # Identify a file's format without running the full pipeline
 distill-ai detect pytest-output.log
 distill-ai detect -          # read stdin
 ```
+
+### Exit codes
+
+| Code | Meaning                                                              |
+| ---- | -------------------------------------------------------------------- |
+| `0`  | Success: at least one event was emitted.                             |
+| `1`  | Success but no events found (input was clean).                       |
+| `2`  | Error: bad flags, IO error, or autodetect failed under `--strict`.   |
+| `3`  | Partial: ran successfully but dropped or truncated to fit `--budget`. |
 
 ### Integration with coding agents
 

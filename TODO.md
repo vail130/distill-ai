@@ -1203,7 +1203,7 @@ worthwhile.
   - ARCHITECTURE dependencies update.
   - Godoc on the new exported pieces (likely none; main package).
 
-### M8.2 — `distill-ai run` (the default pipeline command)
+### M8.2 — `distill-ai run` (the default pipeline command) ✅
 
 The verb that distills. Default subcommand when none is given, so
 `cmd | distill-ai` works without arguments.

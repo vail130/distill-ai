@@ -57,7 +57,13 @@ Total ~15. Resist adding more without strong justification.
 
 **Format selection**
 
-- `FORMAT` (positional) — explicit format
+- `FORMAT` (positional) — explicit format. Recognised at the root
+  command when the first positional matches a registered format name;
+  also accepted explicitly via `distill-ai run FORMAT [FILE...]`.
+- `FILE...` (positional) — one or more files to read instead of stdin.
+  Multiple files are concatenated with a `\n` separator and parsed as
+  a single stream; heterogeneous formats are not supported (run
+  `distill-ai` per file).
 - `--auto` (default) — autodetect
 - `--list-formats`
 
