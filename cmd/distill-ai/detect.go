@@ -88,11 +88,20 @@ func runDetect(cmd *cobra.Command, args []string) error {
 		// build-break semantics.
 		if errors.Is(err, detect.ErrNoFormat) {
 			fmt.Fprintf(stderr, "distill-ai: no format matched %s\n", source)
-			fmt.Fprintln(stderr, "Hint: no specific format scored above the detection threshold")
-			fmt.Fprintln(stderr, "      and no generic fallback is registered yet (lands in M9).")
 			if strict {
+				// --strict suppresses the generic fallback;
+				// nothing matched and the caller asked for a
+				// build-break.
+				fmt.Fprintln(stderr, "Hint: no specific format scored above the detection threshold;")
+				fmt.Fprintln(stderr, "      --strict suppresses the generic fallback. Remove --strict")
+				fmt.Fprintln(stderr, "      to accept low-confidence input as 'generic'.")
 				return &exitCodeError{code: ExitError}
 			}
+			// Without --strict this means the generic fallback
+			// itself is missing — the package should be wired in
+			// via a side-effect import in main_register.go.
+			fmt.Fprintln(stderr, "Hint: no specific format scored above the detection threshold")
+			fmt.Fprintln(stderr, "      and the generic fallback is not registered (build misconfiguration).")
 			return &exitCodeError{code: ExitNoEvents}
 		}
 		fmt.Fprintf(stderr, "distill-ai: detect %s: %v\n", source, err)

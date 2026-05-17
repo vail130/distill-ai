@@ -1491,7 +1491,7 @@ frame), and M7 (the encoders that render generic Events). Each item
 below lists Definition of Done, required tests, and required doc
 updates per the [alignment rule](./.opencode/rules/alignment.md).
 
-### M9.1 — `internal/formats/generic/generic.go`: skeleton + Detect
+### M9.1 — `internal/formats/generic/generic.go`: skeleton + Detect ✅
 
 Land the package, register it under the reserved name, implement
 `Detect` as a deliberate low-floor returner. No parsing yet —

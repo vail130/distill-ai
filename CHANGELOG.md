@@ -53,6 +53,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   populated since M6 but never surfaced. Drift-guarded by
   `TestJSONSink_SummarySchemaMatchesDoc` (new), parallel to the
   existing Event drift guard.
+- M9.1: `generic` format skeleton registered under the reserved
+  name. Implements `formats.Format`; `Detect` returns
+  `confidenceFloor = 0.1` on any severity-anchored line and 0
+  otherwise. `Parse` returns an immediately-closed channel for now
+  — the M9.2 commit fills in the severity-anchored scanner. The
+  side-effect import in `cmd/distill-ai/register.go` wires the
+  package into the production binary so the detector's fallback
+  path resolves end-to-end. Closes the "no generic fallback
+  registered yet" gap that the M3 detector's help text and the
+  integration suite called out.
 
 ### Changed
 

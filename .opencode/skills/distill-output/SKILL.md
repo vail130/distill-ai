@@ -42,19 +42,20 @@ source of truth.
 ## State of play
 
 The full CLI surface — flags, subcommands, exit codes — landed in
-**M8** (latest commit at time of writing). `cmd | distill-ai` is the
-canonical invocation: it reads stdin, autodetects the format, and
-distils to stdout. `run` is the default subcommand so the explicit
-form `cmd | distill-ai run` is equivalent and only needed when you
-want positional `FORMAT` / `FILE...` arguments.
+**M8**. The **generic fallback** landed in **M9.1**: every invocation
+against real input now produces a result (distilled events once the
+M9.2+ scanner ships, an empty result with exit 1 today). `cmd |
+distill-ai` is the canonical invocation: it reads stdin, autodetects
+the format, and distils to stdout. `run` is the default subcommand
+so the explicit form `cmd | distill-ai run` is equivalent and only
+needed when you want positional `FORMAT` / `FILE...` arguments.
 
-The remaining gap is the **format set**. Until M9 ships the
-generic fallback and M10/M11/M12 ship gotest/pytest/jest, every
-`distill-ai` invocation against real input fails with exit code 2
-(`distill-ai run: no format matched stdin`) because no specific
-format is registered in the production binary. The integration test
-suite deliberately pins this gap so M9 / M10 / M11 / M12 each
-surface as a visible behaviour change.
+The remaining gap is the **specific format set**. Until M10/M11/M12
+ship gotest/pytest/jest, the only registered format is `generic` —
+which always falls back (confidence below the detection threshold
+by design) and today emits no events because the scanner itself
+is a stub (M9.2 fills it in). Use `--strict` to turn that fallback
+into a hard error (exit 2) for CI.
 
 The full surface today is enumerated in the manifest below.
 
@@ -82,38 +83,39 @@ loudly otherwise.
 Invocation forms today:
 
 - `cmd | ./bin/distill-ai` — read stdin, autodetect, distil to
-  stdout. Today fails with exit 2 ("no format matched") because no
-  specific format is yet registered; once M9 lands, the same command
-  will return distilled output via the generic fallback.
+  stdout. After M9.1 this always succeeds (exit 1 with "no events
+  found" until M9.2 fills in the scanner; exit 0 with distilled
+  output thereafter). Use `--strict` to reject low-confidence input.
 - `./bin/distill-ai run [FORMAT] [FILE...]` — explicit form. Useful
   when you want to pass multiple files, force a specific format, or
   bypass autodetection with `--auto=false`.
 - `./bin/distill-ai detect FILE` — print which format wins
   detection, with confidence, sample size, and runner-up. Accepts
-  `-` for stdin.
+  `-` for stdin. After M9.1 plaintext input falls back to `generic`
+  on stdout (`fellback_to_generic: true`) rather than erroring on
+  stderr.
 - `./bin/distill-ai explain [FORMAT] [FILE...]` — dry-run mode:
   emit one `kept` / `dropped:<reason>` line per event without
   writing distilled output. Useful when `--budget` aggressively
   prunes events you expected to see.
 - `./bin/distill-ai list-formats` — list every registered format
-  with version and source. Pre-M9 this prints an empty list (header
-  only) because nothing is registered in the production binary.
+  with version and source. After M9.1 prints `generic` as the
+  only registered builtin until M10/M11/M12 ship.
 - `./bin/distill-ai completions [bash|zsh|fish|powershell]` —
   generate a shell completion script.
 - `./bin/distill-ai version` — print version, commit, build date.
 - `./bin/distill-ai --version` / `--help` — the standard
   affordances; `--version` is equivalent to the subcommand.
 
-The dogfooding loop today (until M9 lands):
+The dogfooding loop today:
 
-1. Run the noisy command, capture to a tempfile.
-2. Use `detect` to confirm the format autodetector picks the right
-   thing (it won't yet — exit 1, "no format matched" — that's the
-   M9/M10/M11/M12 gap).
-3. Read the captured file directly until specific formats arrive.
-
-Once M9 ships the generic fallback, step 2 collapses to
-`noisy-command | ./bin/distill-ai` returning a distilled stream.
+1. Run the noisy command and pipe directly: `noisy-cmd 2>&1 |
+   ./bin/distill-ai`.
+2. Detection always resolves: either to a specific format (once
+   M10/M11/M12 ship) or to the `generic` fallback.
+3. Until M9.2 fills in the scanner, the generic format emits no
+   events on real input — the post-M9.1 pipeline succeeds but is
+   effectively a no-op. M9.2 makes step 1 return distilled events.
 
 ## Recipes
 
@@ -140,11 +142,12 @@ M8.2.x follow-up commits.
 echo "exit: $?"
 ```
 
-Today this prints a no-match diagnostic to stderr and exits 1
-because gotest isn't registered yet. Once M10 ships, the expected
-output flips to `format: gotest` with `confidence: 1.00` on stdout
-and exit 0. Use `--strict` to turn the post-M9 "fell back to
-generic" path into a hard error (exit 2).
+After M9.1 this prints `format: generic` with
+`fellback_to_generic: true` on stdout and exits 1, because no
+specific format is registered to claim gotest output yet. Once M10
+ships, the expected output flips to `format: gotest` with
+`confidence: 1.00` and exit 0. Use `--strict` to turn the "fell
+back to generic" path into a hard error (exit 2).
 
 ### Distil this project's own `go test` output (once M10 lands)
 
@@ -155,8 +158,9 @@ make test 2>&1 | ./bin/distill-ai
 This is the canonical dogfooding loop: every test run becomes a
 real-world distill-ai input. M10 ships gotest specifically to make
 this loop work; gaps in the parser surface the moment you run
-`make test`. Pre-M10 the same command falls back to generic (post-M9)
-or exits 2 (pre-M9). The same shape works for any tool's output —
+`make test`. Pre-M10 the same command falls back to the generic
+scanner (M9.1+); M9.2 fills in the scanner so the fallback emits
+useful events. The same shape works for any tool's output —
 `kubectl logs`, an application log — and falls back to the
 regex-driven generic scanner when no specific format claims it.
 
@@ -179,9 +183,10 @@ argument skips autodetect; drop it to let the detector pick.
 Emits one diagnostic line per event saying whether it was kept and,
 if dropped, why (`severity-filter`, `budget`, `dedupe-evicted`,
 `vendor-collapsed`). Useful when a particular `--budget` setting is
-silently pruning events you expected to see. Today the same gap
-applies — pre-M9 there are no formats, so the dry-run reports the
-same "no format matched" error as `run`.
+silently pruning events you expected to see. After M9.1 the dry-run
+succeeds for any input (falls back to `generic` when nothing
+specific matches); until M9.2 fills in the scanner, the dry-run
+will simply report zero kept events.
 
 ### Constrain output to a token budget
 
