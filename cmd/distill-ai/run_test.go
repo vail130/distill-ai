@@ -191,15 +191,17 @@ func TestRun_VerboseWritesToStderr(t *testing.T) {
 	}
 }
 
-// TestRun_OutputJSON — --output=json produces valid JSON.
+// TestRun_OutputJSON — --output=json produces valid JSON. The
+// summary's exit_code reflects the outcome the CLI returns: 0 for a
+// successful run with events.
 func TestRun_OutputJSON(t *testing.T) {
 	formats.ResetForTest()
 	t.Cleanup(formats.ResetForTest)
 	makeRunFixtureFormat(t, "fake-pytest", 2)
 	var stdout, stderr bytes.Buffer
 	code := run([]string{"--output=json", "fake-pytest"}, strings.NewReader("input"), &stdout, &stderr)
-	if code != 0 {
-		t.Fatalf("exit code = %d, want 0; stderr=%q", code, stderr.String())
+	if code != ExitOK {
+		t.Fatalf("exit code = %d, want ExitOK; stderr=%q", code, stderr.String())
 	}
 	// Batch JSON: should be a single top-level object.
 	var parsed map[string]any
@@ -208,6 +210,37 @@ func TestRun_OutputJSON(t *testing.T) {
 	}
 	if parsed["format"] != "fake-pytest" {
 		t.Errorf("JSON 'format' field = %v, want fake-pytest", parsed["format"])
+	}
+	summary, ok := parsed["summary"].(map[string]any)
+	if !ok {
+		t.Fatalf("JSON summary missing or wrong shape; got %v", parsed["summary"])
+	}
+	if summary["exit_code"] != float64(0) {
+		t.Errorf("JSON summary.exit_code = %v, want 0", summary["exit_code"])
+	}
+}
+
+// TestRun_OutputJSON_ExitCodeReflectsForcedDrops — when --budget
+// forces drops, the JSON summary's exit_code reflects ExitPartial
+// (3). M8.3's JSONSink.resolveExitCode reads from observed state so
+// the value is honest even though the CLI can't update the Sink
+// after Pipeline.Run returns.
+func TestRun_OutputJSON_ExitCodeReflectsForcedDrops(t *testing.T) {
+	formats.ResetForTest()
+	t.Cleanup(formats.ResetForTest)
+	makeRunFixtureFormat(t, "fake", 50)
+	var stdout, stderr bytes.Buffer
+	code := run([]string{"--output=json", "--budget=5", "fake"}, strings.NewReader("input"), &stdout, &stderr)
+	if code != ExitPartial {
+		t.Fatalf("exit code = %d, want ExitPartial; stderr=%q", code, stderr.String())
+	}
+	var parsed map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &parsed); err != nil {
+		t.Fatalf("output is not valid JSON: %v\noutput=%q", err, stdout.String())
+	}
+	summary := parsed["summary"].(map[string]any)
+	if summary["exit_code"] != float64(3) {
+		t.Errorf("JSON summary.exit_code = %v, want 3 (ExitPartial)", summary["exit_code"])
 	}
 }
 

@@ -164,12 +164,12 @@ func runRun(cmd *cobra.Command, args []string, fl *runFlags) error {
 	formatName, files := splitRunArgs(args)
 	if !fl.autoDetect && formatName == "" {
 		fmt.Fprintln(stderr, "distill-ai run: --auto=false requires a positional FORMAT argument")
-		return &exitCodeError{code: 2}
+		return &exitCodeError{code: ExitError}
 	}
 	input, closer, sourceLabel, err := openRunInput(files, stdin)
 	if err != nil {
 		fmt.Fprintf(stderr, "distill-ai run: %v\n", err)
-		return &exitCodeError{code: 2}
+		return &exitCodeError{code: ExitError}
 	}
 	if closer != nil {
 		defer func() { _ = closer.Close() }()
@@ -182,10 +182,10 @@ func runRun(cmd *cobra.Command, args []string, fl *runFlags) error {
 		if errors.Is(err, detect.ErrNoFormat) {
 			fmt.Fprintf(stderr, "distill-ai run: no format matched %s\n", sourceLabel)
 			fmt.Fprintln(stderr, "Hint: pass an explicit FORMAT argument, or rerun without --strict.")
-			return &exitCodeError{code: 2}
+			return &exitCodeError{code: ExitError}
 		}
 		fmt.Fprintf(stderr, "distill-ai run: %v\n", err)
-		return &exitCodeError{code: 2}
+		return &exitCodeError{code: ExitError}
 	}
 	if fl.verbose {
 		fmt.Fprintf(stderr, "distill-ai: format=%s source=%s sample_bytes=%d\n",
@@ -197,18 +197,23 @@ func runRun(cmd *cobra.Command, args []string, fl *runFlags) error {
 	pipe, err := pipeline.Build(src, sink, opts)
 	if err != nil {
 		fmt.Fprintf(stderr, "distill-ai run: build pipeline: %v\n", err)
-		return &exitCodeError{code: 2}
+		return &exitCodeError{code: ExitError}
 	}
+	// Wire the BudgetCounters from Build into the Sink so the Sink
+	// can include drop / token stats in its footer. The Counters
+	// pointer is shared with the BudgetStage; the Sink reads it
+	// after the stage has populated it (at end of pipeline).
+	attachCounters(sink, pipe.BudgetCounters)
 	ctx := cmd.Context()
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	if err := pipe.Run(ctx); err != nil {
 		if errors.Is(err, context.Canceled) {
-			return &exitCodeError{code: 2, cause: err}
+			return &exitCodeError{code: ExitError, cause: err}
 		}
 		fmt.Fprintf(stderr, "distill-ai run: %v\n", err)
-		return &exitCodeError{code: 2}
+		return &exitCodeError{code: ExitError}
 	}
 	// Finalise: install the input line count and budget counters on
 	// the Sink so its footer (text / markdown) or trailer (json) is
@@ -228,10 +233,10 @@ func runRun(cmd *cobra.Command, args []string, fl *runFlags) error {
 	//   1 — pipeline succeeded but emitted zero events.
 	//   0 — pipeline succeeded with at least one event.
 	if pipe.BudgetCounters != nil && pipe.BudgetCounters.ForcedDrops() {
-		return &exitCodeError{code: 3}
+		return &exitCodeError{code: ExitPartial}
 	}
 	if readEmitted(sink) == 0 {
-		return &exitCodeError{code: 1}
+		return &exitCodeError{code: ExitNoEvents}
 	}
 	return nil
 }
@@ -305,6 +310,25 @@ func readEmitted(s pipeline.Sink) int {
 		return r.EventsEmitted()
 	}
 	return 0
+}
+
+// attachCounters sets the BudgetCounters pointer on the Sink so its
+// footer (text / markdown) or summary (json) can include drop and
+// token statistics. Type-asserts on the concrete M7 Sink shape
+// rather than adding a method to the pipeline.Sink interface,
+// since not every future Sink will care.
+func attachCounters(s pipeline.Sink, c *pipeline.BudgetCounters) {
+	if c == nil {
+		return
+	}
+	switch sink := s.(type) {
+	case *output.TextSink:
+		sink.Counters = c
+	case *output.JSONSink:
+		sink.Counters = c
+	case *output.MarkdownSink:
+		sink.Counters = c
+	}
 }
 
 // buildPipelineOptions translates runFlags into pipeline.Options. The

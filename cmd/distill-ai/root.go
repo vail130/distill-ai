@@ -131,12 +131,14 @@ func run(args []string, stdin io.Reader, stdout, stderr io.Writer) int {
 	// Unknown subcommands and unknown flags arrive here as plain
 	// error values from cobra. Translate cobra's "unknown command"
 	// wording to the pre-cobra "unknown subcommand" so existing
-	// tooling (and the project's own docs) keep working.
+	// tooling (and the project's own docs) keep working. cobra-
+	// reported errors are flag-parsing or subcommand-routing
+	// failures, both of which map to ExitError.
 	msg := err.Error()
 	msg = strings.Replace(msg, "unknown command", "unknown subcommand", 1)
 	fmt.Fprintf(stderr, "distill-ai: %s\n", msg)
 	fmt.Fprintln(stderr, "Run 'distill-ai --help' for usage.")
-	return 2
+	return ExitError
 }
 
 // exitCodeError lets a subcommand request a specific process exit
