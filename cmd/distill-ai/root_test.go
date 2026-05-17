@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"strings"
 	"testing"
+
+	"github.com/vail130/distill-ai/internal/formats"
 )
 
 // The tests in this file are the M8.1 DoD set: they exercise the new
@@ -32,18 +34,20 @@ func TestRoot_HelpExitsZero(t *testing.T) {
 	}
 }
 
-// TestRoot_UnknownSubcommandExitsTwo — verifies that the cobra error
-// for unknown verbs is mapped to exit code 2 with the project's
-// preferred wording ("subcommand", not cobra's default "command").
-func TestRoot_UnknownSubcommandExitsTwo(t *testing.T) {
+// TestRoot_UnknownFlagExitsTwo — verifies that cobra-reported
+// unknown-flag errors are mapped to exit 2 with the "unknown flag"
+// wording cobra emits. Unknown positional verbs no longer route
+// through this path (M8.2 made the root accept ArbitraryArgs so
+// `cmd | distill-ai pytest` works); see
+// TestRun_UnknownPositionalTreatedAsFile for that case.
+func TestRoot_UnknownFlagExitsTwo(t *testing.T) {
 	var stdout, stderr bytes.Buffer
-	code := run([]string{"definitely-not-a-real-subcommand"}, strings.NewReader(""), &stdout, &stderr)
+	code := run([]string{"--definitely-not-a-real-flag"}, strings.NewReader(""), &stdout, &stderr)
 	if code != 2 {
 		t.Errorf("exit code = %d, want 2; stderr=%q", code, stderr.String())
 	}
-	if !strings.Contains(stderr.String(), "unknown subcommand") {
-		t.Errorf("stderr did not say 'unknown subcommand' (cobra's default is 'unknown command'); got %q",
-			stderr.String())
+	if !strings.Contains(stderr.String(), "unknown flag") {
+		t.Errorf("stderr did not say 'unknown flag'; got %q", stderr.String())
 	}
 }
 
@@ -68,18 +72,25 @@ func TestRoot_VersionPrintsBuildInfo(t *testing.T) {
 	}
 }
 
-// TestRoot_ShortVersionFlag — `-v` is a synonym for `--version`
-// today. M8.2 will reassign it to --verbose; this test pins the
-// current behaviour so the reassignment is a visible, intentional
-// change rather than a silent regression.
-func TestRoot_ShortVersionFlag(t *testing.T) {
+// TestRoot_ShortVerboseFlag — M8.2 reassigned `-v` from --version to
+// --verbose, matching the convention in every other Unix CLI. This
+// test pins the new meaning so a future regression is visible.
+// `--version` is still accepted long-form.
+func TestRoot_ShortVerboseFlag(t *testing.T) {
+	formats.ResetForTest()
+	t.Cleanup(formats.ResetForTest)
+	formats.Register(&fakeFormat{name: "generic", score: 0})
 	var stdout, stderr bytes.Buffer
+	// `-v` alone is now the verbose flag; with empty stdin the run
+	// path reaches "no events" and exits 1. The diagnostic line
+	// goes to stderr, proving -v wired to --verbose.
 	code := run([]string{"-v"}, strings.NewReader(""), &stdout, &stderr)
-	if code != 0 {
-		t.Errorf("exit code = %d, want 0; stderr=%q", code, stderr.String())
+	if code != 1 {
+		t.Errorf("exit code = %d, want 1 (empty input under verbose); stderr=%q stdout=%q",
+			code, stderr.String(), stdout.String())
 	}
-	if !strings.Contains(stdout.String(), "distill-ai") {
-		t.Errorf("-v output missing program name: %q", stdout.String())
+	if !strings.Contains(stderr.String(), "format=") {
+		t.Errorf("-v did not produce verbose diagnostic; stderr=%q", stderr.String())
 	}
 }
 

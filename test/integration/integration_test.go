@@ -256,35 +256,79 @@ func TestBinary_HelpPrintsUsage(t *testing.T) {
 	assertContainsGolden(t, "help", got.stdout)
 }
 
+// TestBinary_ShortFlagsAccepted pins the post-M8.2 short-flag set.
+// `-h` is cobra-managed help. `-v` shifted from --version to --verbose
+// in M8.2; without any registered formats the run path errors with
+// exit 2 ("no format matched stdin"), which proves the flag is wired
+// to the verbose path of the run command rather than to --version.
+// Once M9 ships the generic fallback, the -v test should be updated
+// to expect exit 1 (no events) or exit 0 (events emitted).
 func TestBinary_ShortFlagsAccepted(t *testing.T) {
-	for _, flagArg := range []string{"-h", "-v"} {
-		flagArg := flagArg
-		t.Run(flagArg, func(t *testing.T) {
-			got := runBinary(t, "", flagArg)
-			if got.exitCode != 0 {
-				t.Fatalf("exit = %d for %s, want 0; stderr=%q", got.exitCode, flagArg, got.stderr)
-			}
-		})
-	}
+	t.Run("-h", func(t *testing.T) {
+		got := runBinary(t, "", "-h")
+		if got.exitCode != 0 {
+			t.Fatalf("exit = %d for -h, want 0; stderr=%q", got.exitCode, got.stderr)
+		}
+	})
+	t.Run("-v", func(t *testing.T) {
+		got := runBinary(t, "", "-v")
+		if got.exitCode != 2 {
+			t.Fatalf("exit = %d for -v, want 2 (no formats registered pre-M9); stderr=%q",
+				got.exitCode, got.stderr)
+		}
+		if !strings.Contains(got.stderr, "no format matched") {
+			t.Errorf("-v stderr did not mention no-format; got %q", got.stderr)
+		}
+	})
 }
 
-func TestBinary_NoArgsPrintsHelp(t *testing.T) {
+// TestBinary_NoArgsRunsPipeline pins the M8.2 behaviour: invoking
+// the binary with no arguments runs the pipeline against stdin. With
+// no formats registered (pre-M9) the run errors with exit 2; once
+// M9 lands, the test will move to exit 1 (no events) when stdin is
+// empty and exit 0 once stdin produces events. The pre-M8.2
+// "no args → print help" path lives on as `distill-ai --help`.
+func TestBinary_NoArgsRunsPipeline(t *testing.T) {
 	got := runBinary(t, "")
-	if got.exitCode != 0 {
-		t.Fatalf("exit = %d, want 0; stderr=%q", got.exitCode, got.stderr)
+	if got.exitCode != 2 {
+		t.Fatalf("exit = %d, want 2 (pre-M9 no formats registered); stderr=%q stdout=%q",
+			got.exitCode, got.stderr, got.stdout)
 	}
-	// Should print help (which contains "Usage:") to stdout.
-	if !strings.Contains(got.stdout, "Usage:") {
-		t.Errorf("no-args invocation did not print help; got stdout %q", got.stdout)
+	if !strings.Contains(got.stderr, "no format matched") {
+		t.Errorf("no-args stderr did not mention no-format; got %q", got.stderr)
 	}
 }
 
-func TestBinary_UnknownSubcommandExitsTwo(t *testing.T) {
-	got := runBinary(t, "", "bogus")
+// TestBinary_UnknownPositionalTreatedAsFile pins the M8.2 routing
+// rule at the integration boundary. An unknown positional flows to
+// the run command's input resolver, which tries to open it as a
+// file and produces an OS-level file-not-found diagnostic on
+// stderr. Cobra still reports `--unknown-flag` as an "unknown
+// flag"; that's covered by the in-process TestRoot_UnknownFlagExitsTwo.
+//
+// The exact wording of the not-found error is OS-specific (Unix
+// says "no such file or directory"; Windows says "The system
+// cannot find the file specified."), so we anchor on the portable
+// "open <name>" prefix from os.Open's wrapped error.
+func TestBinary_UnknownPositionalTreatedAsFile(t *testing.T) {
+	got := runBinary(t, "", "definitely-not-a-real-file")
 	if got.exitCode != 2 {
 		t.Errorf("exit = %d, want 2; stdout=%q stderr=%q", got.exitCode, got.stdout, got.stderr)
 	}
-	assertContainsGolden(t, "unknown-subcommand", got.stderr)
+	if !strings.Contains(got.stderr, "open ") || !strings.Contains(got.stderr, "definitely-not-a-real-file") {
+		t.Errorf("stderr should mention 'open <name>'; got %q", got.stderr)
+	}
+}
+
+// TestBinary_UnknownFlagExitsTwo pins the cobra unknown-flag path.
+func TestBinary_UnknownFlagExitsTwo(t *testing.T) {
+	got := runBinary(t, "", "--definitely-not-a-real-flag")
+	if got.exitCode != 2 {
+		t.Errorf("exit = %d, want 2; stderr=%q", got.exitCode, got.stderr)
+	}
+	if !strings.Contains(got.stderr, "unknown flag") {
+		t.Errorf("stderr should mention 'unknown flag'; got %q", got.stderr)
+	}
 }
 
 func TestBinary_DetectMissingFileExitsTwo(t *testing.T) {
@@ -447,12 +491,28 @@ func TestSkill_DocumentsCurrentCLISurface(t *testing.T) {
 		}
 	})
 	t.Run("manifest_flags_are_wired", func(t *testing.T) {
+		// The test asserts the flag is *recognised* by cobra
+		// (stderr does not contain "unknown flag"), not that the
+		// flag succeeds end-to-end — most run flags require valid
+		// input plus a registered format to reach exit 0, neither
+		// of which is true in the bare-binary test environment.
+		// Special-case --help and --version, which are documented
+		// to exit 0 in isolation.
+		isInfoFlag := map[string]bool{
+			"--help":    true,
+			"-h":        true,
+			"--version": true,
+		}
 		for _, fl := range manifest.flags {
 			fl := fl
 			t.Run(fl, func(t *testing.T) {
 				got := runBinary(t, "", fl)
-				if got.exitCode != 0 {
-					t.Errorf("manifest names flag %q but binary exited %d; stderr=%q",
+				if strings.Contains(got.stderr, "unknown flag") {
+					t.Errorf("manifest names flag %q but cobra reports it as unknown; stderr=%q",
+						fl, got.stderr)
+				}
+				if isInfoFlag[fl] && got.exitCode != 0 {
+					t.Errorf("manifest names info flag %q but binary exited %d; stderr=%q",
 						fl, got.exitCode, got.stderr)
 				}
 			})
