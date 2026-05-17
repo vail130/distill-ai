@@ -56,8 +56,29 @@ two more kinds:
   `FAIL\t<pkg> [build failed]` summary is present, the line is
   consumed by the scanner (no `test_failure` is synthesised).
 
-M10.4 will add `race_condition` and structured stack-frame
-extraction.
+M10.4 adds:
+
+- **`race_condition`** — emitted when a `==================`-framed
+  race-detector report appears. `Title` is the canonical
+  `WARNING: DATA RACE` line; `Body` retains the report verbatim
+  including dividers; `Frames` carries entries from both
+  goroutine stacks the report contains; `metadata.race_goroutines`
+  is `"2"`. Bounded by `maxRaceLines = 300` lines with the same
+  sentinel + `metadata.race_truncated` pattern as `panic`.
+- **Structured stack frames** on `panic` and `race_condition`
+  Events. Each `\tfile.go:line +0xOFFSET` tail line plus the
+  preceding `pkg.Func(args)` line produces one `StackFrame`.
+  Frames are emitted only when at least one pair matches; the
+  M5 CollapseStage repopulates `Vendor` from the frame file.
+- **`-json` reporter** support. When the first non-blank input
+  line begins with `{"Time":`, the scanner dispatches to the
+  JSON-line parser. Per-test `output` actions accumulate into a
+  body buffer; `fail` actions emit a `test_failure` Event with
+  the assembled body; `pass` / `skip` discard the buffer.
+  Build-failure `output` actions (Test == "" plus a
+  `path:line:col: msg` shape) emit `build_failure` Events
+  directly. Per-package `fail` actions (Test == "") are
+  swallowed.
 
 ### `test_failure` Event shape
 

@@ -37,10 +37,13 @@ var (
 	//   - `^panic: ` — chained panics from goroutines.
 	//   - `^\[` — signal subheaders like `[signal SIGSEGV: ...]`,
 	//     `[recovered]`.
-	//   - `^[\w./*()]+\([\w *,.\-]*\)$` — Go function-call lines
-	//     (`pkg.Func(args)`, `(*T).method(args)`).
+	//   - `^[\w./*()]+\(.*\)$` — Go function-call lines. The args
+	//     after the open paren accept any character: real panic
+	//     output uses pointers, hex literals, struct literals
+	//     (`{0x1, 0x2}`), interface types, etc. Anything between
+	//     the matching outermost parens belongs to the call.
 	panicContinuationPattern = regexp.MustCompile(
-		`^(?:\s|$|goroutine \d+ |panic: |\[|[\w./*()]+\([\w *,.\-]*\)$)`,
+		`^(?:\s|$|goroutine \d+ |panic: |\[|[\w./*()]+\(.*\)$)`,
 	)
 
 	// buildErrorLinePattern matches a Go compiler / vet error line:
@@ -68,8 +71,8 @@ type pendingPanic struct {
 
 // finalisePanic builds the final event.Event for a panic block.
 // Title is the trimmed `panic:` header. Body retains the verbatim
-// dump. M10.3 leaves Frames nil; M10.4 wires the goroutine-frame
-// extractor.
+// dump. Frames are extracted via the goroutine-frame pair walker
+// in frames.go; Location is the first user-code frame.
 func finalisePanic(p *pendingPanic) event.Event {
 	meta := map[string]string{}
 	if p.testID != "" {
@@ -81,11 +84,86 @@ func finalisePanic(p *pendingPanic) event.Event {
 	if len(meta) == 0 {
 		meta = nil
 	}
+	frames := extractGoFrames(p.body)
+	var loc *event.Location
+	for _, fr := range frames {
+		// First user-code frame: skip Go runtime / testing /
+		// pkg.mod entries so the Location points at the user
+		// frame rather than a runtime helper. The CollapseStage
+		// also classifies these as vendor; M10.4 leans on the
+		// classifier so the rule stays in one place.
+		if !isLikelyVendor(fr.File, fr.Function) {
+			f := fr
+			loc = &event.Location{File: f.File, Line: f.Line}
+			break
+		}
+	}
 	return event.Event{
 		Severity: event.SeverityError,
 		Kind:     "panic",
 		Title:    strings.TrimSpace(p.header),
+		Location: loc,
 		Body:     append([]string(nil), p.body...),
+		Frames:   frames,
+		Metadata: meta,
+	}
+}
+
+// isLikelyVendor is a small heuristic for picking the first
+// user-code frame when populating an Event's Location. Mirrors the
+// patterns the M5 CollapseStage uses for Go: `/src/runtime/`,
+// `pkg/mod/`, `/vendor/`, plus the `testing.tRunner` family that
+// always wraps user tests.
+//
+// We don't reuse the M5 ClassifyFrames here because Location only
+// needs the first user frame and false negatives are cheap
+// (Location stays nil); the runtime-classifier work happens later
+// when the Event passes through the CollapseStage.
+func isLikelyVendor(file, fn string) bool {
+	if strings.Contains(file, "/src/runtime/") ||
+		strings.Contains(file, "/src/testing/") ||
+		strings.Contains(file, "pkg/mod/") ||
+		strings.Contains(file, "/vendor/") {
+		return true
+	}
+	if strings.HasPrefix(fn, "runtime.") || strings.HasPrefix(fn, "testing.") {
+		return true
+	}
+	return false
+}
+
+// pendingRace is the in-flight Event for a race-detector report.
+// The scanner enters this state on the first `==================`
+// divider and exits on the second. Body retains the verbatim block
+// including dividers; Frames are extracted across both goroutine
+// stacks the report contains.
+type pendingRace struct {
+	body      []string
+	testID    string // most-recently-running test, when known
+	truncated bool
+}
+
+// finaliseRace builds the final event.Event for a race-detector
+// report. Title is the canonical `WARNING: DATA RACE` line; Body
+// keeps the report verbatim. Frames are extracted from the goroutine
+// stacks the report contains; metadata.race_goroutines counts how
+// many stacks were merged (always 2 for the canonical report shape).
+func finaliseRace(p *pendingRace) event.Event {
+	frames := extractGoFrames(p.body)
+	meta := map[string]string{}
+	if p.testID != "" {
+		meta["test_id"] = p.testID
+	}
+	meta["race_goroutines"] = "2"
+	if p.truncated {
+		meta["race_truncated"] = "true"
+	}
+	return event.Event{
+		Severity: event.SeverityError,
+		Kind:     "race_condition",
+		Title:    raceConditionTitle,
+		Body:     append([]string(nil), p.body...),
+		Frames:   frames,
 		Metadata: meta,
 	}
 }

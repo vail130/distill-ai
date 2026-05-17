@@ -21,6 +21,7 @@ const (
 	stateRunning     state = iota // initial: before any failure block has started
 	stateFailureBody              // inside a `--- FAIL:` block, accumulating Body
 	statePanicBody                // inside a `panic:` block, accumulating goroutine dump
+	stateRaceBody                 // inside a `==================` race report block
 	stateSummary                  // after `FAIL\t<pkg>` / `PASS` / `exit status N`
 )
 
@@ -70,7 +71,28 @@ var (
 	// indent is stripped before matching because gotest indents
 	// per-test output by tabs / spaces.
 	assertionLinePattern = regexp.MustCompile(`^(\S+\.go|\S+/\S+):(\d+):\s+(.*)$`)
+
+	// raceDividerPattern matches the `==================` lines
+	// that frame a race-detector report. The race detector emits
+	// two such lines for each report: one above the report, one
+	// below.
+	raceDividerPattern = regexp.MustCompile(`^={5,}$`)
 )
+
+// maxRaceLines caps how many lines a race-detector block may
+// accumulate before truncation. Race reports include two
+// goroutines' stacks plus a `Previous write` / `Goroutine N (running)`
+// header per stack, so they are larger than typical panics — the cap
+// is correspondingly larger than maxPanicLines.
+const maxRaceLines = 300
+
+// raceConditionTitle is the canonical first non-divider line gotest's
+// race detector emits. Used as the Event Title when the report block
+// is recognised.
+const raceConditionTitle = "WARNING: DATA RACE"
+
+// raceTruncatedSentinel marks Body when the maxRaceLines cap fires.
+const raceTruncatedSentinel = "... [race report truncated]"
 
 // parseStream runs the M10.2 scanner over r and forwards Events to
 // out. It is the body of Format.Parse, extracted so tests can drive
@@ -121,11 +143,55 @@ func scanLoop(ctx context.Context, r io.Reader, out chan<- event.Event) error {
 	// failure bodies (notably from testify's deep-equal failure
 	// rendering). Cap at 1 MiB to bound adversarial input.
 	sc.Buffer(make([]byte, 0, 64*1024), 1<<20)
+	// Mode detection: read up to the first non-blank line. If it
+	// begins with `{"Time":`, we're in `-json` mode; dispatch to the
+	// JSON scanner. Otherwise the bytes we read are still
+	// available — we pass them through as the first line of the
+	// text-mode scanner via a helper closure.
+	var firstLine []byte
+	for sc.Scan() {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		raw := sc.Bytes()
+		if len(raw) == 0 {
+			continue
+		}
+		firstLine = append([]byte(nil), raw...)
+		break
+	}
+	if err := sc.Err(); err != nil {
+		return err
+	}
+	if len(firstLine) == 0 {
+		return nil // empty input
+	}
+	if isJSONLine(firstLine) {
+		return scanJSONLoop(ctx, sc, firstLine, out)
+	}
+	return scanTextLoop(ctx, sc, firstLine, out)
+}
+
+// isJSONLine reports whether b looks like a `go test -json` event
+// line. The check is cheap and deliberately strict: gotest emits
+// `Time` as the first key in every line. Other tools that happen to
+// emit JSON-per-line use different shapes; this keeps the JSON
+// dispatcher from mis-claiming them.
+func isJSONLine(b []byte) bool {
+	return len(b) > 9 && string(b[:9]) == `{"Time":"`
+}
+
+// scanTextLoop is the original text-mode state machine, factored
+// out so scanLoop can dispatch between text and JSON modes. It
+// receives the already-consumed first line and threads it into the
+// loop as if it had just arrived from the scanner.
+func scanTextLoop(ctx context.Context, sc *bufio.Scanner, firstLine []byte, out chan<- event.Event) error {
 	st := stateRunning
 	var (
 		cur     *pendingFailure
 		pending []*pendingFailure
 		curPan  *pendingPanic
+		curRace *pendingRace
 		// preBody holds the indented per-test output that gotest
 		// emits between `=== RUN` and `--- FAIL:`. When the FAIL
 		// header arrives, those lines are prepended to the new
@@ -156,8 +222,20 @@ func scanLoop(ctx context.Context, r io.Reader, out chan<- event.Event) error {
 		st = stateRunning
 		return sendEvent(ctx, out, ev)
 	}
+	flushRace := func() error {
+		if curRace == nil {
+			return nil
+		}
+		ev := finaliseRace(curRace)
+		curRace = nil
+		st = stateRunning
+		return sendEvent(ctx, out, ev)
+	}
 	flush := func(pkg string) error {
 		if err := flushPanic(); err != nil {
+			return err
+		}
+		if err := flushRace(); err != nil {
 			return err
 		}
 		if cur != nil {
@@ -175,15 +253,57 @@ func scanLoop(ctx context.Context, r io.Reader, out chan<- event.Event) error {
 		pending = nil
 		return nil
 	}
-	for sc.Scan() {
+	// Replay the already-consumed firstLine before draining the
+	// rest of the scanner, so dispatch and the state machine see
+	// the same line sequence.
+	firstUsed := false
+	nextLine := func() (string, bool) {
+		if !firstUsed {
+			firstUsed = true
+			return string(firstLine), true
+		}
+		if sc.Scan() {
+			return sc.Text(), true
+		}
+		return "", false
+	}
+	for {
+		line, ok := nextLine()
+		if !ok {
+			break
+		}
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		line := sc.Text()
-		// Phase A: inside a panic block, the line either extends
+		// Phase A: inside a race block, the line either extends
+		// the block or, if it's the closing divider, terminates
+		// it. The race state takes precedence over panic / fail
+		// state because the race detector wraps the entire
+		// contained dump in its own dividers.
+		if st == stateRaceBody {
+			// The closing divider terminates the race report.
+			if raceDividerPattern.MatchString(line) {
+				if len(curRace.body) < maxRaceLines {
+					curRace.body = append(curRace.body, line)
+				}
+				if err := flushRace(); err != nil {
+					return err
+				}
+				continue
+			}
+			switch {
+			case len(curRace.body) < maxRaceLines-1:
+				curRace.body = append(curRace.body, line)
+			case !curRace.truncated:
+				curRace.body = append(curRace.body, raceTruncatedSentinel)
+				curRace.truncated = true
+			}
+			continue
+		}
+		// Phase B: inside a panic block, the line either extends
 		// or terminates the block.
 		if st == statePanicBody {
-			if panicContinuationPattern.MatchString(line) {
+			if panicContinuationPattern.MatchString(line) && !raceDividerPattern.MatchString(line) {
 				switch {
 				case len(curPan.body) < maxPanicLines-1:
 					curPan.body = append(curPan.body, line)
@@ -202,6 +322,18 @@ func scanLoop(ctx context.Context, r io.Reader, out chan<- event.Event) error {
 			if err := flushPanic(); err != nil {
 				return err
 			}
+		}
+		// Race opener: a `==================` divider starts a
+		// new race-detector block.
+		if raceDividerPattern.MatchString(line) {
+			// If we're inside any other state, flush first.
+			if cur != nil {
+				pending = append(pending, cur)
+				cur = nil
+			}
+			curRace = &pendingRace{body: []string{line}, testID: curTest}
+			st = stateRaceBody
+			continue
 		}
 		// Build-failure summary: `FAIL\t<pkg> [build failed]`
 		// closes the build-failure stream and stamps any
