@@ -24,6 +24,7 @@ KeyError: 'session_id'
 - **Lines distilled:** 12,000 → 21
 - **Events emitted:** 1
 - **Events dropped:** 0
+- **Events truncated:** 0
 - **Events deduped:** 3
 - **Vendor frames removed:** 8
 - **Estimated tokens:** 0 (heuristic)

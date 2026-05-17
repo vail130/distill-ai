@@ -193,13 +193,16 @@ func writeMarkdownFooter(w io.Writer, f textFooter) error {
 		tokens = f.counters.EstimatedTokens
 	}
 	dropped := 0
+	truncated := 0
 	if f.counters != nil {
 		dropped = f.counters.EventsDroppedBudget
+		truncated = f.counters.EventsTruncated
 	}
 	lines := []string{
 		fmt.Sprintf("- **Lines distilled:** %s → %s", inLines, fmtCount(f.outputLines)),
 		fmt.Sprintf("- **Events emitted:** %s", fmtCount(f.eventsEmitted)),
 		fmt.Sprintf("- **Events dropped:** %s", fmtCount(dropped)),
+		fmt.Sprintf("- **Events truncated:** %s", fmtCount(truncated)),
 		fmt.Sprintf("- **Events deduped:** %s", fmtCount(f.eventsDeduped)),
 		fmt.Sprintf("- **Vendor frames removed:** %s", fmtCount(f.framesRemoved)),
 		fmt.Sprintf("- **Estimated tokens:** %s (%s)", fmtCount(tokens), f.estimator),

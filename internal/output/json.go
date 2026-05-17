@@ -45,7 +45,8 @@ type JSONSink struct {
 	FormatName string
 
 	// Counters, if non-nil, carries BudgetStage totals. Used to
-	// populate summary.events_dropped_budget and summary.estimated_tokens.
+	// populate summary.events_dropped_budget, summary.events_truncated,
+	// and summary.estimated_tokens.
 	Counters *pipeline.BudgetCounters
 
 	// InputLines is the line count consumed from the Source, plumbed
@@ -186,10 +187,12 @@ func (s *JSONSink) formatName() string {
 
 func (s *JSONSink) buildSummary(outputLines, deduped, frames int) summary {
 	dropped := 0
+	truncated := 0
 	tokens := 0
 	forcedDrops := false
 	if s.Counters != nil {
 		dropped = s.Counters.EventsDroppedBudget
+		truncated = s.Counters.EventsTruncated
 		tokens = s.Counters.EstimatedTokens
 		forcedDrops = s.Counters.ForcedDrops()
 	}
@@ -204,6 +207,7 @@ func (s *JSONSink) buildSummary(outputLines, deduped, frames int) summary {
 		EventsEmitted:       s.emitted,
 		EventsDeduped:       deduped,
 		EventsDroppedBudget: dropped,
+		EventsTruncated:     truncated,
 		FramesCollapsed:     frames,
 		EstimatedTokens:     tokens,
 		Estimator:           name,
@@ -264,6 +268,7 @@ type summary struct {
 	EventsEmitted       int    `json:"events_emitted"`
 	EventsDeduped       int    `json:"events_deduped"`
 	EventsDroppedBudget int    `json:"events_dropped_budget"`
+	EventsTruncated     int    `json:"events_truncated"`
 	FramesCollapsed     int    `json:"frames_collapsed"`
 	EstimatedTokens     int    `json:"estimated_tokens"`
 	Estimator           string `json:"estimator"`

@@ -14,6 +14,7 @@ AssertionError: expected 302, got 200
 - **Lines distilled:** 842 → 11
 - **Events emitted:** 1
 - **Events dropped:** 0
+- **Events truncated:** 0
 - **Events deduped:** 0
 - **Vendor frames removed:** 0
 - **Estimated tokens:** 0 (heuristic)

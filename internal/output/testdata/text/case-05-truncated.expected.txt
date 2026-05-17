@@ -8,4 +8,4 @@ events from gotest
 
 ---
 distilled 50,000 lines → 8 lines (0 tokens, tiktoken)
-dropped: 0 events, 0 deduped, 0 vendor frames
+dropped: 0 events, 0 truncated, 0 deduped, 0 vendor frames

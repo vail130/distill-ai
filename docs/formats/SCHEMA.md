@@ -126,6 +126,7 @@ Per-format kind values are documented in each format's
   "events_emitted": 3,
   "events_deduped": 1,
   "events_dropped_budget": 1,
+  "events_truncated": 0,
   "frames_collapsed": 47,
   "estimated_tokens": 340,
   "estimator": "heuristic",
@@ -142,11 +143,12 @@ Per-format kind values are documented in each format's
 | `events_found`          | integer | Events detected by the parser.                    |
 | `events_emitted`        | integer | Events actually written to output.                |
 | `events_deduped`        | integer | Events collapsed into a `count > 1` entry.        |
-| `events_dropped_budget` | integer | Events dropped by `--budget` enforcement.         |
+| `events_dropped_budget` | integer | Events dropped entirely by `--budget` enforcement (the event never reaches the output). |
+| `events_truncated`      | integer | Events whose body was shortened by `--budget` (the event is still emitted with `truncated: true`; the body retains its first line and a `... [truncated by --budget]` sentinel). Distinct from `events_dropped_budget`; both contribute to exit code 3. |
 | `frames_collapsed`      | integer | Total vendor frames removed across all events.    |
 | `estimated_tokens`      | integer | Estimated output token count.                     |
 | `estimator`             | string  | Estimator used: `heuristic` or `tiktoken`.        |
-| `exit_code`             | integer | Final exit code: `0` (events emitted), `1` (no events), `2` (error), `3` (budget forced drops). The JSON encoder derives the value from its observed state (events emitted, BudgetCounters.ForcedDrops) so it remains accurate even though the encoder writes its trailer inside `Pipeline.Run`. A non-zero `JSONSink.ExitCode` override always wins. See `cmd/distill-ai/exitcode.go` for the constants. |
+| `exit_code`             | integer | Final exit code: `0` (events emitted), `1` (no events), `2` (error), `3` (budget forced drops or truncations). The JSON encoder derives the value from its observed state (events emitted, BudgetCounters.ForcedDrops) so it remains accurate even though the encoder writes its trailer inside `Pipeline.Run`. A non-zero `JSONSink.ExitCode` override always wins. See `cmd/distill-ai/exitcode.go` for the constants. |
 
 The summary object is always present in JSON output. `--no-footer`
 suppresses the human-readable footer block in the `text` and

@@ -203,6 +203,9 @@ func TestSinks_FooterReflectsCounters(t *testing.T) {
 				if !strings.Contains(out, "4 events") {
 					t.Errorf("text footer missing dropped count")
 				}
+				if !strings.Contains(out, "1 truncated") {
+					t.Errorf("text footer missing truncated count")
+				}
 				if !strings.Contains(out, "250") {
 					t.Errorf("text footer missing tokens")
 				}
@@ -216,6 +219,9 @@ func TestSinks_FooterReflectsCounters(t *testing.T) {
 				if !strings.Contains(out, "**Events dropped:** 4") {
 					t.Errorf("markdown footer missing dropped count")
 				}
+				if !strings.Contains(out, "**Events truncated:** 1") {
+					t.Errorf("markdown footer missing truncated count")
+				}
 				if !strings.Contains(out, "250") {
 					t.Errorf("markdown footer missing tokens")
 				}
@@ -226,6 +232,10 @@ func TestSinks_FooterReflectsCounters(t *testing.T) {
 				if !strings.Contains(out, `"events_dropped_budget": 4`) &&
 					!strings.Contains(out, `"events_dropped_budget":4`) {
 					t.Errorf("%s summary missing events_dropped_budget=4", f.name)
+				}
+				if !strings.Contains(out, `"events_truncated": 1`) &&
+					!strings.Contains(out, `"events_truncated":1`) {
+					t.Errorf("%s summary missing events_truncated=1", f.name)
 				}
 				if !strings.Contains(out, `"estimated_tokens": 250`) &&
 					!strings.Contains(out, `"estimated_tokens":250`) {
