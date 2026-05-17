@@ -66,6 +66,10 @@ distill-ai detect -          # read stdin
 # List every format the binary knows about
 distill-ai list-formats
 
+# Print version, commit, build date
+distill-ai version
+distill-ai --version           # same info, single line
+
 # Shell completion (bash | zsh | fish | powershell)
 source <(distill-ai completions bash)
 ```
