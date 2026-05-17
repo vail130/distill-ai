@@ -20,6 +20,7 @@ type state int
 const (
 	stateRunning     state = iota // initial: before any failure block has started
 	stateFailureBody              // inside a `--- FAIL:` block, accumulating Body
+	statePanicBody                // inside a `panic:` block, accumulating goroutine dump
 	stateSummary                  // after `FAIL\t<pkg>` / `PASS` / `exit status N`
 )
 
@@ -124,6 +125,7 @@ func scanLoop(ctx context.Context, r io.Reader, out chan<- event.Event) error {
 	var (
 		cur     *pendingFailure
 		pending []*pendingFailure
+		curPan  *pendingPanic
 		// preBody holds the indented per-test output that gotest
 		// emits between `=== RUN` and `--- FAIL:`. When the FAIL
 		// header arrives, those lines are prepended to the new
@@ -133,8 +135,31 @@ func scanLoop(ctx context.Context, r io.Reader, out chan<- event.Event) error {
 		// or `--- FAIL:` to avoid leaking one test's logf into a
 		// later test's failure.
 		preBody []string
+		// curTest tracks the most recently-started test name so a
+		// mid-test panic can attribute Metadata["test_id"]
+		// correctly.
+		curTest string
+		// panickedTests holds test_ids that have already emitted
+		// a panic Event. When the trailing `--- FAIL: TestName`
+		// for one of those tests arrives, the scanner drops the
+		// header rather than emitting a duplicate test_failure —
+		// the panic carries the diagnostic and the test_failure
+		// would just be a noisier rephrasing.
+		panickedTests = map[string]bool{}
 	)
+	flushPanic := func() error {
+		if curPan == nil {
+			return nil
+		}
+		ev := finalisePanic(curPan)
+		curPan = nil
+		st = stateRunning
+		return sendEvent(ctx, out, ev)
+	}
 	flush := func(pkg string) error {
+		if err := flushPanic(); err != nil {
+			return err
+		}
 		if cur != nil {
 			pending = append(pending, cur)
 			cur = nil
@@ -155,6 +180,42 @@ func scanLoop(ctx context.Context, r io.Reader, out chan<- event.Event) error {
 			return err
 		}
 		line := sc.Text()
+		// Phase A: inside a panic block, the line either extends
+		// or terminates the block.
+		if st == statePanicBody {
+			if panicContinuationPattern.MatchString(line) {
+				switch {
+				case len(curPan.body) < maxPanicLines-1:
+					curPan.body = append(curPan.body, line)
+				case !curPan.truncated:
+					// Replace the last accepted line with the
+					// sentinel rather than growing beyond the
+					// cap. The cap counts every Body entry
+					// including the sentinel.
+					curPan.body = append(curPan.body, panicTruncatedSentinel)
+					curPan.truncated = true
+				}
+				continue
+			}
+			// Block terminator; flush, fall through to handle the
+			// line as a normal event candidate.
+			if err := flushPanic(); err != nil {
+				return err
+			}
+		}
+		// Build-failure summary: `FAIL\t<pkg> [build failed]`
+		// closes the build-failure stream and stamps any
+		// already-emitted build_failure Events. Since they're
+		// emitted streaming, stamping is best-effort: we don't
+		// retroactively update Events sent to the channel. The
+		// pattern is still recognised so the package metadata
+		// path on the summary line doesn't false-match the
+		// `packageSummaryPattern`.
+		if buildFailureSummaryPattern.MatchString(line) {
+			preBody = nil
+			st = stateSummary
+			continue
+		}
 		if m := packageSummaryPattern.FindStringSubmatch(line); m != nil {
 			preBody = nil
 			if err := flush(m[1]); err != nil {
@@ -172,10 +233,42 @@ func scanLoop(ctx context.Context, r io.Reader, out chan<- event.Event) error {
 			st = stateSummary
 			continue
 		}
-		if runHeaderLinePattern.MatchString(line) {
-			// New test starts. Anything in preBody belonged to
-			// the previous test that ended without a fail / pass
-			// header (rare; usually a panic). Drop it.
+		// Panic header: starts a panic block. If we're inside a
+		// failure block, the panic is attributed to that test;
+		// the test_failure Event will not also emit (the panic
+		// replaces it).
+		if panicHeaderPattern.MatchString(line) {
+			panicTest := curTest
+			if cur != nil {
+				panicTest = cur.testID
+				cur = nil // suppress the test_failure; panic wins
+			}
+			if panicTest != "" {
+				panickedTests[panicTest] = true
+			}
+			preBody = nil
+			curPan = &pendingPanic{header: line, body: []string{line}, testID: panicTest}
+			st = statePanicBody
+			continue
+		}
+		// Build-error line: emit a build_failure Event eagerly.
+		// These don't accumulate; one Event per matched location.
+		if m := buildErrorLinePattern.FindStringSubmatch(line); m != nil {
+			ln, _ := strconv.Atoi(m[2])
+			col, _ := strconv.Atoi(m[3])
+			pb := &pendingBuild{
+				file: m[1],
+				line: ln,
+				col:  col,
+				msg:  strings.TrimSpace(m[4]),
+			}
+			if err := sendEvent(ctx, out, finaliseBuild(pb)); err != nil {
+				return err
+			}
+			continue
+		}
+		if m := runHeaderLinePattern.FindStringSubmatch(line); m != nil {
+			curTest = m[1]
 			preBody = nil
 			continue
 		}
@@ -183,6 +276,14 @@ func scanLoop(ctx context.Context, r io.Reader, out chan<- event.Event) error {
 			continue
 		}
 		if m := failHeaderLinePattern.FindStringSubmatch(line); m != nil {
+			if panickedTests[m[1]] {
+				// A panic already accounted for this test;
+				// drop the duplicate FAIL header so we don't
+				// emit a redundant test_failure.
+				preBody = nil
+				st = stateRunning
+				continue
+			}
 			if cur != nil {
 				pending = append(pending, cur)
 			}
@@ -195,6 +296,7 @@ func scanLoop(ctx context.Context, r io.Reader, out chan<- event.Event) error {
 				headerLn: line,
 				body:     body,
 			}
+			curTest = m[1]
 			preBody = nil
 			st = stateFailureBody
 			continue
@@ -208,11 +310,6 @@ func scanLoop(ctx context.Context, r io.Reader, out chan<- event.Event) error {
 			st = stateRunning
 			continue
 		}
-		// In stateFailureBody, lines accumulate into the in-flight
-		// block. In stateRunning, lines are pre-body candidates —
-		// gotest emits per-test output indented; non-indented
-		// lines outside a block (warnings, build chatter) are
-		// dropped.
 		if cur != nil && st == stateFailureBody {
 			cur.body = append(cur.body, line)
 			continue
@@ -225,6 +322,16 @@ func scanLoop(ctx context.Context, r io.Reader, out chan<- event.Event) error {
 		return err
 	}
 	return flush("")
+}
+
+// sendEvent forwards ev to out, honouring ctx.
+func sendEvent(ctx context.Context, out chan<- event.Event, ev event.Event) error {
+	select {
+	case out <- ev:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
 
 // isIndented reports whether line starts with a space or tab.
