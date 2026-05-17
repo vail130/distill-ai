@@ -111,7 +111,7 @@ Each line is a self-contained JSON object. The final line is a
 **pytest**: `test_failure`, `test_error`, `collection_error`, `warning`
 **jest**: `test_failure`, `snapshot_mismatch`, `suite_error`
 **gotest**: `test_failure`, `panic`, `build_failure`, `race_condition`
-**generic**: `error`, `warning`, `exception`, `panic`
+**generic**: `error_line`, `warning_line`, `traceback`, `panic`, `exception`
 
 Per-format kind values are documented in each format's
 `docs/formats/<name>.md`.
