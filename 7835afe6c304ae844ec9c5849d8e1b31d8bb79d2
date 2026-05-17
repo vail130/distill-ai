@@ -1,0 +1,54 @@
+test/integration/integration_test.go
+  a4b56f8d8a5c8bb6 259-265,267-282,285-291,293-295,297-298,302-309,313-326,489-500,505-510
+cmd/distill-ai/run_test.go
+  a4b56f8d8a5c8bb6 1-350
+cmd/distill-ai/main_test.go
+  a4b56f8d8a5c8bb6 54-67,70-71,75-86,88,90,92-93
+cmd/distill-ai/run.go
+  a4b56f8d8a5c8bb6 1-446
+ARCHITECTURE.md
+  a4b56f8d8a5c8bb6 60-66
+cmd/distill-ai/root_test.go
+  a4b56f8d8a5c8bb6 7-8,37-43,45,49-50,75-82,84-86,88-90,92-93
+cmd/distill-ai/root.go
+  a4b56f8d8a5c8bb6 10,29-36,55-59,65-66,68-85,89-104
+.opencode/skills/distill-output/SKILL.md
+  a4b56f8d8a5c8bb6 42,44-56,60-61,64-68,79-82,88,96-97
+TODO.md
+  a4b56f8d8a5c8bb6 1206
+README.md
+  a4b56f8d8a5c8bb6 43-46,48,59-60,67-74
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "7835afe6c304ae844ec9c5849d8e1b31d8bb79d2",
+  "prompts": {
+    "a4b56f8d8a5c8bb6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1ccc6d91fffevYfV8e2nUu5pES",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 2,
+      "accepted_lines": 1214,
+      "overriden_lines": 0
+    },
+    "cc340a98d1f4d6e8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1cdb6b072ffexXBt41e0kV5rwJ",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 612,
+      "overriden_lines": 0
+    }
+  }
+}
