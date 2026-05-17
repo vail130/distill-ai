@@ -1342,7 +1342,7 @@ Make the four exit codes (0/1/2/3) authoritative.
   - Help text.
   - README mention in the usage list.
 
-### M8.5 — `detect FILE` subcommand (cobra adaptation)
+### M8.5 — `detect FILE` subcommand (cobra adaptation) ✅
 
 The detect subcommand exists from M3.3; M8 ports it onto the cobra
 root and adds flags.
