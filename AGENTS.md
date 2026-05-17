@@ -65,6 +65,16 @@ See [CONTRIBUTING.md § Adding a format](./CONTRIBUTING.md#adding-a-format)
 for the contributor workflow, including the minimum-fixture requirement
 and the per-format doc obligation.
 
+## Known issues
+
+[`KNOWN_ISSUES.md`](./KNOWN_ISSUES.md) tracks drift between the
+interface specs (ARCHITECTURE.md, SCHEMA.md, godoc, scoped TODO
+items) and the implementation or scoped plan. Read it before
+starting work on any open milestone — several issues are scoped to
+land inside specific sub-items (e.g., SCHEMA.md generic kind rename
+lands inside M9.5; `--max-events` ownership lands inside M9.6) and
+the milestone exit criteria assume those fixes are bundled in.
+
 ## When in doubt
 
 - Re-read the design principles in [ARCHITECTURE.md](./ARCHITECTURE.md#design-principles).
