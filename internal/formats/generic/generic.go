@@ -77,19 +77,29 @@ func (Format) Detect(sample []byte) event.Confidence {
 	return 0
 }
 
-// Parse is the entry point for the regex-driven scanner. M9.1 lands
-// the skeleton: an immediately-closed channel with no error so the
-// detector's fallback path can be exercised end-to-end. M9.2 fills
-// in the severity-anchored scan loop; M9.3 adds traceback / panic
-// block accumulation; M9.4 wires --severity / --keep-warnings.
+// Parse runs the regex-driven scanner over r and forwards Events on
+// the returned channel. The channel is closed exactly once when r
+// reaches EOF, when ctx is cancelled, or when an unrecoverable I/O
+// error occurs. Callers may drain in-flight events after close.
 //
-// The signature already honours the contract documented on
-// formats.Format.Parse: the channel is closed exactly once, the
-// caller may drain after close, and r is not retained beyond return.
-func (Format) Parse(_ context.Context, _ io.Reader, _ formats.ParseOpts) (<-chan event.Event, error) {
-	ch := make(chan event.Event)
-	close(ch)
-	return ch, nil
+// The scanner is line-by-line over a bufio.Scanner with a small
+// rolling window (at most 2*contextLines + 1 strings live at any
+// time, regardless of input size). It anchors an Event on every
+// line matching the severity catalogue and captures up to
+// opts.ContextLines lines of context before and after the anchor
+// (default 3).
+//
+// See the package doc for the catalogue, the location-extraction
+// heuristic, and the ANSI-strip rule. M9.3 will extend the scanner
+// with traceback / panic block accumulation; M9.4 wires --severity
+// and --keep-warnings.
+func (Format) Parse(ctx context.Context, r io.Reader, opts formats.ParseOpts) (<-chan event.Event, error) {
+	out := make(chan event.Event, 1)
+	go func() {
+		defer close(out)
+		_ = parseStream(ctx, r, opts, out)
+	}()
+	return out, nil
 }
 
 // init registers Format under the reserved name so the binary picks
