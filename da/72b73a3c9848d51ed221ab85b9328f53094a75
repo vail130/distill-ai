@@ -1,0 +1,86 @@
+internal/output/testdata/json/case-07-streaming-empty.expected.ndjson
+  78f5fa7238861741 1
+docs/formats/SCHEMA.md
+  78f5fa7238861741 129,146-147,151
+internal/output/testdata/markdown/case-02-single.expected.md
+  78f5fa7238861741 17
+internal/output/testdata/markdown/case-05-truncated.expected.md
+  78f5fa7238861741 18
+internal/output/testdata/text/case-02-single.expected.txt
+  78f5fa7238861741 10
+CHANGELOG.md
+  78f5fa7238861741 46-55
+internal/output/testdata/markdown/case-04-frames-context-count.expected.md
+  78f5fa7238861741 27
+internal/output/testdata/json/case-08-streaming-single.expected.ndjson
+  78f5fa7238861741 2
+internal/output/testdata/json/case-04-frames-context-count.expected.json
+  78f5fa7238861741 49
+internal/output/testdata/markdown/case-07-fence-python.expected.md
+  78f5fa7238861741 23
+internal/output/testdata/text/case-04-frames-context-count.expected.txt
+  78f5fa7238861741 16
+internal/output/testdata/markdown/case-01-empty.expected.md
+  78f5fa7238861741 7
+internal/output/testdata/text/case-05-truncated.expected.txt
+  78f5fa7238861741 11
+internal/output/json_test.go
+  78f5fa7238861741 10,214-241
+internal/output/testdata/text/case-01-empty.expected.txt
+  78f5fa7238861741 4
+internal/output/property_test.go
+  78f5fa7238861741 206-208,222-224,236-238
+internal/output/testdata/json/case-09-streaming-multi.expected.ndjson
+  78f5fa7238861741 3
+internal/output/text.go
+  78f5fa7238861741 219,222,226
+internal/output/testdata/text/case-03-multi.expected.txt
+  78f5fa7238861741 17
+internal/output/json.go
+  78f5fa7238861741 48-49,190,195,210,271
+internal/output/testdata/json/case-03-multi.expected.json
+  78f5fa7238861741 58
+internal/output/testdata/json/case-05-truncated.expected.json
+  78f5fa7238861741 30
+internal/output/markdown.go
+  78f5fa7238861741 196,199,205
+internal/output/testdata/json/case-02-single.expected.json
+  78f5fa7238861741 30
+internal/output/testdata/markdown/case-03-multi.expected.md
+  78f5fa7238861741 31
+internal/output/testdata/json/case-01-empty.expected.json
+  78f5fa7238861741 12
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "da72b73a3c9848d51ed221ab85b9328f53094a75",
+  "prompts": {
+    "78f5fa7238861741": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1cc3a6cf6ffeZwdo2JZM4UmsZO",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 84,
+      "total_deletions": 11,
+      "accepted_lines": 84,
+      "overriden_lines": 0
+    },
+    "a4b56f8d8a5c8bb6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1ccc6d91fffevYfV8e2nUu5pES",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 3846,
+      "overriden_lines": 3
+    }
+  }
+}
