@@ -1,0 +1,36 @@
+.opencode/skills/distill-output/SKILL.md
+  78f5fa7238861741 42-57,75-107,111-113,115-116,120-134,136,139-140,143-147,149,152,155-159,168-169,171-184,187,190-193
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "73313552e66b4ae50a48dbe66a46e3957edcc094",
+  "prompts": {
+    "78f5fa7238861741": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1cc3a6cf6ffeZwdo2JZM4UmsZO",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 2206,
+      "total_deletions": 626,
+      "accepted_lines": 1869,
+      "overriden_lines": 0
+    },
+    "a4b56f8d8a5c8bb6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1ccc6d91fffevYfV8e2nUu5pES",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 1418,
+      "total_deletions": 537,
+      "accepted_lines": 3685,
+      "overriden_lines": 166
+    }
+  }
+}
