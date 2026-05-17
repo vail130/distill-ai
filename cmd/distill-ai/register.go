@@ -1,0 +1,19 @@
+package main
+
+// Format registration via side-effect imports. Each registered
+// format's init() function calls formats.Register, populating the
+// global registry before main() runs.
+//
+// To add a new format to the binary:
+//   1. Implement it under internal/formats/<name>/.
+//   2. Add a blank import line below.
+//
+// Keep entries sorted alphabetically by format name so future drift
+// is obvious in code review.
+
+import (
+	// generic is the regex-driven fallback Format. The detector
+	// uses it whenever no specific format scores above
+	// event.ConfidenceMinDetect.
+	_ "github.com/vail130/distill-ai/internal/formats/generic"
+)

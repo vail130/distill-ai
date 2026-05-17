@@ -258,11 +258,10 @@ func TestBinary_HelpPrintsUsage(t *testing.T) {
 
 // TestBinary_ShortFlagsAccepted pins the post-M8.2 short-flag set.
 // `-h` is cobra-managed help. `-v` shifted from --version to --verbose
-// in M8.2; without any registered formats the run path errors with
-// exit 2 ("no format matched stdin"), which proves the flag is wired
-// to the verbose path of the run command rather than to --version.
-// Once M9 ships the generic fallback, the -v test should be updated
-// to expect exit 1 (no events) or exit 0 (events emitted).
+// in M8.2; with empty stdin the run path falls back to the generic
+// format (M9.1) and emits the "no events found" tail with exit code
+// 1, which proves the flag is wired to the verbose path of the run
+// command rather than to --version.
 func TestBinary_ShortFlagsAccepted(t *testing.T) {
 	t.Run("-h", func(t *testing.T) {
 		got := runBinary(t, "", "-h")
@@ -272,30 +271,38 @@ func TestBinary_ShortFlagsAccepted(t *testing.T) {
 	})
 	t.Run("-v", func(t *testing.T) {
 		got := runBinary(t, "", "-v")
-		if got.exitCode != 2 {
-			t.Fatalf("exit = %d for -v, want 2 (no formats registered pre-M9); stderr=%q",
-				got.exitCode, got.stderr)
+		// Empty stdin + generic fallback → no events emitted.
+		// run() maps the post-pipeline summary to ExitNoEvents (1).
+		if got.exitCode != 1 {
+			t.Fatalf("exit = %d for -v, want 1 (empty stdin → fallback → no events); stderr=%q stdout=%q",
+				got.exitCode, got.stderr, got.stdout)
 		}
-		if !strings.Contains(got.stderr, "no format matched") {
-			t.Errorf("-v stderr did not mention no-format; got %q", got.stderr)
+		// -v wires verbose; the verbose path prints format/source
+		// to stderr so the user can see which format was picked.
+		if !strings.Contains(got.stderr, "format=generic") {
+			t.Errorf("-v stderr did not mention format=generic; got %q", got.stderr)
 		}
 	})
 }
 
 // TestBinary_NoArgsRunsPipeline pins the M8.2 behaviour: invoking
 // the binary with no arguments runs the pipeline against stdin. With
-// no formats registered (pre-M9) the run errors with exit 2; once
-// M9 lands, the test will move to exit 1 (no events) when stdin is
-// empty and exit 0 once stdin produces events. The pre-M8.2
+// empty stdin the pipeline falls back to the generic format (M9.1)
+// and exits 1 (no events found). Once specific formats land (M10
+// pytest, M11 jest, M12 gotest) and stdin carries real input the
+// exit will become 0; the empty-stdin path stays at 1. The pre-M8.2
 // "no args → print help" path lives on as `distill-ai --help`.
 func TestBinary_NoArgsRunsPipeline(t *testing.T) {
 	got := runBinary(t, "")
-	if got.exitCode != 2 {
-		t.Fatalf("exit = %d, want 2 (pre-M9 no formats registered); stderr=%q stdout=%q",
+	if got.exitCode != 1 {
+		t.Fatalf("exit = %d, want 1 (empty stdin → generic fallback → no events); stderr=%q stdout=%q",
 			got.exitCode, got.stderr, got.stdout)
 	}
-	if !strings.Contains(got.stderr, "no format matched") {
-		t.Errorf("no-args stderr did not mention no-format; got %q", got.stderr)
+	// The run command prints the pipeline summary to stdout when
+	// no events emerge; "no events found" is the documented
+	// human-readable tail.
+	if !strings.Contains(got.stdout, "no events found") {
+		t.Errorf("no-args stdout did not mention 'no events found'; got %q", got.stdout)
 	}
 }
 
@@ -355,44 +362,43 @@ func TestBinary_DetectTooManyArgsExitsTwo(t *testing.T) {
 	}
 }
 
-// Detection against real fixtures. Today (pre-M9), no specific
-// format is registered with the binary at init time, so every
-// detection falls through to "no format matched" with exit code 1.
-// These tests pin that behaviour so M9's "generic format ships and
-// claims everything with confidence 0.1" change shows up as an
-// intentional update to this suite — not a silent behaviour drift.
+// Detection against real fixtures. After M9.1, every detection
+// either matches a specific format or falls back to the generic
+// format (exit 1, fellback_to_generic=true). The pre-M9 "no format
+// matched" stderr diagnostic only appears under --strict.
 //
-// When M9 lands:
-//   - exit code becomes 1 (fell back to generic) instead of 1 (no
-//     format matched), with different stderr. Update goldens.
-//   - When specific formats land (M10 pytest, M11 jest, M12 gotest),
-//     replace these tests with positive-detection assertions.
+// When specific formats land (M10 pytest, M11 jest, M12 gotest),
+// replace these tests with positive-detection assertions.
 func TestBinary_DetectEmptyInput(t *testing.T) {
 	path := writeTempFixture(t, readFixture(t, "empty.input"))
 	got := runBinary(t, "", "detect", path)
 	if got.exitCode != 1 {
-		t.Errorf("exit = %d, want 1; stdout=%q stderr=%q", got.exitCode, got.stdout, got.stderr)
+		t.Errorf("exit = %d, want 1 (fellback to generic); stdout=%q stderr=%q", got.exitCode, got.stdout, got.stderr)
 	}
-	assertContainsGolden(t, "detect-no-match", got.stderr)
+	assertContainsGolden(t, "detect-fallback-generic", got.stdout)
 }
 
 func TestBinary_DetectPlaintextInput(t *testing.T) {
 	path := writeTempFixture(t, readFixture(t, "plaintext.input"))
 	got := runBinary(t, "", "detect", path)
 	if got.exitCode != 1 {
-		t.Errorf("exit = %d, want 1; stdout=%q stderr=%q", got.exitCode, got.stdout, got.stderr)
+		t.Errorf("exit = %d, want 1 (fellback to generic); stdout=%q stderr=%q", got.exitCode, got.stdout, got.stderr)
 	}
-	assertContainsGolden(t, "detect-no-match", got.stderr)
+	assertContainsGolden(t, "detect-fallback-generic", got.stdout)
 }
 
 // pytest and gotest fixtures exist today but no specific format is
-// registered, so they also fall through to "no format matched". This
-// is the documented gap M10 / M12 close.
+// registered, so they also fall back to the generic format. The
+// fixtures contain ERROR / panic markers, so generic.Detect returns
+// confidenceFloor — but the detector still treats that as below
+// threshold and routes the input through the fallback path. M10 /
+// M12 will replace this with a positive-match assertion against
+// pytest/gotest.
 func TestBinary_DetectPytestFixtureFallsThrough(t *testing.T) {
 	path := writeTempFixture(t, readFixture(t, "pytest-fail.input"))
 	got := runBinary(t, "", "detect", path)
 	if got.exitCode != 1 {
-		t.Errorf("exit = %d, want 1 (pre-M10 no specific formats); stdout=%q stderr=%q", got.exitCode, got.stdout, got.stderr)
+		t.Errorf("exit = %d, want 1 (pre-M10 falls back to generic); stdout=%q stderr=%q", got.exitCode, got.stdout, got.stderr)
 	}
 }
 
@@ -401,25 +407,43 @@ func TestBinary_DetectStdinDash(t *testing.T) {
 	if got.exitCode != 1 {
 		t.Errorf("exit = %d, want 1; stdout=%q stderr=%q", got.exitCode, got.stdout, got.stderr)
 	}
-	if !strings.Contains(got.stderr, "stdin") {
-		t.Errorf("expected stdin to be named in stderr; got %q", got.stderr)
+	if !strings.Contains(got.stdout, "stdin") {
+		t.Errorf("expected stdin to be named on stdout source line; got %q", got.stdout)
 	}
 }
 
 // TestBinary_DetectStdoutAndStderrSeparated checks the Unix-filter
-// invariant: detection diagnostics go to stderr, parseable output
-// goes to stdout. Once a specific format detects successfully the
-// roles flip (key:value lines on stdout, nothing on stderr); the
-// test will need updating but the separation invariant remains.
+// invariant: parseable detection output goes to stdout. After M9.1
+// the generic fallback always produces a parseable result, so
+// stdout carries the format/confidence/source key:value lines and
+// stderr stays empty.
 func TestBinary_DetectStdoutAndStderrSeparated(t *testing.T) {
 	path := writeTempFixture(t, readFixture(t, "plaintext.input"))
 	got := runBinary(t, "", "detect", path)
-	// Today: no match → stdout empty, stderr carries diagnostic.
-	if got.stdout != "" {
-		t.Errorf("pre-M9 detect-no-match should leave stdout empty; got %q", got.stdout)
+	// After M9.1: fallback path emits key:value lines on stdout.
+	if got.stdout == "" {
+		t.Errorf("detect-fallback should write key:value lines to stdout; stdout empty (stderr=%q)", got.stderr)
 	}
-	if got.stderr == "" {
-		t.Errorf("detect-no-match should write a diagnostic to stderr; stderr empty")
+	if got.stderr != "" {
+		t.Errorf("detect-fallback should leave stderr empty; got %q", got.stderr)
+	}
+}
+
+// TestBinary_DetectStrictRejectsFallback pins the --strict semantics
+// against the generic fallback. With --strict, even though the
+// generic format is registered, a sample whose specific formats all
+// score below threshold returns exit 2 with the "no format matched"
+// diagnostic on stderr. This is what CI users invoke to make
+// ambiguous input a build break.
+func TestBinary_DetectStrictRejectsFallback(t *testing.T) {
+	path := writeTempFixture(t, readFixture(t, "plaintext.input"))
+	got := runBinary(t, "", "detect", "--strict", path)
+	if got.exitCode != 2 {
+		t.Fatalf("exit = %d, want 2 (--strict suppresses fallback); stdout=%q stderr=%q",
+			got.exitCode, got.stdout, got.stderr)
+	}
+	if !strings.Contains(got.stderr, "no format matched") {
+		t.Errorf("strict-mode stderr did not mention 'no format matched'; got %q", got.stderr)
 	}
 }
 
