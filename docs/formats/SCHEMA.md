@@ -146,7 +146,7 @@ Per-format kind values are documented in each format's
 | `frames_collapsed`      | integer | Total vendor frames removed across all events.    |
 | `estimated_tokens`      | integer | Estimated output token count.                     |
 | `estimator`             | string  | Estimator used: `heuristic` or `tiktoken`.        |
-| `exit_code`             | integer | Final exit code (0, 1, 2, or 3).                  |
+| `exit_code`             | integer | Final exit code: `0` (events emitted), `1` (no events), `2` (error), `3` (budget forced drops). The JSON encoder derives the value from its observed state (events emitted, BudgetCounters.ForcedDrops) so it remains accurate even though the encoder writes its trailer inside `Pipeline.Run`. A non-zero `JSONSink.ExitCode` override always wins. See `cmd/distill-ai/exitcode.go` for the constants. |
 
 The summary object is always present in JSON output. `--no-footer`
 suppresses the human-readable footer block in the `text` and

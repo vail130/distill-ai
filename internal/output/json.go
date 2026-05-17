@@ -187,9 +187,11 @@ func (s *JSONSink) formatName() string {
 func (s *JSONSink) buildSummary(outputLines, deduped, frames int) summary {
 	dropped := 0
 	tokens := 0
+	forcedDrops := false
 	if s.Counters != nil {
 		dropped = s.Counters.EventsDroppedBudget
 		tokens = s.Counters.EstimatedTokens
+		forcedDrops = s.Counters.ForcedDrops()
 	}
 	name := s.EstimatorName
 	if name == "" {
@@ -205,8 +207,34 @@ func (s *JSONSink) buildSummary(outputLines, deduped, frames int) summary {
 		FramesCollapsed:     frames,
 		EstimatedTokens:     tokens,
 		Estimator:           name,
-		ExitCode:            s.ExitCode,
+		ExitCode:            s.resolveExitCode(forcedDrops),
 	}
+}
+
+// resolveExitCode derives the exit code from the Sink's observed
+// state plus the caller-set ExitCode override. The override wins
+// when non-zero; otherwise the Sink applies the same precedence
+// rule as the CLI:
+//
+//	forcedDrops -> ExitPartial (3)
+//	emitted==0  -> ExitNoEvents (1)
+//	else         -> ExitOK (0)
+//
+// This lets the JSON summary carry an honest exit_code without
+// requiring callers to thread the value through the Sink after
+// Pipeline.Run returns — a sequencing the current M7 Sink shape
+// doesn't support because the trailer is written inside Sink.
+func (s *JSONSink) resolveExitCode(forcedDrops bool) int {
+	if s.ExitCode != 0 {
+		return s.ExitCode
+	}
+	if forcedDrops {
+		return 3 // ExitPartial; the constant lives in cmd/distill-ai.
+	}
+	if s.emitted == 0 {
+		return 1 // ExitNoEvents
+	}
+	return 0 // ExitOK
 }
 
 // batchOutput is the wire shape of a single batch-mode JSON object.
