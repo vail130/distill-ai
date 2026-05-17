@@ -43,6 +43,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     are fully plumbed. `--max-events`, `--keep-warnings`,
     `--severity`, `--context`, `--passthrough` are registered with
     documented help text and "(plumbing lands in M8.2.x)" notices.
+- `summary.events_truncated` field on the JSON output schema
+  (additive; `schema_version` stays at `1` per the additive-change
+  rule). Distinguishes events whose body was shortened by `--budget`
+  from events that were dropped entirely. The text and markdown
+  encoders render the same counter in their footers
+  (`N truncated` / `**Events truncated:** N`). Wired from the
+  existing `BudgetCounters.EventsTruncated` field, which had been
+  populated since M6 but never surfaced. Drift-guarded by
+  `TestJSONSink_SummarySchemaMatchesDoc` (new), parallel to the
+  existing Event drift guard.
 
 ### Changed
 

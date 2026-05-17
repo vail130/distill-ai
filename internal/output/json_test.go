@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -207,6 +208,34 @@ func TestJSONSink_FooterReflectsCounters(t *testing.T) {
 	}
 	if got.Summary.InputLines != 99 {
 		t.Errorf("input_lines=%d want 99", got.Summary.InputLines)
+	}
+}
+
+// TestJSONSink_SummarySchemaMatchesDoc verifies that every JSON tag on
+// the summary struct appears in docs/formats/SCHEMA.md's Summary field
+// reference. Parallel to TestEvent_JSONSchemaMatchesDoc; catches the
+// case where a counter is added to BudgetCounters and threaded into
+// the wire summary without a SCHEMA.md row to match.
+func TestJSONSink_SummarySchemaMatchesDoc(t *testing.T) {
+	path := findSchemaDoc(t)
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	doc := string(raw)
+	ty := reflect.TypeOf(summary{})
+	for i := 0; i < ty.NumField(); i++ {
+		f := ty.Field(i)
+		tag := f.Tag.Get("json")
+		if tag == "" || tag == "-" {
+			continue
+		}
+		name := strings.SplitN(tag, ",", 2)[0]
+		needle := "`" + name + "`"
+		if !strings.Contains(doc, needle) {
+			t.Errorf("summary.%s: JSON tag %q (looking for %s) not found in SCHEMA.md; struct and doc have drifted",
+				f.Name, name, needle)
+		}
 	}
 }
 

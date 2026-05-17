@@ -14,4 +14,4 @@ events from pytest
 
 ---
 distilled 8,432 lines → 14 lines (0 tokens, heuristic)
-dropped: 0 events, 0 deduped, 0 vendor frames
+dropped: 0 events, 0 truncated, 0 deduped, 0 vendor frames

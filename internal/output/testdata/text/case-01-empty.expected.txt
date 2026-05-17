@@ -1,4 +1,4 @@
 no events found
 ---
 distilled 100 lines → 0 lines (0 tokens, heuristic)
-dropped: 0 events, 0 deduped, 0 vendor frames
+dropped: 0 events, 0 truncated, 0 deduped, 0 vendor frames

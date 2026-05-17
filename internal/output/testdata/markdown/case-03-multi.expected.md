@@ -28,6 +28,7 @@ ERROR tests/test_db.py::test_insert
 - **Lines distilled:** 8,432 → 25
 - **Events emitted:** 3
 - **Events dropped:** 0
+- **Events truncated:** 0
 - **Events deduped:** 0
 - **Vendor frames removed:** 0
 - **Estimated tokens:** 0 (heuristic)

@@ -216,11 +216,14 @@ func writeTextFooter(w io.Writer, f textFooter) error {
 		return err
 	}
 	dropped := 0
+	truncated := 0
 	if f.counters != nil {
 		dropped = f.counters.EventsDroppedBudget
+		truncated = f.counters.EventsTruncated
 	}
 	parts := []string{
 		fmt.Sprintf("%s events", fmtCount(dropped)),
+		fmt.Sprintf("%s truncated", fmtCount(truncated)),
 		fmt.Sprintf("%s deduped", fmtCount(f.eventsDeduped)),
 		fmt.Sprintf("%s vendor frames", fmtCount(f.framesRemoved)),
 	}
