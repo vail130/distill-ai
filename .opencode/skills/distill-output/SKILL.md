@@ -39,19 +39,22 @@ The integration test suite (see `test/integration/`) re-builds on
 each run via `go test`; outside that path, `make build` is the single
 source of truth.
 
-## The "before specific formats" gap
+## State of play
 
-The end-to-end pipeline CLI (the `run` verb) landed in **M8.2**. The
-`run` subcommand is the default — `cmd | distill-ai` is the canonical
-invocation — and most flags from
-[ARCHITECTURE.md § Flags](../../../ARCHITECTURE.md#flags) are wired.
+The full CLI surface — flags, subcommands, exit codes — landed in
+**M8** (latest commit at time of writing). `cmd | distill-ai` is the
+canonical invocation: it reads stdin, autodetects the format, and
+distils to stdout. `run` is the default subcommand so the explicit
+form `cmd | distill-ai run` is equivalent and only needed when you
+want positional `FORMAT` / `FILE...` arguments.
 
-The remaining gap is the **format set**. Until M9 ships the generic
-fallback, every `distill-ai` invocation against real input fails with
-exit code 2 ("no format matched") because no specific format is
-registered in the production binary. The integration test suite
-deliberately pins this gap so M9 / M10 / M11 / M12 each surface as a
-visible behaviour change.
+The remaining gap is the **format set**. Until M9 ships the
+generic fallback and M10/M11/M12 ship gotest/pytest/jest, every
+`distill-ai` invocation against real input fails with exit code 2
+(`distill-ai run: no format matched stdin`) because no specific
+format is registered in the production binary. The integration test
+suite deliberately pins this gap so M9 / M10 / M11 / M12 each
+surface as a visible behaviour change.
 
 The full surface today is enumerated in the manifest below.
 
@@ -69,66 +72,127 @@ subcommands:
 
 That manifest is **machine-parsed by the integration test suite**
 (see `TestSkill_DocumentsCurrentCLISurface` in
-`test/integration/integration_test.go`). When the CLI grows — M8
-adds `run`, `list-formats`, `explain`, `completions`, `version` as
-subcommands and ~15 new flags — update the manifest in the same
-commit that wires the surface. The test fails loudly otherwise.
+`test/integration/integration_test.go`). When the CLI grows — for
+example when M9's generic fallback flips the default detection path
+from "no format matched" to "fell back to generic", or when a new
+flag is added in support of M9.4's filtering work — update the
+manifest in the same commit that wires the surface. The test fails
+loudly otherwise.
 
-Detailed forms today:
+Invocation forms today:
 
-- `./bin/distill-ai` — read stdin, autodetect, distil to stdout
-  (currently fails with exit 2 until M9 ships the generic fallback).
-- `./bin/distill-ai run FORMAT FILE...` — explicit format and file
-  inputs.
-- `./bin/distill-ai detect FILE` — detect the format of a single file.
-- `./bin/distill-ai detect -`    — same, reading stdin.
-- `./bin/distill-ai --version`
-- `./bin/distill-ai --help`
+- `cmd | ./bin/distill-ai` — read stdin, autodetect, distil to
+  stdout. Today fails with exit 2 ("no format matched") because no
+  specific format is yet registered; once M9 lands, the same command
+  will return distilled output via the generic fallback.
+- `./bin/distill-ai run [FORMAT] [FILE...]` — explicit form. Useful
+  when you want to pass multiple files, force a specific format, or
+  bypass autodetection with `--auto=false`.
+- `./bin/distill-ai detect FILE` — print which format wins
+  detection, with confidence, sample size, and runner-up. Accepts
+  `-` for stdin.
+- `./bin/distill-ai explain [FORMAT] [FILE...]` — dry-run mode:
+  emit one `kept` / `dropped:<reason>` line per event without
+  writing distilled output. Useful when `--budget` aggressively
+  prunes events you expected to see.
+- `./bin/distill-ai list-formats` — list every registered format
+  with version and source. Pre-M9 this prints an empty list (header
+  only) because nothing is registered in the production binary.
+- `./bin/distill-ai completions [bash|zsh|fish|powershell]` —
+  generate a shell completion script.
+- `./bin/distill-ai version` — print version, commit, build date.
+- `./bin/distill-ai --version` / `--help` — the standard
+  affordances; `--version` is equivalent to the subcommand.
 
-The dogfooding loop today (M9–M12 still in flight):
+The dogfooding loop today (until M9 lands):
 
 1. Run the noisy command, capture to a tempfile.
 2. Use `detect` to confirm the format autodetector picks the right
-   thing.
-3. Read the captured file directly if `detect` produced the wrong
-   verdict — the file is your test fixture for the format parser.
+   thing (it won't yet — exit 1, "no format matched" — that's the
+   M9/M10/M11/M12 gap).
+3. Read the captured file directly until specific formats arrive.
 
-Once M9–M12 land specific formats, this collapses to
-`noisy-command | ./bin/distill-ai`.
+Once M9 ships the generic fallback, step 2 collapses to
+`noisy-command | ./bin/distill-ai` returning a distilled stream.
 
 ## Recipes
 
-### Distil `go test` output (post-M8)
+Every recipe below is written for the surface as it is today.
+Recipes that depend on a not-yet-registered format are labelled
+with the milestone that unblocks them.
+
+### Inspect the CLI surface
 
 ```sh
-make test 2>&1 | ./bin/distill-ai gotest --output=text
+./bin/distill-ai --help
+./bin/distill-ai run --help
+./bin/distill-ai explain --help
 ```
 
-Today (pre-M8) the equivalent is:
+The `run` and `explain` help pages enumerate the full flag set with
+behaviour notes, including the flags whose plumbing lands in
+M8.2.x follow-up commits.
+
+### Check what the detector thinks of a fixture
 
 ```sh
-make test > /tmp/distill-ai-test.log 2>&1 || true
-./bin/distill-ai detect /tmp/distill-ai-test.log
-# Then inspect /tmp/distill-ai-test.log directly until M8 wires `run`.
+./bin/distill-ai detect test/integration/testdata/fixtures/gotest-fail.input
+echo "exit: $?"
 ```
 
-### Distil a pytest run (once M10 lands)
+Today this prints a no-match diagnostic to stderr and exits 1
+because gotest isn't registered yet. Once M10 ships, the expected
+output flips to `format: gotest` with `confidence: 1.00` on stdout
+and exit 0. Use `--strict` to turn the post-M9 "fell back to
+generic" path into a hard error (exit 2).
+
+### Distil this project's own `go test` output (once M10 lands)
+
+```sh
+make test 2>&1 | ./bin/distill-ai
+```
+
+This is the canonical dogfooding loop: every test run becomes a
+real-world distill-ai input. M10 ships gotest specifically to make
+this loop work; gaps in the parser surface the moment you run
+`make test`. Pre-M10 the same command falls back to generic (post-M9)
+or exits 2 (pre-M9). The same shape works for any tool's output —
+`kubectl logs`, an application log — and falls back to the
+regex-driven generic scanner when no specific format claims it.
+
+### Distil a pytest run (once M11 lands)
 
 ```sh
 pytest -v 2>&1 | ./bin/distill-ai pytest --output=markdown
 ```
 
 Useful when working on `internal/formats/pytest/` — feed your own
-fixture, see what comes out, iterate.
+fixture, see what comes out, iterate. The explicit `pytest`
+argument skips autodetect; drop it to let the detector pick.
 
-### Check what the detector thinks of a fixture
+### Dry-run a pipeline with `explain`
 
 ```sh
-./bin/distill-ai detect internal/formats/pytest/testdata/single-fail.input
+./bin/distill-ai explain captured.log
 ```
 
-Expected output is `format: pytest` with `confidence: 1.00`. If the
-confidence drops, the detector regressed.
+Emits one diagnostic line per event saying whether it was kept and,
+if dropped, why (`severity-filter`, `budget`, `dedupe-evicted`,
+`vendor-collapsed`). Useful when a particular `--budget` setting is
+silently pruning events you expected to see. Today the same gap
+applies — pre-M9 there are no formats, so the dry-run reports the
+same "no format matched" error as `run`.
+
+### Constrain output to a token budget
+
+```sh
+cmd 2>&1 | ./bin/distill-ai --budget=2000 --tokenizer=heuristic
+```
+
+Drops or truncates lower-severity events to fit. Exit code 3 if any
+event was dropped or truncated. The heuristic estimator is
+zero-dep; switch to `--tokenizer=tiktoken` when you need exact
+counts for OpenAI / Claude context windows.
 
 ### Compare the distilled output against the golden
 
