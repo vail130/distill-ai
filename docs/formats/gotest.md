@@ -38,9 +38,25 @@ claiming non-Go runtime dumps that happen to mention the word
 ## What gets extracted
 
 M10.2 ships the `--- FAIL:` block scanner. One Event per failure
-block, with `Severity=error` and `Kind=test_failure`. Future
-sub-items extend the kind set: M10.3 adds `panic` and
-`build_failure`; M10.4 adds `race_condition` and stack frame
+block, with `Severity=error` and `Kind=test_failure`. M10.3 adds
+two more kinds:
+
+- **`panic`** — emitted when a `panic:` block fires, with the
+  goroutine dump preserved verbatim in `Body`. When the panic
+  is associated with a running test, `metadata.test_id` is set
+  and the trailing `--- FAIL: TestName` is suppressed (the
+  panic carries the diagnostic; the redundant `test_failure`
+  would just be noise). Bounded by `maxPanicLines = 200` lines;
+  beyond the cap, the final Body line becomes
+  `... [panic block truncated]` and
+  `metadata.panic_truncated = "true"`.
+- **`build_failure`** — emitted for each `path/to/file.go:line:col:
+  message` line gotest prints when compilation fails. Path,
+  Line, Column populate `Location`. When the trailing
+  `FAIL\t<pkg> [build failed]` summary is present, the line is
+  consumed by the scanner (no `test_failure` is synthesised).
+
+M10.4 will add `race_condition` and structured stack-frame
 extraction.
 
 ### `test_failure` Event shape
