@@ -1,0 +1,46 @@
+[
+  {
+    "severity": "error",
+    "kind": "traceback",
+    "title": "KeyError: 'user_id'",
+    "location": null,
+    "body": [
+      "Traceback (most recent call last):",
+      "  File \"app.py\", line 42, in main",
+      "    handler.handle(request)",
+      "  File \"handler.py\", line 17, in handle",
+      "    return self.process(request)",
+      "  File \"handler.py\", line 25, in process",
+      "    raise KeyError(missing_key)",
+      "KeyError: 'user_id'"
+    ],
+    "context": [
+      "starting application",
+      "loading configuration",
+      "shutting down"
+    ],
+    "frames": [
+      {
+        "file": "app.py",
+        "line": 42,
+        "function": "main",
+        "vendor": false
+      },
+      {
+        "file": "handler.py",
+        "line": 17,
+        "function": "handle",
+        "vendor": false
+      },
+      {
+        "file": "handler.py",
+        "line": 25,
+        "function": "process",
+        "vendor": false
+      }
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false
+  }
+]

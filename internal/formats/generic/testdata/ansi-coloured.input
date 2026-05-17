@@ -1,0 +1,4 @@
+info: app booting
+[37minfo[0m: pool initialised
+[31mERROR[0m: failed to bind port 8080
+[37minfo[0m: cleanup

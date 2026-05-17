@@ -80,6 +80,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   input (`TestGeneric_ParseBoundedMemory` pins a 16 MiB peak-heap
   ceiling for 1.25 MiB of innocuous lines); no goroutine leak on
   cancellation.
+- M9.5: canonical fixture set for the `generic` format. Ten
+  `.input` / `.expected` pairs under
+  `internal/formats/generic/testdata/` covering clean input, single
+  / multi errors, Python tracebacks, Go panics, JVM stack dumps,
+  mixed warnings + errors, ANSI-coloured input, nested paths /
+  host:port disambiguation, and a block-overflow case for the
+  `maxBlockLines` cap. The harness lives at
+  `internal/formats.RunGoldens` and is shared with future formats
+  (gotest M10, pytest M11, jest M12). `DISTILL_AI_UPDATE_GOLDENS=1`
+  rewrites expected files. Fixture count pinned by
+  `TestGeneric_FixtureCount` so future drift is caught. Catalogue
+  grows a `[A-Z][A-Za-z0-9_]*Error:` rule so suffix-form error
+  types (`AssertionError:`, `ValueError:`) anchor even when not
+  preceded by a word boundary. `lastNonBlank` skips the truncation
+  sentinel when re-deriving traceback Titles. Closes
+  `TestBinary_GenericEndToEndProducesOutput` in the integration
+  suite — argv → cobra → run → pipeline → sink proven end-to-end.
+  Closes KNOWN_ISSUES.md issue #2 (was: integration suite has no
+  positive-distillation test for generic).
 - M9.4: severity-filter plumbing for the `generic` format. Adds
   `MinSeverity` and `KeepWarnings` fields to `formats.ParseOpts`;
   the generic scanner honours both inside its anchor loop so

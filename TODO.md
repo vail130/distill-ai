@@ -1456,7 +1456,7 @@ ship).
 
 ---
 
-## M9 — Generic format (fallback)
+## M9 — Generic format (fallback) ✅
 
 The detector's safety net. When no specific format scores above
 `event.ConfidenceMinDetect` (0.6), the detector falls back to a format
@@ -1821,7 +1821,7 @@ M8.2.x) need a defined interaction with the generic scanner.
     [SCHEMA.md § Severity](./docs/formats/SCHEMA.md) (or a new
     section if one doesn't exist; decide at scoping time).
 
-### M9.5 — Fixtures and ARCHITECTURE update
+### M9.5 — Fixtures and ARCHITECTURE update ✅
 
 Tie M9 off with the canonical fixture set per
 [CONTRIBUTING.md § Adding a format](./CONTRIBUTING.md#adding-a-format)

@@ -1,0 +1,7 @@
+info: opening config from ./config/app.yaml
+info: connecting to db:5432
+info: connected to upstream api.example.com:443
+ERROR ./src/handler.go:42:15: nil pointer in handler
+info: connection to cache:6379 established
+ERROR connection to redis:6379 refused
+info: cleanup

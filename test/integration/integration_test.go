@@ -447,6 +447,49 @@ func TestBinary_DetectStrictRejectsFallback(t *testing.T) {
 	}
 }
 
+// TestBinary_GenericEndToEndProducesOutput pins the M9 happy
+// path at the integration boundary: `cmd | distill-ai > out.txt`
+// produces a non-empty out.txt when stdin contains a severity
+// marker. The argv → cobra → run → pipeline → sink chain is
+// exercised against the real generic format (no fakes), so a
+// future regression that breaks any link in that chain surfaces
+// here rather than in a unit test.
+//
+// The fixture contains both an ERROR line and a Python traceback,
+// so both M9.2 (single-line scanner) and M9.3 (block
+// accumulation) are covered.
+func TestBinary_GenericEndToEndProducesOutput(t *testing.T) {
+	input := `info: startup
+info: connecting
+ERROR: database connection refused
+info: retrying
+Traceback (most recent call last):
+  File "main.py", line 42, in run
+    db.connect()
+ConnectionError: refused after 3 retries
+info: shutting down
+`
+	got := runBinary(t, input)
+	if got.exitCode != 0 {
+		t.Fatalf("exit = %d, want 0 (events emitted); stdout=%q stderr=%q",
+			got.exitCode, got.stdout, got.stderr)
+	}
+	// Stdout must carry the distilled output. Pin a couple of
+	// substrings that come from the parser's Title and Body
+	// extraction so a wholesale change to the encoder would
+	// also fail loudly.
+	wants := []string{
+		"events from generic",
+		"ERROR: database connection refused",
+		"ConnectionError: refused after 3 retries",
+	}
+	for _, w := range wants {
+		if !strings.Contains(got.stdout, w) {
+			t.Errorf("stdout missing %q; got:\n%s", w, got.stdout)
+		}
+	}
+}
+
 // TestBinary_LargeStdinDoesNotHang feeds 1 MiB of pseudo-random
 // bytes via stdin and asserts the binary terminates within the
 // harness's 30s timeout. Today the detect subcommand reads a

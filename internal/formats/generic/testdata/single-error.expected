@@ -1,0 +1,22 @@
+[
+  {
+    "severity": "error",
+    "kind": "error_line",
+    "title": "ERROR: upstream connection refused",
+    "location": null,
+    "body": [
+      "ERROR: upstream connection refused"
+    ],
+    "context": [
+      "info: request 42 received",
+      "info: request 43 received",
+      "info: request 44 received",
+      "info: retrying",
+      "info: backoff 1s",
+      "info: retry succeeded"
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false
+  }
+]

@@ -190,13 +190,20 @@ func atoi(s string) int {
 	return n
 }
 
-// lastNonBlank returns the last non-blank line of body, or empty
-// string if all lines are blank.
+// lastNonBlank returns the last non-blank Body line excluding the
+// truncation sentinel, or empty string if every line is blank /
+// the sentinel. Used to re-derive traceback Titles; the sentinel
+// is structural and must not become a Title.
 func lastNonBlank(body []string) string {
 	for i := len(body) - 1; i >= 0; i-- {
-		if strings.TrimSpace(body[i]) != "" {
-			return body[i]
+		s := body[i]
+		if strings.TrimSpace(s) == "" {
+			continue
 		}
+		if s == blockTruncatedSentinel {
+			continue
+		}
+		return s
 	}
 	return ""
 }

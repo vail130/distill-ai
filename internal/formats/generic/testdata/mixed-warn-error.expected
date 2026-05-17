@@ -1,0 +1,22 @@
+[
+  {
+    "severity": "error",
+    "kind": "error_line",
+    "title": "ERROR: database connection lost",
+    "location": null,
+    "body": [
+      "ERROR: database connection lost"
+    ],
+    "context": [
+      "info: disk check passed",
+      "WARN: memory usage above threshold",
+      "info: network check passed",
+      "info: attempting reconnect",
+      "WARN: deprecation api will be removed in v2",
+      "info: cleanup complete"
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false
+  }
+]
