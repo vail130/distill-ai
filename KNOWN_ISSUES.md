@@ -9,56 +9,7 @@ Format: one issue per heading, with **Observed**, **Why it matters**,
 **Owning milestone**, and **Recommendation**. Tick the issue off by
 deleting it once the recommendation lands.
 
-## 1. `generic` kind values disagree between SCHEMA.md and M9.2
-
-**Observed.** [`docs/formats/SCHEMA.md`](./docs/formats/SCHEMA.md) line
-114 lists generic kinds as `error, warning, exception, panic`.
-[`TODO.md`](./TODO.md) M9.2's DoD lists `error_line, warning_line,
-traceback, panic, exception`. The two sets don't match (`error` vs
-`error_line`, `warning` vs `warning_line`, and `traceback` is missing
-from the schema entirely).
-
-**Why it matters.** Schema-driven JSON consumers route on `kind`. If
-the parser ships M9.2's names and SCHEMA.md retains the older ones,
-every consumer that uses the documented vocabulary breaks silently
-(unknown kinds → dropped events). M9.5's exit criteria says "the
-parser's kinds match SCHEMA.md" but doesn't say which side gives.
-
-**Owning milestone.** M9.5.
-
-**Recommendation.** Adopt the M9.2 names (they're more descriptive —
-`error_line` distinguishes the per-line marker from a format's
-structured `test_error`). Add an explicit M9.5 DoD bullet: "update
-SCHEMA.md's generic kind list to match M9.2 (`error_line`,
-`warning_line`, `traceback`, `panic`, `exception`); landed in the
-same commit that registers the parser."
-
-## 2. `events_truncated` is unwired even though M6 produces it
-
-**Observed.** `BudgetCounters` in
-[`internal/pipeline/budget.go`](./internal/pipeline/budget.go)
-populates `EventsTruncated`. M6.3's `ForcedDrops()` returns true on
-truncations *or* drops, and exit code 3 fires on either. But
-[`SCHEMA.md` § Summary field reference](./docs/formats/SCHEMA.md#field-reference)
-(lines 138–149) only lists `events_dropped_budget`. Truncations are
-silently folded into the drop count (or omitted from the summary
-entirely — verify against `JSONSink` output).
-
-**Why it matters.** JSON consumers can't distinguish "the body was
-shortened to fit" (still useful, content preserved) from "the event
-was dropped entirely" (information loss). The two cases have
-different operational meanings — a budget that truncates a lot but
-drops nothing is well-tuned; a budget that drops a lot is too tight.
-
-**Owning milestone.** Backfill. Cheap and additive — bump in the
-next docs-and-tests commit.
-
-**Recommendation.** Add `events_truncated` to SCHEMA.md as an
-additive field (no `schema_version` bump per the additive-change
-rule), wire `JSONSink` to emit it from `BudgetCounters.EventsTruncated`,
-and extend `TestSinks_FooterReflectsCounters` to cover the field.
-
-## 3. `ParseOpts` is missing fields M8 already accepts on the CLI
+## 1. `ParseOpts` is missing fields M8 already accepts on the CLI
 
 **Observed.** Today's
 [`internal/formats/format.go`](./internal/formats/format.go) `ParseOpts`
@@ -89,7 +40,7 @@ into `ParseOpts.MinSeverity`, `ParseOpts.KeepWarnings`,
 `TestRun_KeepWarningsEndToEnd`, `TestRun_SeverityFiltersWarnings`,
 and `TestRun_ContextLinesHonoured`."
 
-## 4. `--max-events` and `--passthrough` have no owning milestone
+## 2. `--max-events` and `--passthrough` have no owning milestone
 
 **Observed.** Today the binary accepts `--max-events=N` and
 `--passthrough` with help text saying "Plumbing lands in M8.2.x".
@@ -118,33 +69,7 @@ behaviour), or remove the flags from help text and the SKILL.md
 manifest until they have a real plan. Don't carry them forward
 silently.
 
-## 5. No goroutine-leak property test across Sinks
-
-**Observed.**
-[`internal/pipeline/pipeline_test.go`](./internal/pipeline/pipeline_test.go)
-has `TestPipeline_NoGoroutineLeak` (M2.3). The three Sinks each
-have their own context-cancellation tests, but there's no cross-Sink
-property test asserting every Sink's internal goroutines terminate
-on context cancellation.
-
-**Why it matters.** `JSONSink` with `Streaming=false` buffers the
-whole event stream by design. If the buffer's cancellation handling
-regresses, the leak surfaces only under unusual `Run` shapes — long
-inputs, cancelled mid-stream — that the existing per-Sink tests don't
-exercise. The cost of catching it later is debugging a hang in
-production rather than a test failure in CI.
-
-**Owning milestone.** Backfill. Cheap.
-
-**Recommendation.** Add `TestSinks_NoGoroutineLeakOnCancellation` to
-[`internal/output/property_test.go`](./internal/output/property_test.go),
-parallel to the pipeline test. Iterate over `[TextSink, JSONSink
-(Streaming=true), JSONSink (Streaming=false), MarkdownSink]`, feed
-each one via a `SlowReader`-driven Pipeline, cancel the context
-mid-stream, assert `runtime.NumGoroutine()` returns to baseline within
-a short timeout.
-
-## 6. Integration suite has no positive-distillation test
+## 3. Integration suite has no positive-distillation test for generic
 
 **Observed.**
 [`test/integration/integration_test.go`](./test/integration/integration_test.go)
@@ -180,7 +105,7 @@ events depending on the fixture) or 0 (with events) — pick the
 fixture so the expected exit code is unambiguous — and a substring of
 the expected Event title appears on stdout.
 
-## 7. `Source` interface mid-stream error contract is broken
+## 4. `Source` interface mid-stream error contract is broken
 
 **Observed.**
 [`Source.Source(ctx)`](./internal/pipeline/pipeline.go) returns

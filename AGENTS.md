@@ -71,9 +71,10 @@ and the per-format doc obligation.
 interface specs (ARCHITECTURE.md, SCHEMA.md, godoc, scoped TODO
 items) and the implementation or scoped plan. Read it before
 starting work on any open milestone — several issues are scoped to
-land inside specific sub-items (e.g., SCHEMA.md generic kind rename
-lands inside M9.5; `--max-events` ownership lands inside M9.6) and
-the milestone exit criteria assume those fixes are bundled in.
+land inside specific sub-items (e.g., the `--severity` /
+`--keep-warnings` CLI plumbing lands inside M9.4; `--max-events` and
+`--passthrough` ownership lands inside a proposed M9.6) and the
+milestone exit criteria assume those fixes are bundled in.
 
 ## When in doubt
 
