@@ -1,0 +1,43 @@
+[
+  {
+    "severity": "error",
+    "kind": "error_line",
+    "title": "ERROR ./src/handler.go:42:15: nil pointer in handler",
+    "location": {
+      "file": "./src/handler.go",
+      "line": 42,
+      "column": 15
+    },
+    "body": [
+      "ERROR ./src/handler.go:42:15: nil pointer in handler"
+    ],
+    "context": [
+      "info: opening config from ./config/app.yaml",
+      "info: connecting to db:5432",
+      "info: connected to upstream api.example.com:443",
+      "info: connection to cache:6379 established",
+      "ERROR connection to redis:6379 refused"
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false
+  },
+  {
+    "severity": "error",
+    "kind": "error_line",
+    "title": "ERROR connection to redis:6379 refused",
+    "location": null,
+    "body": [
+      "ERROR connection to redis:6379 refused"
+    ],
+    "context": [
+      "info: connected to upstream api.example.com:443",
+      "ERROR ./src/handler.go:42:15: nil pointer in handler",
+      "info: connection to cache:6379 established",
+      "info: cleanup"
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false
+  }
+]

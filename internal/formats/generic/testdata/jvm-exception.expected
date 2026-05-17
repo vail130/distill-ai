@@ -1,0 +1,43 @@
+[
+  {
+    "severity": "error",
+    "kind": "traceback",
+    "title": "\t... 3 more",
+    "location": null,
+    "body": [
+      "Exception in thread \"main\" java.lang.NullPointerException: Cannot invoke \"String.length()\" because \"input\" is null",
+      "\tat com.example.Validator.validate(Validator.java:42)",
+      "\tat com.example.App.run(App.java:88)",
+      "\tat com.example.App.main(App.java:12)",
+      "\t... 3 more"
+    ],
+    "context": [
+      "2026-05-17 10:00:00 INFO  AppMain Starting application",
+      "2026-05-17 10:00:01 INFO  AppMain Loading configuration",
+      "2026-05-17 10:00:02 INFO  AppMain Shutdown complete"
+    ],
+    "frames": [
+      {
+        "file": "Validator.java",
+        "line": 42,
+        "function": "com.example.Validator.validate",
+        "vendor": false
+      },
+      {
+        "file": "App.java",
+        "line": 88,
+        "function": "com.example.App.run",
+        "vendor": false
+      },
+      {
+        "file": "App.java",
+        "line": 12,
+        "function": "com.example.App.main",
+        "vendor": false
+      }
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false
+  }
+]

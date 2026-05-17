@@ -1,0 +1,12 @@
+info: worker 1 starting
+ERROR: worker 1 disk full
+info: worker 1 retrying
+info: worker 2 starting
+info: worker 2 processing
+ERROR: worker 2 timeout after 30s
+info: worker 2 backoff
+info: worker 3 starting
+info: worker 3 processing
+info: worker 3 processing
+FATAL: worker 3 out of memory, aborting
+info: shutdown

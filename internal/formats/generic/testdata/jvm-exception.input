@@ -1,0 +1,8 @@
+2026-05-17 10:00:00 INFO  AppMain Starting application
+2026-05-17 10:00:01 INFO  AppMain Loading configuration
+Exception in thread "main" java.lang.NullPointerException: Cannot invoke "String.length()" because "input" is null
+	at com.example.Validator.validate(Validator.java:42)
+	at com.example.App.run(App.java:88)
+	at com.example.App.main(App.java:12)
+	... 3 more
+2026-05-17 10:00:02 INFO  AppMain Shutdown complete

@@ -57,6 +57,11 @@ var catalogue = []severityRule{
 	{regexp.MustCompile(`\bERROR\b`), event.SeverityError, "error_line"},
 	{regexp.MustCompile(`\bFATAL\b`), event.SeverityError, "error_line"},
 	{regexp.MustCompile(`(?i)\bcaused by:`), event.SeverityError, "error_line"},
+	// Suffix-form error types: AssertionError:, ValueError:,
+	// SomeAppError:, etc. Matches CamelCase identifiers ending in
+	// `Error:` even when they're not preceded by a word boundary
+	// (e.g. inside `prefixAssertionError:`).
+	{regexp.MustCompile(`\b[A-Z][A-Za-z0-9_]*Error:`), event.SeverityError, "error_line"},
 	{regexp.MustCompile(`\bError:`), event.SeverityError, "error_line"},
 	// Warnings come last so the more specific error rules win when
 	// a single line contains both (rare but documented).

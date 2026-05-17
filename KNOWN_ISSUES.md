@@ -38,43 +38,7 @@ behaviour), or remove the flags from help text and the SKILL.md
 manifest until they have a real plan. Don't carry them forward
 silently.
 
-## 2. Integration suite has no positive-distillation test for generic
-
-**Observed.**
-[`test/integration/integration_test.go`](./test/integration/integration_test.go)
-proves the binary boots, parses argv, separates stdout/stderr, and
-respects the SKILL.md manifest. It does **not** prove that
-`cmd | distill-ai > out.txt` ever produces a non-empty `out.txt`.
-
-After the M10/M11/M12 reordering (gotest first, pytest second, jest
-third), each format milestone's `.5` sub-item now carries an explicit
-`TestBinary_<Format>EndToEndProducesOutput` bullet — M10.5 for
-gotest, M11.5 for pytest, M12.5 for jest. M9.5 (generic) is the
-remaining gap: its DoD covers replacing the
-`TestBinary_DetectGotest...FallsThrough` assertions but doesn't
-explicitly add a positive-distillation test for generic-fallback
-input.
-
-**Why it matters.** The integration suite is the only test layer
-that exercises argv → cobra → run → pipeline → sink end-to-end. The
-first format that ships its happy path (M9 generic) needs to be
-proved at that boundary, not just in unit tests. Drift between the
-pipeline assembly logic in `cmd/distill-ai/run.go` and the in-process
-unit tests is the kind of bug that integration tests exist to catch.
-
-**Owning milestone.** M9.5 (the remaining gap; M10.5/M11.5/M12.5
-already carry the bullet after the reordering).
-
-**Recommendation.** Add to M9.5: `TestBinary_GenericEndToEndProducesOutput`
-in `test/integration/integration_test.go`. Feed
-`test/integration/testdata/fixtures/plaintext.input` (or a new
-fixture with a `ERROR:` line) via stdin, assert exit 1 (because the
-generic fallback produces output but might have no high-severity
-events depending on the fixture) or 0 (with events) — pick the
-fixture so the expected exit code is unambiguous — and a substring of
-the expected Event title appears on stdout.
-
-## 3. `Source` interface mid-stream error contract is broken
+## 2. `Source` interface mid-stream error contract is broken
 
 **Observed.**
 [`Source.Source(ctx)`](./internal/pipeline/pipeline.go) returns

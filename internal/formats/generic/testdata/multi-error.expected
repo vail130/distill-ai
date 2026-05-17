@@ -1,0 +1,58 @@
+[
+  {
+    "severity": "error",
+    "kind": "error_line",
+    "title": "ERROR: worker 1 disk full",
+    "location": null,
+    "body": [
+      "ERROR: worker 1 disk full"
+    ],
+    "context": [
+      "info: worker 1 starting",
+      "info: worker 1 retrying",
+      "info: worker 2 starting",
+      "info: worker 2 processing"
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false
+  },
+  {
+    "severity": "error",
+    "kind": "error_line",
+    "title": "ERROR: worker 2 timeout after 30s",
+    "location": null,
+    "body": [
+      "ERROR: worker 2 timeout after 30s"
+    ],
+    "context": [
+      "info: worker 1 retrying",
+      "info: worker 2 starting",
+      "info: worker 2 processing",
+      "info: worker 2 backoff",
+      "info: worker 3 starting",
+      "info: worker 3 processing"
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false
+  },
+  {
+    "severity": "error",
+    "kind": "error_line",
+    "title": "FATAL: worker 3 out of memory, aborting",
+    "location": null,
+    "body": [
+      "FATAL: worker 3 out of memory, aborting"
+    ],
+    "context": [
+      "info: worker 3 starting",
+      "info: worker 3 processing",
+      "info: worker 3 processing",
+      "info: shutdown"
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false
+  }
+]

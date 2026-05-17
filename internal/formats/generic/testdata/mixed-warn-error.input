@@ -1,0 +1,9 @@
+info: starting health checks
+WARN: cpu usage 87 percent
+info: disk check passed
+WARN: memory usage above threshold
+info: network check passed
+ERROR: database connection lost
+info: attempting reconnect
+WARN: deprecation api will be removed in v2
+info: cleanup complete

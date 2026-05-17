@@ -31,6 +31,20 @@ context and source locations), collapses vendor stack frames, deduplicates
 repeated errors, and emits a compact summary. The agent gets signal, not
 noise.
 
+## Supported formats
+
+- `generic` (M9) — regex-driven fallback. Recognises ERROR / FATAL /
+  WARN markers, Python tracebacks, Go panics, and JVM stack dumps.
+  Used whenever no specific format claims the input. Documented at
+  [docs/formats/generic.md](./docs/formats/generic.md).
+- `gotest` (planned, M10), `pytest` (planned, M11), `jest` (planned, M12) —
+  test-runner formats with structured failure / panic / build-failure
+  extraction.
+
+Use `distill-ai list-formats` to see what's wired into your binary,
+and `distill-ai detect FILE` to ask the autodetector which format it
+picks for a given input.
+
 ## Usage
 
 ```bash

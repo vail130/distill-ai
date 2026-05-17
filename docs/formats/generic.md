@@ -220,6 +220,28 @@ With `--severity=bogus`: the CLI rejects the flag with exit 2 and a
 
 ## Fixtures
 
-(M9.5 ships ten canonical fixtures under
-`internal/formats/generic/testdata/`. Each is enumerated here with
-a one-line description.)
+The v1 fixture set lives under
+[`internal/formats/generic/testdata/`](../../internal/formats/generic/testdata/).
+Ten fixtures, pinned by `TestGeneric_FixtureCount`:
+
+| Fixture                       | Exercises                                                  |
+|-------------------------------|------------------------------------------------------------|
+| `clean.input`                 | No severity markers — scanner emits zero Events.           |
+| `single-error.input`          | One `ERROR:` line in a sea of `info:`. Pre/post context.   |
+| `multi-error.input`           | Three error markers (`ERROR`, `ERROR`, `FATAL`).           |
+| `python-traceback.input`      | A clean Python traceback with three frames + `KeyError:`.  |
+| `go-panic.input`              | A Go panic with `[signal SIGSEGV]` + 2-frame goroutine.    |
+| `jvm-exception.input`         | `Exception in thread "main" ...` + indented `at` frames.   |
+| `mixed-warn-error.input`      | Interleaved warnings and errors — exercises `--keep-warnings`. |
+| `ansi-coloured.input`         | Lines wrapped in ANSI SGR escapes — exercises the strip.   |
+| `nested-paths.input`          | `file.py:42:` paths alongside `host:port` pairs.           |
+| `block-overflow.input`        | A 120-line traceback — exercises `maxBlockLines`.          |
+
+Regenerate goldens after a deliberate parser change:
+
+```sh
+DISTILL_AI_UPDATE_GOLDENS=1 go test ./internal/formats/generic/
+```
+
+The harness lives at `internal/formats.RunGoldens` so future
+formats (gotest, pytest, jest) share the same fixture mechanics.

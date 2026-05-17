@@ -1,0 +1,9 @@
+info: connecting to upstream
+info: pool size 8
+info: request 42 received
+info: request 43 received
+info: request 44 received
+ERROR: upstream connection refused
+info: retrying
+info: backoff 1s
+info: retry succeeded
