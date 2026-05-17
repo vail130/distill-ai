@@ -66,6 +66,10 @@ distill-ai detect -          # read stdin
 # List every format the binary knows about
 distill-ai list-formats
 
+# Dry-run: see what's kept vs dropped, no distilled output
+distill-ai explain pytest-output.log
+distill-ai explain --budget=500 pytest-output.log  # see what budget drops
+
 # Print version, commit, build date
 distill-ai version
 distill-ai --version           # same info, single line
