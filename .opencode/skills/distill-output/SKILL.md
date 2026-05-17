@@ -57,13 +57,13 @@ The full surface today is enumerated in the manifest below.
 
 <!-- BEGIN cli-surface -->
 ```surface
-subcommands: completions, detect, list-formats, run
+subcommands: completions, detect, list-formats, run, version
 flags: --help, --version, -h, --auto, --keep-vendor, --dedupe, --no-dedupe, --output, --output-streaming, --budget, --no-footer, --strict, --tokenizer, --list-formats
 ```
 <!-- END cli-surface -->
 <!-- BEGIN cli-surface-future -->
 ```surface
-subcommands: explain, version
+subcommands: explain
 ```
 <!-- END cli-surface-future -->
 

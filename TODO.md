@@ -1415,7 +1415,7 @@ Cobra generates these for free; M8 only has to wire them.
   - `TestCompletions_UnknownShellErrors`.
 - **Docs:** Help text and a one-line README note.
 
-### M8.8 — `version` subcommand
+### M8.8 — `version` subcommand ✅
 
 Already covered by the top-level `--version` flag but exposed as a
 subcommand too for consistency (some CLIs require this; cheap to
