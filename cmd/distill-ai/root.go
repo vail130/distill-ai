@@ -66,6 +66,7 @@ See ARCHITECTURE.md and TODO.md for the roadmap.`,
 	root.AddCommand(runCmd)
 	root.AddCommand(newDetectCmd())
 	root.AddCommand(newListFormatsCmd())
+	root.AddCommand(newCompletionsCmd())
 	// Make run the default subcommand so `cmd | distill-ai` and
 	// `distill-ai FORMAT FILE` work without typing `run`. Cobra
 	// doesn't have a first-class "default subcommand" concept;
