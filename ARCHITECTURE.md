@@ -543,7 +543,10 @@ for the parser-toolchain decision.
 
 Lean by design.
 
-- **CLI:** `spf13/cobra` (subcommands, completions, mature).
+- **CLI:** `spf13/cobra` (subcommands, completions, mature). Pulls in
+  `spf13/pflag` (cobra's flag-parsing library) and
+  `inconshreveable/mousetrap` (Windows-only mousetrap guard).
+  All pure Go, MIT/BSD, no CGo.
 - **Config:** `BurntSushi/toml` (lighter than viper; we don't need viper's
   multi-source merging).
 - **Token estimation:** `pkoukk/tiktoken-go` (the BPE encoder) plus
