@@ -4,7 +4,9 @@ Implementation roadmap for `distill-ai`. Tasks are grouped by milestone
 and ordered roughly by dependency. Tick items as they land.
 
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for the design that drives this
-list and [AGENTS.md](./AGENTS.md) for code/commit conventions.
+list, [AGENTS.md](./AGENTS.md) for code/commit conventions, and
+[KNOWN_ISSUES.md](./KNOWN_ISSUES.md) for spec-vs-implementation drift
+that is scoped to land inside specific milestone sub-items.
 
 ## Scoping format
 
@@ -20,10 +22,16 @@ Each milestone ends with **exit criteria** — a milestone-level drift
 check before the milestone is marked complete (see
 [alignment.md § Enforcement](./.opencode/rules/alignment.md#enforcement)).
 
-Milestones M1–M10 are scoped this way today. Per the working
-agreement, the next three open milestones are kept fully scoped at all
-times — so as M8 lands, M11 gets scoped; as M9 lands, M12 gets
-scoped; and so on. M11–M16 are sketched but not yet scoped.
+Milestones M1–M13 are scoped this way today. Per the working
+agreement, **at least** the next three open milestones are kept
+fully scoped at all times. As of the M8 completion + envelope-design
+decision, the open scoped set is M9 (generic), M10 (gotest), M11
+(pytest), M12 (jest), and M13 (envelope) — five milestones rather
+than the minimum three, because the M10/M11/M12 reordering and the
+M13 envelope insertion travelled together in the same planning
+pass. As each scoped milestone lands, the next sketched one (M14
+config, M15 library API, M16 docs, M17 release) gets scoped. M14–M17
+are sketched but not yet scoped.
 
 ---
 
@@ -37,7 +45,7 @@ scoped; and so on. M11–M16 are sketched but not yet scoped.
 - [x] GitHub Actions: build + test + lint on push (linux/darwin/windows matrix)
 - [x] Release workflow: cross-compile linux/darwin/windows × amd64/arm64 via goreleaser
 - [x] `goreleaser` config for tagged releases
-- [ ] Decide and document binary distribution: Homebrew tap, GitHub Releases, `go install` (deferred to M16)
+- [ ] Decide and document binary distribution: Homebrew tap, GitHub Releases, `go install` (deferred to M17)
 
 ---
 
@@ -146,7 +154,7 @@ Thread-safe registration so formats self-register via `init()`.
 
 ### M1.4 — `pkg/distill/`: stub public package ✅
 
-Reserve the public library API surface so M14's work doesn't have to
+Reserve the public library API surface so M15's work doesn't have to
 restructure internal imports.
 
 - **DoD:**
@@ -154,7 +162,7 @@ restructure internal imports.
   - Re-exports the types consumers will use:
     `Event = event.Event`, `Severity = event.Severity`,
     `Format = formats.Format`, etc. as type aliases.
-  - No new exported functions yet — that's M14.
+  - No new exported functions yet — that's M15.
 - **Tests:**
   - `pkg/distill/distill_test.go` with a compile-only test that
     imports the package and uses each re-exported type.
@@ -163,7 +171,7 @@ restructure internal imports.
     ARCHITECTURE.md § Library API".
   - Mention in
     [ARCHITECTURE.md § Library API](./ARCHITECTURE.md#package-layout)
-    that `pkg/distill` exists as type aliases until M14.
+    that `pkg/distill` exists as type aliases until M15.
 
 ### M1 exit criteria
 
@@ -255,7 +263,7 @@ Before M3 lands more stages, prove the existing skeleton doesn't leak.
 - All three sub-items ticked.
 - `make check` clean, no race detector hits, no goroutine leaks.
 - Pipeline can run a stub format end-to-end on a real file. Performance
-  not yet measured; that's M16.
+  not yet measured; that's M17.
 
 ---
 
@@ -399,7 +407,7 @@ overestimation with a built-in safety margin.
     future regressions are visible.
   - Bench runs as part of `make bench`, not the default test suite.
 - **Tests:** the benchmark is the deliverable. No assertion;
-  performance gates are agreed at M16 release prep.
+  performance gates are agreed at M17 release prep.
 - **Docs:**
   - Note the benchmark in
     [performance.md](./.opencode/rules/performance.md) so it joins
@@ -412,7 +420,7 @@ overestimation with a built-in safety margin.
     `cl100k_base` vocabulary.
   - Lazy initialisation: the BPE tables are loaded on the first
     `Estimate` call, not at process start, so the binary's cold-start
-    latency budget (M16) only pays the cost when `--tokenizer=tiktoken`
+    latency budget (M17) only pays the cost when `--tokenizer=tiktoken`
     is selected.
   - Offline-only: the BPE vocab is embedded via the
     `tiktoken-go-loader` offline loader. **Zero network access** even
@@ -470,7 +478,7 @@ the shared config struct so M6 (budget enforcer) can consume it.
 - All four sub-items ticked.
 - `make check` clean, no race hits.
 - `make bench` runs the heuristic benchmark; its result is logged in
-  the commit body for the future M16 reference.
+  the commit body for the future M17 reference.
 - M4 milestone drift check: ARCHITECTURE token-estimation section and
   the implementation agree on constants, factory names, and the
   network-free guarantee; dependencies allow-list in ARCHITECTURE
@@ -845,7 +853,7 @@ counters carried through the stage.
 ### M6.2 — Wire BudgetStage into pipeline.Options and Build ✅
 
 Make the budget controllable from the same `Options` value the CLI
-(M8) and library callers (M14) already use.
+(M8) and library callers (M15) already use.
 
 - **DoD:**
   - `pipeline.Options` gains:
@@ -895,7 +903,7 @@ code 3. M6 prepares the signal; M8 reads it.
     `EventsDroppedBudget > 0 || EventsTruncated > 0`.
   - Documented contract: any consumer that wants to honour exit
     code 3 calls `ForcedDrops()` on the Pipeline's `BudgetCounters`
-    after `Run` returns. M8 will wire the CLI; M14 library callers
+    after `Run` returns. M8 will wire the CLI; M15 library callers
     can do the same.
   - No CLI work yet — flag parsing and exit-code mapping live in M8.
 - **Tests:**
@@ -1442,8 +1450,9 @@ ship).
   ships; SCHEMA.md `summary.exit_code` field is wired end-to-end
   through `JSONSink.ExitCode`.
 - M8 is the milestone after which `distill-ai` is end-to-end usable
-  by a human or an agent. M9–M12 add formats; M13 adds config;
-  M14 promotes the library API; M15 polishes docs.
+  by a human or an agent. M9–M12 add formats; M13 adds the envelope
+  stripper; M14 adds config; M15 promotes the library API; M16
+  polishes docs.
 
 ---
 
@@ -1783,10 +1792,10 @@ M8.2.x) need a defined interaction with the generic scanner.
     not as a downstream Stage, because dropping a low-severity
     anchor line also frees its context window. This is the
     cheapest place to drop noise.
-  - The two specific formats already shipped (pytest in M10,
-    when it lands) do not yet read these fields; M9.4 only wires
-    them into `generic`. Future formats opt in by reading the
-    same `ParseOpts` fields. SCHEMA.md notes this is a per-
+  - The specific formats (gotest in M10, pytest in M11, jest in
+    M12, when they land) do not yet read these fields; M9.4 only
+    wires them into `generic`. Future formats opt in by reading
+    the same `ParseOpts` fields. SCHEMA.md notes this is a per-
     format opt-in, not a pipeline-wide guarantee, so consumers
     don't expect "this option always filters everything."
 - **Tests:**
@@ -1839,7 +1848,7 @@ and update the project's format-list / scope documents.
       `maxBlockLines` to exercise the cap.
   - Each `.input` has a `.expected` companion in the JSON shape
     the format-test harness reads (the harness is the same one
-    pytest uses in M10.5; extract it to `internal/formats/testing.go`
+    gotest uses in M10.5; extract it to `internal/formats/testing.go`
     so both formats share it). Per the alignment rule, the
     harness lands in the same commit it is first used by.
   - `formats.All()` (after the side-effect import) includes
@@ -1885,29 +1894,483 @@ and update the project's format-list / scope documents.
 
 ---
 
-## M10 — pytest format
+## M10 — gotest format
 
-The first real format parser, and the canonical example every later
-format (jest, gotest, generic) modelled on. M10 implements
-`formats.Format` for pytest — detect by terminal markers, parse
-`=== FAILURES ===` and `=== ERRORS ===` blocks, emit one Event per
-failure or collection error, skip passing tests entirely. Streaming-
-first per ARCHITECTURE.md § Pipeline: every Event is forwarded as the
-trailing newline of its block is consumed; the parser never buffers
-the whole input.
+The first real format parser, chosen ahead of pytest and jest because
+gotest is the format this very project emits on every `make test` —
+shipping it first turns distill-ai's own development loop into the
+canonical dogfooding scenario. M10 implements `formats.Format` for
+the Go test runner — detect by `--- FAIL:`, `FAIL\t<pkg>`, and
+`=== RUN` markers; parse the `--- FAIL: TestName (Xs)` blocks the
+default reporter emits; parse goroutine panic dumps as a distinct
+`panic` Kind; parse `go vet` / build failures emitted before tests
+run as `build_failure`; surface the race-detector report as a single
+`race_condition` Event. Skip passing tests entirely.
+
+Streaming-first per ARCHITECTURE.md § Pipeline: every Event is
+forwarded as the trailing newline of its block is consumed; the
+parser never buffers the whole input. The integration suite already
+carries `test/integration/testdata/fixtures/gotest-fail.input`, so
+M10.5's positive-distillation integration test (per
+[KNOWN_ISSUES.md § 6](./KNOWN_ISSUES.md)) plugs in without a new
+fixture grab.
 
 Cross-references
 [ARCHITECTURE.md § Format plugin contract](./ARCHITECTURE.md#format-plugin-contract),
 [docs/formats/SCHEMA.md § Kind values](./docs/formats/SCHEMA.md#kind-values).
+SCHEMA.md already names gotest's four Event kinds (`test_failure`,
+`panic`, `build_failure`, `race_condition`); M10 makes them real.
 
 M10 builds on M1 (`Format` interface, `formats.Register`), M3
-(autodetection — pytest must return `Confidence=1.0` on a clear hit,
-< 0.6 on ambiguous input), and M7 (the output encoders that render
-the Events this format emits). Each item below lists Definition of
-Done, required tests, and required doc updates per the
+(autodetection — gotest must return `Confidence=1.0` on a clear hit,
+< 0.6 on ambiguous input), M5 (StackFrame classification — Go stacks
+contain heavy `/src/runtime/`, `pkg/mod/`, and `/vendor/` runs that
+`internal/event/collapse.go` already classifies as vendor; M10 only
+extracts the frames), and M7 (the output encoders that render gotest
+Events). Each item below lists Definition of Done, required tests,
+and required doc updates per the
 [alignment rule](./.opencode/rules/alignment.md).
 
-### M10.1 — `internal/formats/pytest/pytest.go`: skeleton + Detect
+### M10.1 — `internal/formats/gotest/gotest.go`: skeleton + Detect
+
+Land the package, register it, and implement `Format.Detect`. No
+parsing yet — `Parse` returns an empty channel — so M3 autodetection
+exercises the new format end-to-end before the heavy parser arrives.
+
+- **DoD:**
+  - New package `internal/formats/gotest` exporting `Format` (a
+    value type implementing `formats.Format`).
+  - `func init() { formats.Register(Format{}) }` so the registry
+    picks it up automatically.
+  - `Name() string` returns `"gotest"`.
+  - `Detect(sample []byte) Confidence`:
+    - `1.0` when the sample contains `--- FAIL: ` at the start of
+      a line, or `^FAIL\t` followed by an importable Go package
+      path (matching `\w+([./]\w+)*` after the tab).
+    - `1.0` when the sample contains `^=== RUN   ` (gotest's
+      `-v` mode header).
+    - `0.8` when the sample contains a goroutine-dump header
+      (`^goroutine \d+ \[\w+\]:`) plus a Go file path
+      (`\.go:\d+`). This catches bare panics emitted by `go run`
+      with no surrounding test output.
+    - `0.0` otherwise.
+    - The threshold constants live as package-level
+      `confidenceClearMarker = 1.0`, `confidenceFuzzy = 0.8`
+      mirroring the convention used by every other format.
+  - **Confidence-tie precedence.** `FAIL\t` is generic enough that
+    other Go tooling (e.g., `go vet`'s `FAIL` summary line) could
+    emit similar shapes. The detect path requires the `FAIL` line
+    to be tab-separated from a token that looks like a Go package
+    path (contains `/` or matches `\w+(\.\w+)*`) before raising to
+    `1.0`. Documented in the package godoc and verified by
+    `TestGotest_DetectFailRequiresPackageToken`.
+  - `Parse(ctx, r, opts)` returns an immediately-closed channel
+    with `nil` error for M10.1; M10.2–M10.4 fill it in. The early
+    stub lets autodetect and CLI plumbing work against gotest
+    before the real parser lands.
+- **Tests** (`internal/formats/gotest/gotest_test.go`):
+  - `TestGotest_DetectFailMarker`: feed
+    `--- FAIL: TestLogin (0.02s)`; assert `Confidence == 1.0`.
+  - `TestGotest_DetectFailPackage`: feed
+    `FAIL\tgithub.com/vail130/distill-ai/internal/event\t1.234s`;
+    assert `Confidence == 1.0`.
+  - `TestGotest_DetectRunHeader`: feed `=== RUN   TestFoo`; assert
+    `Confidence == 1.0`.
+  - `TestGotest_DetectFailRequiresPackageToken`: feed
+    `FAIL: rebooting node`; assert `Confidence < 1.0`.
+  - `TestGotest_DetectGoroutineDump`: feed a fragment beginning
+    with `goroutine 1 [running]:` followed by a line referencing
+    a `.go:42` location; assert `Confidence == 0.8`.
+  - `TestGotest_DetectNegative`: feed a Python traceback; assert
+    `Confidence == 0.0`.
+  - `TestGotest_RegisteredAtInit`: import the package for its
+    side effect, then call `formats.Get("gotest")` and assert
+    `(format, true)`.
+  - `TestGotest_ParseEmptyStub`: ensure `Parse` returns a closed
+    channel without error so M3 detection paths work end-to-end
+    against the stubbed parser.
+- **Docs:**
+  - Godoc on `Format`, `Detect`, `Parse`, and the confidence
+    constants.
+  - New `docs/formats/gotest.md` with the section skeleton (intro,
+    detection markers, what's extracted, what's dropped, example
+    I/O). M10.1 fills in detection + intro; M10.2–M10.4 extend.
+  - Update [README.md](./README.md) format list to mention `gotest`
+    as "shipped" once M10.5 lands; for M10.1 the entry says
+    "detect-only, parser lands in M10.2".
+
+### M10.2 — Parse `--- FAIL:` blocks (test_failure)
+
+The common case: `go test` (with or without `-v`). Each FAIL block
+runs from a `--- FAIL: TestName (duration)` line to the next
+`--- FAIL`/`--- PASS`/`--- SKIP`/`=== RUN`/blank-then-`FAIL\t`
+delimiter. The parser emits one Event per block with
+`Severity=SeverityError`, `Kind=test_failure`.
+
+- **DoD:**
+  - The parser is a `bufio.Scanner`-driven state machine over
+    `r io.Reader`. No buffering of the whole input: as soon as a
+    block's terminating delimiter is consumed, the Event is
+    forwarded.
+  - State machine states:
+    `stateRunning` (initial; `=== RUN`, `=== PAUSE`, `=== CONT`,
+    `--- PASS`, `--- SKIP` lines and per-test log output between
+    them are discarded),
+    `stateFailureHeader` (matching `--- FAIL: TestName (duration)`),
+    `stateFailureBody` (accumulating body lines until the next
+    block delimiter — another `--- FAIL`/`--- PASS`/`--- SKIP`,
+    or `=== RUN`, or `FAIL\t<pkg>`, or `PASS` summary, or EOF),
+    `stateSummary` (post-`FAIL\t<pkg>` and final `exit status N`;
+    everything is discarded).
+  - **Per-Event shape:**
+    - `Severity = SeverityError`.
+    - `Kind = "test_failure"`.
+    - `Title` = the first body line that looks like a test
+      assertion message — the conventional `<file>:<line>: <msg>`
+      shape gotest uses for `t.Errorf`/`t.Fatalf`. Falls back to
+      the trimmed `--- FAIL:` header line when no such message is
+      found (rare; happens when the test panics within a
+      subtest's goroutine).
+    - `Location` = best-effort file:line extracted from the
+      `<file>:<line>:` prefix on the assertion line. Path must
+      contain `/` or end in `.go` so we don't match `host:port`
+      pairs. Nil if no match.
+    - `Body` = the verbatim block lines from the `--- FAIL:`
+      header to the block terminator.
+    - `Metadata["test_id"]` = the test name extracted from the
+      `--- FAIL:` header (e.g., `TestLogin` or
+      `TestLogin/subtest_returns_302`). Subtests use the
+      forward-slash separator gotest itself emits.
+    - `Metadata["package"]` = the most recent Go package name
+      seen on a `=== RUN` header's `=== RUN   TestX` line or a
+      `FAIL\tpkg` summary line, when known.
+    - `Metadata["duration"]` = the duration string from the
+      header (e.g., `0.02s`). Optional; absent for subtests that
+      use the table-driven form without per-row durations.
+    - `Frames` left nil in M10.2; frame extraction is M10.4.
+  - **What's dropped.** Passing tests (`--- PASS:`), skipped
+    tests (`--- SKIP:`), `=== RUN`/`=== PAUSE`/`=== CONT` lines
+    not currently inside a failure block, per-test log output
+    between passing tests, the `PASS` / `FAIL` summary line, and
+    the final `exit status N` line. The parser never emits Events
+    for any of these.
+  - **Streaming.** Each Event is forwarded as soon as its block
+    terminator is consumed.
+  - **Backpressure.** The parser's send blocks on a slow
+    downstream stage; pipeline `BufferSize` is the only buffer.
+  - **Cancellation.** Each loop iteration checks `ctx.Done()`
+    before reading the next line and before sending an Event.
+- **Tests** (extends `gotest_test.go`):
+  - `TestGotest_ParseSingleFailure`: fixture with one failing
+    test; assert one Event with the expected title, test_id
+    metadata, body, location.
+  - `TestGotest_ParseMultiFailure`: three failures across two
+    packages; three Events with correct `package` metadata on
+    each.
+  - `TestGotest_ParseSkipsPassing`: fixture with one pass and one
+    fail; only the fail emits an Event.
+  - `TestGotest_ParseSubtests`: fixture with table-driven
+    subtests where two of N rows fail; assert one Event per
+    failing subtest with `test_id` containing the subtest path
+    (`TestParse/empty_input`, `TestParse/binary_input`).
+  - `TestGotest_ParseDropsPerTestLogs`: fixture with `t.Logf`
+    output interleaved between passing tests; assert no Event
+    for the logs and the failure Event's Body doesn't pick up
+    log lines from earlier tests.
+  - `TestGotest_ParseStreaming`: use `testutil.SlowReader` to
+    drip a multi-failure fixture; assert at least one Event
+    arrives before the source closes.
+  - `TestGotest_ParseDeterministic`: same input twice → byte-
+    equal sequence of Events.
+  - `TestGotest_ParseContextCancellation`: cancel mid-stream;
+    parser drains and exits; no goroutine leak.
+- **Docs:**
+  - Extend `docs/formats/gotest.md`: example failure block
+    (default reporter) + the Event it produces, the list of
+    dropped artifacts (passes, skips, run headers, log lines),
+    the subtest path convention.
+  - No SCHEMA.md change — `test_failure` is already listed under
+    gotest's kind values.
+
+### M10.3 — Parse panic blocks and build failures
+
+Two distinct Event Kinds gotest emits outside the normal failure
+flow: panics that escape a test goroutine, and build failures that
+prevent tests from running at all. Each gets its own Kind so
+downstream consumers can route on it.
+
+- **DoD:**
+  - **Panic blocks.** When the parser sees `^panic: ` (with or
+    without an inside-failure-block context), it switches into
+    `statePanicBody`. The block runs from the `panic:` line
+    through the trailing `goroutine N [state]:` stack dump until
+    either:
+    - A line that doesn't match the panic-continuation pattern
+      (`^\s` for indented stack lines, `^panic:` for chained
+      panics from goroutines, `^goroutine \d+`, `^\t` for the
+      `file.go:42 +0xNN` lines that follow each frame entry).
+    - The hard cap `maxPanicLines = 200` (parallel to M9.3's
+      block-overflow cap); excess lines replaced by a sentinel
+      `Body` entry `... [panic block truncated]` and
+      `Metadata["panic_truncated"] = "true"`.
+    - EOF.
+  - **Panic Event shape:**
+    - `Severity = SeverityError`.
+    - `Kind = "panic"`.
+    - `Title` = the `panic:` line trimmed (e.g.,
+      `panic: runtime error: index out of range [3] with length 2`).
+    - `Location` = the first user-code frame's file:line — i.e.,
+      the first frame whose path doesn't match the M5 vendor
+      pattern catalogue's Go entries. Nil if every frame is
+      vendor.
+    - `Body` = the verbatim panic + goroutine dump lines.
+    - `Metadata["test_id"]` populated when the panic occurred
+      inside a failure block (the parser tracks the most recent
+      `--- FAIL:` header); absent otherwise.
+  - **Build failures.** When the parser sees a line matching the
+    `go build` / `go vet` error shape — `^\S+\.go:\d+:\d+: ` at
+    the top of input or after a `FAIL\t<pkg> [build failed]`
+    summary — it emits an Event with `Kind="build_failure"`. One
+    Event per distinct `.go:line:col:` location; the body is the
+    full multi-line error message gotest prints (Go compiler
+    errors often span 2–5 lines with context arrows).
+  - **Build failure Event shape:**
+    - `Severity = SeverityError`.
+    - `Kind = "build_failure"`.
+    - `Title` = the trimmed error message after the location
+      prefix (e.g., `undefined: foo.Bar`).
+    - `Location` = `{File, Line, Column}` parsed from the
+      `.go:line:col:` prefix.
+    - `Body` = the verbatim error and any continuation lines.
+    - `Metadata["package"]` populated when a preceding
+      `FAIL\t<pkg> [build failed]` line is in scope.
+- **Tests:**
+  - `TestGotest_ParsePanicTopLevel`: panic dump emitted without
+    surrounding `--- FAIL:` (e.g., from `go run` or a test
+    `TestMain` panic); one Event with `Kind="panic"`.
+  - `TestGotest_ParsePanicInsideFailure`: panic emitted as part
+    of a `--- FAIL:` block (e.g., `panic` during `t.Run`);
+    asserts one Event with `Kind="panic"` and
+    `test_id` populated. The surrounding `--- FAIL:` block's
+    own test_failure Event is suppressed in favour of the more
+    informative panic Event.
+  - `TestGotest_ParsePanicMaxLines`: synthesise a 300-line
+    goroutine dump; assert Body capped at 200, sentinel + flag
+    present.
+  - `TestGotest_ParseBuildFailure`: fixture with a `vet`/`build`
+    error preventing tests from running; one Event per error
+    location with `Kind="build_failure"`.
+  - `TestGotest_ParseBuildFailureWithPackage`: fixture where the
+    build error is followed by `FAIL\tpkg/path [build failed]`;
+    assert `Metadata["package"]` is populated.
+- **Docs:**
+  - Extend `docs/formats/gotest.md`: side-by-side example of
+    a panic block, a build failure, and the failure-vs-panic
+    decision (panic inside `--- FAIL:` wins).
+  - No SCHEMA.md change — `panic` and `build_failure` are
+    already listed under gotest's kind values.
+
+### M10.4 — Stack frames, race detector, reporter modes
+
+Populate `Event.Frames` from the goroutine dump, emit the
+race-detector report as a single `race_condition` Event, and handle
+the three reporter modes gotest emits.
+
+- **DoD:**
+  - **Frame extraction.** After a panic block terminates, a
+    single regex pair sweeps the captured Body for goroutine
+    frame pairs:
+    `^(?P<fn>[\w./\-*()]+)\((?:0x[0-9a-f]+(?:,\s*)?)*\)$`
+    (function name + arguments)
+    followed by
+    `^\t(?P<path>\S+\.go):(?P<line>\d+)(?:\s+\+0x[0-9a-f]+)?$`
+    (indented file:line). The pair produces one `StackFrame`.
+    `Vendor` is left false — the M5 CollapseStage's
+    `ClassifyFrames` re-populates it via the Go entries in the
+    vendor pattern catalogue (`/src/runtime/`, `pkg/mod/`,
+    `/vendor/`).
+  - **Frames are emitted only when at least one frame pair
+    matches;** otherwise `Frames` stays nil. Matches the M11/M12
+    rule.
+  - **Race condition.** The race detector writes a distinctive
+    block beginning with `==================` and ending with a
+    second `==================`. M10.4 detects this block and
+    emits one Event with:
+    - `Severity = SeverityError`.
+    - `Kind = "race_condition"`.
+    - `Title` = the first non-divider line of the block, which
+      gotest emits as `WARNING: DATA RACE` (a constant).
+    - `Body` = the entire block, dividers included, capped at
+      `maxRaceLines = 300` lines (race reports are larger than
+      typical panics — they include two goroutines' worth of
+      stack — so the cap is correspondingly larger).
+    - `Frames` extracted from the two contained goroutine
+      dumps (a race report contains two stacks; both are
+      merged into one Frames slice, in source order, with
+      `Metadata["race_goroutines"] = "2"` indicating the count
+      for consumers that want to render them separately).
+    - `Metadata["test_id"]` populated when the race fires inside
+      a `--- FAIL:` block.
+  - **Reporter modes:**
+    - **Default reporter:** the canonical shape M10.2 targets.
+    - **`-v` reporter:** adds `=== RUN`, `=== PAUSE`, `=== CONT`,
+      `--- PASS` lines per test before any failure. The parser
+      still anchors on `--- FAIL:` and drops the per-test
+      indicator lines uniformly.
+    - **`-json` mode:** structured JSON-per-line output
+      (`{"Action":"fail",...}`). M10.4 detects this by looking
+      for `^{"Time":` on the first non-blank input line, and
+      parses each JSON line into an Event. The Action→Kind
+      mapping is: `fail` → `test_failure`, `pass`/`skip` →
+      dropped, `output` → buffered into the in-progress
+      failure's Body, `bench` → dropped (v1 doesn't cover
+      benchmarks; v1.1 backlog). Build failures in `-json` mode
+      appear as `{"Action":"output","Output":"...","Test":""}`
+      entries with the same `.go:line:col:` shape as
+      non-`-json`, and the M10.3 build-failure logic applies.
+- **Tests:**
+  - `TestGotest_ParseExtractsFrames`: a panic fixture; assert the
+    Event's `Frames` has at least one entry whose File/Line match
+    the bottom user-code frame.
+  - `TestGotest_ParseFramesEmptyOnTrivialPanic`: a `panic("msg")`
+    fixture with no goroutine dump (constructed; gotest always
+    emits one in practice, but defensive); assert `Frames == nil`
+    and the Event still emits.
+  - `TestGotest_ParseRaceCondition`: fixture from a real race
+    detector run; one Event with `Kind="race_condition"`, two
+    stacks in Frames, `race_goroutines == "2"`.
+  - `TestGotest_ParseVerboseSameAsTerse`: same logical failure
+    rendered once with `-v` and once without; the Events emitted
+    are identical (modulo `=== RUN`/`--- PASS` lines that the
+    parser drops).
+  - `TestGotest_ParseJSONMode`: fixture from `go test -json`
+    output; assert one Event per fail Action with the correct
+    test_id, package, and Body assembled from the corresponding
+    output Actions.
+- **Docs:**
+  - Extend `docs/formats/gotest.md`: the three reporter modes
+    side by side, frame-extraction rule, when `Frames` is
+    populated vs nil, the race-detector example, the `-json`
+    mapping table.
+
+### M10.5 — Fixtures, ARCHITECTURE update, and integration coverage
+
+Tie M10 off with the canonical fixture set per
+[CONTRIBUTING.md § Adding a format](./CONTRIBUTING.md#adding-a-format),
+the format-list update, and the first positive end-to-end
+integration test (addresses
+[KNOWN_ISSUES.md § 6](./KNOWN_ISSUES.md)).
+
+- **DoD:**
+  - Eight fixtures under `internal/formats/gotest/testdata/`,
+    matching the v1 minimum for a real format:
+    `clean.input` (all green, parser emits nothing),
+    `single-fail.input`,
+    `multi-fail.input` (two failures across one package),
+    `subtests.input` (table-driven failure with subtest path),
+    `panic.input` (panic block with goroutine dump),
+    `race.input` (race-detector report),
+    `build-failure.input` (`go vet`-style error before tests run),
+    `json.input` (`go test -json` mode).
+  - Each `.input` has a `.expected` companion in the JSON shape
+    the shared format-test harness reads (the harness lands in
+    M9.5 / `internal/formats/testing.go`; M10.5 is its first
+    consumer).
+  - The harness supports `go test -update ./...` to regenerate
+    fixtures, matching the output-package pattern.
+  - ARCHITECTURE.md format list updated to mention `gotest` as
+    "shipped" rather than "planned".
+  - `formats.All()` (after the side-effect import) includes
+    gotest in alphabetical position — verified by extending
+    `cmd/distill-ai/list_formats_test.go`.
+  - README format list updated alongside ARCHITECTURE.
+  - `.opencode/skills/distill-output/SKILL.md` gains a "Distil a
+    gotest run" recipe replacing the existing pre-M9 form, per
+    [CONTRIBUTING.md § Adding a format step 10](./CONTRIBUTING.md#adding-a-format).
+    The recipe shows `make test 2>&1 | ./bin/distill-ai`
+    producing distilled output — the canonical dogfood loop.
+  - **Integration suite** gains a new test
+    `TestBinary_GotestEndToEndProducesOutput` that feeds
+    `test/integration/testdata/fixtures/gotest-fail.input` to
+    the binary via stdin, asserts exit 0, and asserts a
+    substring of the expected Event title appears on stdout.
+    Closes [KNOWN_ISSUES.md § 6](./KNOWN_ISSUES.md) for gotest;
+    M11.5 / M12.5 do the same for their formats.
+  - The pre-M10 `TestBinary_DetectGotestFixtureFallsThrough`
+    style assertion is replaced with a positive-detection
+    assertion in the same commit.
+- **Tests:**
+  - `TestGotest_Goldens`: harness walks `testdata/`, runs the
+    parser on each `.input`, marshals Events to JSON, diffs
+    against `.expected`. Run with `-update` to regenerate.
+  - `TestGotest_FixtureCount`: hard assertion that exactly the
+    eight enumerated fixtures exist, so future drift is caught.
+  - `TestBinary_GotestEndToEndProducesOutput` (integration
+    suite, per the DoD).
+- **Docs:**
+  - `docs/formats/gotest.md` finalised: detection markers, every
+    parsed event kind with an example, what's dropped, the
+    eight fixtures referenced by file name, the `-json` mapping
+    table.
+  - ARCHITECTURE.md updated per DoD.
+  - README.md format list updated.
+  - SKILL.md recipe added.
+
+### M10 exit criteria
+
+- All five sub-items ticked.
+- `make check` clean; no race hits; no goroutine leaks.
+- M10 milestone drift check: `formats.Get("gotest")` returns the
+  registered Format; `docs/formats/gotest.md` exists and describes
+  every Event kind the parser emits; SCHEMA.md's gotest kind values
+  list (`test_failure`, `panic`, `build_failure`,
+  `race_condition`) matches the parser's emitted kinds exactly —
+  no extras, no omissions; the eight fixtures live under
+  `internal/formats/gotest/testdata/` with `*.input` + `*.expected`
+  pairs; the SKILL.md gotest recipe is present; the integration
+  suite's gotest end-to-end test passes.
+- Gotest is the first format to ship end-to-end and the format the
+  project dogfoods on its own test runs. M11 (pytest) and M12
+  (jest) re-use the shape M10 establishes — by the time M11 lands
+  the format-test harness, the docs scaffolding, and the SKILL.md
+  recipe pattern are all proven.
+
+---
+
+## M11 — pytest format
+
+The second real format parser, modelled on M10's gotest implementation
+shape. M11 implements `formats.Format` for pytest — detect by terminal
+markers, parse `=== FAILURES ===` and `=== ERRORS ===` blocks, emit
+one Event per failure or collection error, skip passing tests entirely.
+Pytest ships second because it's the most heavily-used non-Go test
+format in the agent-debugging ecosystem; the project itself doesn't
+emit pytest output, so the format also serves as the cross-check that
+M10's harness extracted in `internal/formats/testing.go` actually
+generalises beyond gotest's shape.
+
+Streaming-first per ARCHITECTURE.md § Pipeline: every Event is
+forwarded as the trailing newline of its block is consumed; the parser
+never buffers the whole input.
+
+Cross-references
+[ARCHITECTURE.md § Format plugin contract](./ARCHITECTURE.md#format-plugin-contract),
+[docs/formats/SCHEMA.md § Kind values](./docs/formats/SCHEMA.md#kind-values).
+SCHEMA.md already names pytest's four Event kinds (`test_failure`,
+`test_error`, `collection_error`, `warning`); M11 makes them real.
+
+M11 builds on M1 (`Format` interface, `formats.Register`), M3
+(autodetection — pytest must return `Confidence=1.0` on a clear hit,
+< 0.6 on ambiguous input), M7 (the output encoders that render the
+Events this format emits), M9 (generic remains the fallback if
+pytest's confidence drops below 0.6), and M10 (the format-test
+harness now living in `internal/formats/testing.go`, the SKILL.md
+recipe pattern, the integration-suite end-to-end pattern from
+`TestBinary_GotestEndToEndProducesOutput`). Each item below lists
+Definition of Done, required tests, and required doc updates per the
+[alignment rule](./.opencode/rules/alignment.md).
+
+### M11.1 — `internal/formats/pytest/pytest.go`: skeleton + Detect
 
 Land the package, register it, and implement `Format.Detect`. No
 parsing yet — `Parse` returns an empty channel — so M3 autodetection
@@ -1915,7 +2378,7 @@ exercises the new format end-to-end before the heavy parser arrives.
 
 - **DoD:**
   - New package `internal/formats/pytest` exporting `Format` (a
-    value, not an interface — implements `formats.Format`).
+    value type implementing `formats.Format`).
   - `func init() { formats.Register(Format{}) }` so the registry
     picks it up automatically.
   - `Name() string` returns `"pytest"`.
@@ -1925,13 +2388,13 @@ exercises the new format end-to-end before the heavy parser arrives.
     - `0.8` when the sample contains a `>` assertion line plus
       either `conftest.py` or `pytest.ini` fragments.
     - `0.0` otherwise.
-    - The threshold constants live in package-level `const`s named
-      `confidenceClearMarker = 1.0`, `confidenceFuzzy = 0.8` so the
-      file is reviewable without context-switching to the test.
-  - `Parse(ctx, r, opts)` returns an immediately-closed channel for
-    M10.1; M10.2–M10.4 fill it in. The early stub lets autodetect
-    and CLI plumbing work against pytest before the real parser
-    lands.
+    - The threshold constants live as package-level
+      `confidenceClearMarker = 1.0`, `confidenceFuzzy = 0.8`
+      matching the gotest precedent from M10.
+  - `Parse(ctx, r, opts)` returns an immediately-closed channel
+    with `nil` error for M11.1; M11.2–M11.4 fill it in. The early
+    stub lets autodetect and CLI plumbing work against pytest
+    before the real parser lands.
 - **Tests** (`internal/formats/pytest/pytest_test.go`):
   - `TestPytest_DetectClearMarker`: feed the literal
     `=== test session starts ===` line; assert `Confidence == 1.0`.
@@ -1939,8 +2402,8 @@ exercises the new format end-to-end before the heavy parser arrives.
     assert `1.0`.
   - `TestPytest_DetectFuzzy`: feed a chunk containing both
     `conftest.py` and an `>` assertion line; assert `0.8`.
-  - `TestPytest_DetectNegative`: feed unrelated text (a Go build
-    log) and assert `0.0`.
+  - `TestPytest_DetectNegative`: feed unrelated text (a Go test
+    log, exercising the M10 disambiguation); assert `0.0`.
   - `TestPytest_RegisteredAtInit`: import the package for its side
     effect, then call `formats.Get("pytest")` and assert
     `(format, true)`.
@@ -1952,86 +2415,94 @@ exercises the new format end-to-end before the heavy parser arrives.
     constants.
   - New `docs/formats/pytest.md` with the section skeleton (intro,
     detection markers, what's extracted, what's dropped, example
-    I/O). M10.1 fills in detection + intro; M10.2–M10.4 extend.
-  - Update [README.md](./README.md) format list once it exists
-    (currently only mentioned in the usage examples).
+    I/O). M11.1 fills in detection + intro; M11.2–M11.4 extend.
+  - Update [README.md](./README.md) format list to mention
+    `pytest` as "detect-only, parser lands in M11.2" for M11.1;
+    M11.5 promotes it to "shipped".
 
-### M10.2 — Parse `=== FAILURES ===` blocks (long-form traceback)
+### M11.2 — Parse `=== FAILURES ===` blocks (long-form traceback)
 
 The common case: `pytest --tb=long` (the default). Each FAILURE block
 runs from the underlined test name to the next block delimiter; the
-parser emits one Event per block with severity=error, kind=test_failure.
+parser emits one Event per block with `Severity=SeverityError`,
+`Kind=test_failure`.
 
 - **DoD:**
   - The parser is a `bufio.Scanner`-driven state machine over
     `r io.Reader`. No buffering of the whole input: as soon as a
-    block's terminating delimiter is consumed, the Event is forwarded.
+    block's terminating delimiter is consumed, the Event is
+    forwarded.
   - State machine states:
     `stateSession` (pre-FAILURES, lines discarded),
     `stateFailureHeader` (matching `___ test_id ___` underline),
-    `stateFailureBody` (accumulating body until next header / divider),
-    `stateSummary` (`=== short test summary info ===` and beyond).
-  - The emitted Event for a failure block has:
+    `stateFailureBody` (accumulating body until next header /
+    divider), `stateSummary` (`=== short test summary info ===`
+    and beyond).
+  - **Per-Event shape:**
     - `Severity = SeverityError`.
     - `Kind = "test_failure"`.
-    - `Title` = the assertion / exception line (first non-blank line
-      starting with `E   `, falling back to the last body line if
-      no `E   ` line exists).
-    - `Location` = the file:line printed in the traceback's bottom
-      frame (`>   assert ...` line preceded by `path/to/file.py:LN:`).
+    - `Title` = the assertion / exception line (first non-blank
+      line starting with `E   `, falling back to the last body
+      line if no `E   ` line exists).
+    - `Location` = the file:line printed in the traceback's
+      bottom frame (`>   assert ...` line preceded by
+      `path/to/file.py:LN:`).
     - `Body` = the verbatim block lines including the underlined
       test name, the assertion, and the traceback.
-    - `Metadata["test_id"]` = the test ID parsed from the underlined
-      header (e.g., `tests/api/test_auth.py::test_login_redirect`).
-  - Frames are **not** populated in M10.2; the bare traceback lines
-    live in `Body`. Frame extraction is M10.4 alongside `--tb=short`.
-  - All passing tests, dots, progress lines, and the `===` dividers
-    between sections are dropped on the floor — they never produce
-    Events.
+    - `Metadata["test_id"]` = the test ID parsed from the
+      underlined header (e.g.,
+      `tests/api/test_auth.py::test_login_redirect`).
+    - Frames are **not** populated in M11.2; the bare traceback
+      lines live in `Body`. Frame extraction is M11.4 alongside
+      `--tb=short`.
+  - **What's dropped.** All passing tests, dots, progress lines,
+    and the `===` dividers between sections are dropped on the
+    floor — they never produce Events.
 - **Tests** (extends `pytest_test.go`):
   - `TestPytest_ParseSingleFailure`: a fixture with one failing
     test; assert one Event with the expected title, location, and
     body.
   - `TestPytest_ParseMultiFailure`: three failures; three Events,
     each with the correct test_id.
-  - `TestPytest_ParseSkipsPassing`: a fixture with one pass and one
-    fail; only the fail emits an Event.
+  - `TestPytest_ParseSkipsPassing`: a fixture with one pass and
+    one fail; only the fail emits an Event.
   - `TestPytest_ParseStreaming`: use `testutil.SlowReader` to drip
     a multi-failure fixture; assert at least one Event arrives
     before the source closes.
   - `TestPytest_ParseDeterministic`: same input twice → byte-equal
-    sequence of Events (property test, ties into the project's
-    determinism invariant).
+    sequence of Events.
+  - `TestPytest_ParseContextCancellation`: cancel mid-stream;
+    parser drains and exits; no goroutine leak.
 - **Docs:**
   - Extend `docs/formats/pytest.md`: example failure block + the
     Event it produces.
   - No SCHEMA.md change — `test_failure` is already listed under
     pytest's kind values.
 
-### M10.3 — Parse `=== ERRORS ===` and collection errors
+### M11.3 — Parse `=== ERRORS ===` and collection errors
 
 Errors are pytest's term for failures before a test can run: fixture
 errors, import errors, syntax errors in test modules, missing
 conftest pieces.
 
 - **DoD:**
-  - When the state machine sees `=== ERRORS ===`, it transitions to
-    a `stateErrorBody` shape parallel to `stateFailureBody`.
+  - When the state machine sees `=== ERRORS ===`, it transitions
+    to a `stateErrorBody` shape parallel to `stateFailureBody`.
   - One Event per error block with:
     - `Severity = SeverityError`.
-    - `Kind = "test_error"` (for in-test errors like a fixture
-      failure).
+    - `Kind = "test_error"` for in-test errors like a fixture
+      failure.
     - `Kind = "collection_error"` when the error is in the
-      collection phase (detected by the surrounding marker
-      `=== ERRORS ===` appearing **before** any `=== test session
-      starts ===` failures section, or by the error block header
-      mentioning "during collection").
+      collection phase — detected by the surrounding marker
+      `=== ERRORS ===` appearing **before** any
+      `=== test session starts ===` failures section, or by the
+      error block header mentioning "during collection".
     - `Title` = the error type and message (e.g.,
       `fixture 'db' not found`).
     - `Location` = the file:line printed in the error traceback.
     - `Body` = the verbatim error block.
     - `Metadata["test_id"]` populated when the error is per-test
-      (not for top-level collection errors).
+      (absent for top-level collection errors).
 - **Tests:**
   - `TestPytest_ParseFixtureError`: fixture-not-found case; one
     Event with `Kind="test_error"`.
@@ -2040,26 +2511,28 @@ conftest pieces.
   - `TestPytest_ParseErrorAndFailureMix`: fixture with one error
     block and one failure block; two Events with the right Kinds.
 - **Docs:**
-  - Extend `docs/formats/pytest.md` with collection-error example
-    and the difference between `test_error` and `collection_error`.
+  - Extend `docs/formats/pytest.md` with the collection-error
+    example and the difference between `test_error` and
+    `collection_error`.
 
-### M10.4 — Stack frame extraction and `--tb` shape handling
+### M11.4 — Stack frame extraction and `--tb` shape handling
 
 Populate `Event.Frames` from the traceback and handle pytest's three
 non-default `--tb` settings (`short`, `line`, `native`).
 
 - **DoD:**
   - Frame extraction runs after the block-body accumulator captures
-    the verbatim lines: a small regex matches
-    `(path)(:\d+):.*` traceback lines and emits one `StackFrame`
-    per match. The `Vendor` flag is left false — the M5
-    CollapseStage takes over from there. Frames are emitted only
-    when at least one line matches; otherwise `Frames` stays nil.
-  - `--tb=short` produces a compact `file:line: message` traceback;
-    the parser detects it by the absence of indented continuation
-    lines after the test header and still emits one frame.
-  - `--tb=line` emits a single-line summary per failure. The parser
-    falls back to `Body=[that line]` and `Frames=nil`.
+    the verbatim lines: a small regex matches `(path)(:\d+):.*`
+    traceback lines and emits one `StackFrame` per match. The
+    `Vendor` flag is left false — the M5 CollapseStage takes over
+    from there. Frames are emitted only when at least one line
+    matches; otherwise `Frames` stays nil. Matches the M10 rule.
+  - `--tb=short` produces a compact `file:line: message`
+    traceback; the parser detects it by the absence of indented
+    continuation lines after the test header and still emits one
+    frame.
+  - `--tb=line` emits a single-line summary per failure. The
+    parser falls back to `Body=[that line]` and `Frames=nil`.
   - `--tb=native` is treated identically to `--tb=long` — Python's
     own traceback shape — and the existing extraction works.
   - The state machine handles `-v` and non-`-v` shapes uniformly:
@@ -2070,9 +2543,9 @@ non-default `--tb` settings (`short`, `line`, `native`).
     warning is one Event; the warning's source-file location is
     extracted into `Location` when present.
 - **Tests:**
-  - `TestPytest_ParseExtractsFrames`: a default `--tb=long` fixture
-    yields Events with `len(Frames) > 0`, the bottom frame being
-    user code.
+  - `TestPytest_ParseExtractsFrames`: a default `--tb=long`
+    fixture yields Events with `len(Frames) > 0`, the bottom
+    frame being user code.
   - `TestPytest_ParseTbShort`: same logical failure as above but
     with `--tb=short` output; one Event with one frame.
   - `TestPytest_ParseTbLine`: `--tb=line` output; Event has
@@ -2084,87 +2557,851 @@ non-default `--tb` settings (`short`, `line`, `native`).
     `=== warnings summary ===` block emits the failure Events
     first, then the warning Events.
 - **Docs:**
-  - Extend `docs/formats/pytest.md`: the four `--tb` shapes side by
-    side, the rule for when Frames is populated vs nil, the warning
-    handling.
+  - Extend `docs/formats/pytest.md`: the four `--tb` shapes side
+    by side, the rule for when Frames is populated vs nil, the
+    warning handling.
 
-### M10.5 — Fixtures and ARCHITECTURE update
+### M11.5 — Fixtures, ARCHITECTURE update, and integration coverage
 
-Tie M10 off with the canonical fixture set per
-[CONTRIBUTING.md § Adding a format](./CONTRIBUTING.md#adding-a-format)
-and the format-list update.
+Tie M11 off with the canonical fixture set per
+[CONTRIBUTING.md § Adding a format](./CONTRIBUTING.md#adding-a-format),
+the format-list update, and the second positive end-to-end
+integration test (mirroring M10.5; addresses
+[KNOWN_ISSUES.md § 6](./KNOWN_ISSUES.md) for pytest).
 
 - **DoD:**
   - Eight fixtures under `internal/formats/pytest/testdata/`:
     `clean.input` (no failures, parser emits nothing),
     `single-fail.input`, `multi-fail.input`, `errors.input`,
     `parametrised.input`, `xfail-xpass.input`, `warnings.input`,
-    `collection-error.input`. Each has a `*.expected` companion in
-    the format the format-test harness reads (the harness lands in
-    M10.1, modelled on the output package's golden helper).
-  - The harness supports `go test -update ./...` to regenerate
-    fixtures, matching the output package pattern.
+    `collection-error.input`. Each has a `*.expected` companion
+    in the JSON shape the shared format-test harness reads (the
+    harness already lives in `internal/formats/testing.go` from
+    M9.5 / M10.5).
+  - The harness's `go test -update ./...` mode works for pytest
+    out of the box because the harness is generic.
   - ARCHITECTURE.md format list updated to mention `pytest` as
     "shipped" rather than "planned".
-  - `formats.All()` (after the side-effect import) includes pytest
-    in alphabetical position — verified by a new test in
-    `cmd/distill-ai/list_formats_test.go` once M8.4 lands, and
-    informally by the existing `TestRegistry_AllIsSorted`.
+  - `formats.All()` (after the side-effect import) includes
+    pytest in alphabetical position — verified by extending
+    `cmd/distill-ai/list_formats_test.go`.
+  - README format list updated alongside ARCHITECTURE.
+  - `.opencode/skills/distill-output/SKILL.md` gains a "Distil a
+    pytest run" recipe paralleling the M10 gotest recipe, per
+    [CONTRIBUTING.md § Adding a format step 10](./CONTRIBUTING.md#adding-a-format).
+  - **Integration suite** gains a positive-detection test
+    `TestBinary_PytestEndToEndProducesOutput` using the existing
+    `test/integration/testdata/fixtures/pytest-fail.input`
+    fixture. Closes
+    [KNOWN_ISSUES.md § 6](./KNOWN_ISSUES.md) for pytest.
+  - The pre-M11 `TestBinary_DetectPytestFixtureFallsThrough`
+    assertion is replaced with a positive-detection assertion in
+    the same commit.
 - **Tests:**
-  - `TestPytest_Goldens`: harness walks `testdata/`, runs the parser
-    on each `.input`, marshals Events to JSON, diffs against
-    `.expected`. Run with `-update` to regenerate.
+  - `TestPytest_Goldens`: harness walks `testdata/`, runs the
+    parser on each `.input`, marshals Events to JSON, diffs
+    against `.expected`. Run with `-update` to regenerate.
   - `TestPytest_FixtureCount`: hard assertion that exactly the
     eight enumerated fixtures exist, so future drift is caught.
+  - `TestBinary_PytestEndToEndProducesOutput` (integration
+    suite, per the DoD).
 - **Docs:**
   - `docs/formats/pytest.md` finalised: detection markers, every
     parsed event kind with an example, what's dropped, the eight
     fixtures referenced by file name.
   - ARCHITECTURE.md updated per DoD.
+  - README.md format list updated.
+  - SKILL.md recipe added.
 
-### M10 exit criteria
+### M11 exit criteria
 
 - All five sub-items ticked.
 - `make check` clean; no race hits; no goroutine leaks.
-- M10 milestone drift check: `formats.Get("pytest")` returns the
-  registered Format; `docs/formats/pytest.md` exists and describes
-  every Event kind the parser emits; SCHEMA.md's pytest kind values
-  list matches the parser's emitted kinds; the eight fixtures live
-  under `internal/formats/pytest/testdata/` with `*.input` +
-  `*.expected` pairs.
-- Pytest is the first format to ship end-to-end. M11 (jest), M12
-  (gotest), and M9 (generic fallback) are scoped after M10 lands so
-  the canonical implementation they copy is real, not aspirational.
+- M11 milestone drift check: `formats.Get("pytest")` returns the
+  registered Format; `docs/formats/pytest.md` exists and
+  describes every Event kind the parser emits; SCHEMA.md's pytest
+  kind values list (`test_failure`, `test_error`,
+  `collection_error`, `warning`) matches the parser's emitted
+  kinds exactly — no extras, no omissions; the eight fixtures
+  live under `internal/formats/pytest/testdata/` with `*.input` +
+  `*.expected` pairs; the SKILL.md pytest recipe is present; the
+  integration suite's pytest end-to-end test passes.
+- M11 is the second format to ship end-to-end after gotest.
+  Confirms the format-test harness extracted in M10.5 generalises
+  beyond Go's shape — pytest's `=== FAILURES ===` block grammar
+  and Python traceback structure are sufficiently different from
+  gotest's `--- FAIL:` blocks that a passing M11 demonstrates the
+  abstraction works.
 
 ---
 
-## M11 — jest format
+## M12 — jest format
 
-- [ ] `internal/formats/jest/jest.go`
-- [ ] `Detect`: `●` markers, `FAIL` / `PASS` line prefixes
-- [ ] Parse failure blocks: test path, description, diff, stack
-- [ ] Snapshot diff handling (multi-line, structured)
-- [ ] Handle `--verbose` and default output
-- [ ] Coverage table suppression
-- [ ] Fixtures: clean, single fail, snapshot mismatch, multiple suites, console.log noise
+The third real format parser, modelled on M10 (gotest) and M11
+(pytest). M12 implements `formats.Format` for jest — detect by jest's
+distinctive `●` failure markers and `FAIL`/`PASS` line prefixes, parse
+per-test failure blocks emitted by the default reporter and the
+`--verbose` reporter, emit one Event per failure (test failure,
+snapshot mismatch, or suite-level error), drop everything else
+(passing tests, coverage tables, console.log noise) on the floor.
+Streaming-first per ARCHITECTURE.md § Pipeline: every Event is
+forwarded as the trailing terminator of its block is consumed; the
+parser never buffers the whole input.
+
+Cross-references
+[ARCHITECTURE.md § Format plugin contract](./ARCHITECTURE.md#format-plugin-contract),
+[docs/formats/SCHEMA.md § Kind values](./docs/formats/SCHEMA.md#kind-values).
+SCHEMA.md already names jest's three Event kinds (`test_failure`,
+`snapshot_mismatch`, `suite_error`); M12 makes them real.
+
+M12 builds on M1 (`Format` interface, `formats.Register`), M3
+(autodetection — jest must return `Confidence=1.0` on a clear marker,
+< 0.6 on ambiguous input), M5 (StackFrame classification — jest
+stacks contain heavy `node_modules/` runs that
+`internal/event/collapse.go` already classifies as vendor; M12 only
+extracts the frames), M7 (the encoders that render jest Events), M9
+(generic remains the fallback if jest's confidence drops below 0.6),
+and the shared format-test harness now in `internal/formats/testing.go`
+(extracted in M9.5, exercised by M10.5 and M11.5). Each item below
+lists Definition of Done, required tests, and required doc updates
+per the [alignment rule](./.opencode/rules/alignment.md).
+
+### M12.1 — `internal/formats/jest/jest.go`: skeleton + Detect
+
+Land the package, register it, and implement `Format.Detect`. No
+parsing yet — `Parse` returns an empty channel — so M3 autodetection
+exercises the new format end-to-end before the heavy parser arrives.
+
+- **DoD:**
+  - New package `internal/formats/jest` exporting `Format` (a value
+    type implementing `formats.Format`, matching the M10/M11 shape).
+  - `func init() { formats.Register(Format{}) }` so the registry
+    picks it up automatically.
+  - `Name() string` returns `"jest"`.
+  - `Detect(sample []byte) Confidence`:
+    - `1.0` when the sample contains either of jest's distinctive
+      markers on a single line:
+      `^\s*● ` (the bullet that prefixes every failure block in the
+      default reporter), or
+      `^(PASS|FAIL) ` followed by a path matching jest's per-file
+      summary lines (e.g., `FAIL src/auth.test.js`).
+    - `0.8` when the sample contains a `Tests:` summary line
+      matching `^Tests:\s+\d+ (passed|failed|skipped|total)`
+      together with at least one mention of `jest` or a
+      `.test.js`/`.test.ts`/`.spec.js`/`.spec.ts` filename.
+    - `0.0` otherwise.
+    - The constants live as package-level
+      `confidenceClearMarker = 1.0` and `confidenceFuzzy = 0.8`
+      matching the M10 / M11 precedent.
+  - **Confidence-tie precedence.** Jest's `FAIL` prefix is generic
+    enough that other test runners (e.g., `mocha --reporter min`)
+    could emit similar lines. To avoid ties on ambiguous samples,
+    the Detect path requires the `FAIL`/`PASS` line to be followed
+    by a token that looks like a file path (contains `/` or `\` or
+    ends in `.test.{js,ts,jsx,tsx}`/`.spec.{js,ts,jsx,tsx}`). This
+    constraint is documented in the package godoc and verified by
+    `TestJest_DetectFailRequiresPathToken`.
+  - `Parse(ctx, r, opts)` returns an immediately-closed channel
+    with `nil` error for M12.1; M12.2–M12.4 fill it in. The early
+    stub lets autodetect and CLI plumbing work against jest before
+    the real parser lands.
+- **Tests** (`internal/formats/jest/jest_test.go`):
+  - `TestJest_DetectBulletMarker`: feed a sample containing
+    `  ● Auth › login redirects to dashboard`; assert
+    `Confidence == 1.0`.
+  - `TestJest_DetectFailWithPath`: feed `FAIL src/auth.test.js`;
+    assert `Confidence == 1.0`.
+  - `TestJest_DetectFailRequiresPathToken`: feed `FAIL: rebooting`
+    (a plain `FAIL` line with no path token); assert
+    `Confidence < 1.0` so the format doesn't claim arbitrary
+    output.
+  - `TestJest_DetectFuzzy`: feed `Tests: 1 failed, 2 passed, 3
+    total` plus a fragment mentioning `auth.test.js`; assert
+    `Confidence == 0.8`.
+  - `TestJest_DetectNegative`: feed unrelated text (a Go build
+    log); assert `Confidence == 0.0`.
+  - `TestJest_RegisteredAtInit`: import the package for its side
+    effect, then call `formats.Get("jest")` and assert
+    `(format, true)`.
+  - `TestJest_ParseEmptyStub`: ensure `Parse` returns a closed
+    channel without error so M3 detection paths work end-to-end
+    against the stubbed parser.
+- **Docs:**
+  - Godoc on `Format`, `Detect`, `Parse`, and the confidence
+    constants.
+  - New `docs/formats/jest.md` with the section skeleton (intro,
+    detection markers, what's extracted, what's dropped, example
+    I/O). M12.1 fills in detection + intro; M12.2–M12.4 extend.
+  - Update [README.md](./README.md) format list to mention `jest`
+    as "detect-only, parser lands in M12.2" for M12.1; M12.5
+    promotes it to "shipped".
+
+### M12.2 — Parse failure blocks (test_failure)
+
+The common case: a default-reporter failure block runs from a `●`
+line to the next `●` line, the next file's `PASS`/`FAIL` header, or
+the trailing `Tests: ... summary` block. The parser emits one Event
+per failure with `Severity=SeverityError`, `Kind=test_failure`.
+
+- **DoD:**
+  - The parser is a `bufio.Scanner`-driven state machine over
+    `r io.Reader`. No buffering of the whole input: as soon as a
+    block's terminating delimiter (next `●`, file header,
+    `Test Suites:` summary, or EOF) is consumed, the in-flight
+    Event is forwarded.
+  - State machine states:
+    `stateRunning` (initial; lines before the first `●` or `FAIL`
+    are discarded), `stateFailureHeader` (consuming the
+    `  ● Suite › Test name` line and any continuation lines that
+    describe the failure path), `stateFailureBody` (accumulating
+    body lines until the block terminator), `stateSummary`
+    (everything after `Test Suites:` / `Tests:` lines is
+    discarded).
+  - **Per-Event shape:**
+    - `Severity = SeverityError`.
+    - `Kind = "test_failure"` for ordinary failures.
+    - `Title` = the first non-blank body line that looks like an
+      assertion message: `expect(...).toBe(...)`,
+      `AssertionError`, `Error: ...`, or `Expected:`/`Received:`
+      pair. Falls back to the trimmed `●` header line when no
+      assertion is found.
+    - `Location` = best-effort file:line extracted from the
+      stack-frame block (the indented `at` lines at the bottom of
+      the failure). Same heuristic as M9.2's location-extraction:
+      path must contain `/` or `\` to avoid `host:port` collisions.
+      Nil if no stack frame is present.
+    - `Body` = the verbatim block lines from the `●` header to the
+      block terminator, ANSI escape sequences stripped from the
+      Title only (Body retains ANSI so the user sees what jest
+      actually emitted; same rule as M9.2).
+    - `Metadata["test_id"]` = the dot-joined test path extracted
+      from the `●` header (e.g., `Auth › login redirects to
+      dashboard` → `"Auth > login redirects to dashboard"`). The
+      Unicode `›` is normalised to `>` so the value is grep-able.
+    - `Metadata["suite_file"]` = the file path from the most
+      recent `FAIL <path>` header, when known.
+    - Frame extraction lives in M12.4; for M12.2 `Frames` stays
+      nil.
+  - **What's dropped.** Passing tests (`✓` lines, `PASS` headers,
+    `console.log` output between tests, coverage tables under
+    `--coverage`, the final timing line). The parser never emits
+    Events for any of these.
+  - **Streaming.** Each failure Event is forwarded as soon as its
+    block terminator is consumed.
+  - **Backpressure.** The parser's send blocks on a slow
+    downstream stage; pipeline `BufferSize` is the only buffer.
+  - **Cancellation.** Each loop iteration checks `ctx.Done()`
+    before reading the next line and before sending an Event.
+- **Tests** (extends `jest_test.go`):
+  - `TestJest_ParseSingleFailure`: fixture with one failing test;
+    assert one Event with the expected title, test_id metadata,
+    body, location.
+  - `TestJest_ParseMultiFailure`: three failures across two
+    files; three Events with correct `suite_file` metadata on
+    each.
+  - `TestJest_ParseSkipsPassing`: fixture with one pass and one
+    fail; only the fail emits an Event.
+  - `TestJest_ParseDropsCoverageTable`: fixture with a coverage
+    table appended after `Test Suites: 1 failed`; assert no
+    coverage rows leak into any Event.
+  - `TestJest_ParseDropsConsoleLog`: fixture with a `console.log`
+    block between a passing test and a failing one; assert no
+    Event for the `console.log` and the failure Event's Body
+    doesn't pick up the log line.
+  - `TestJest_ParseStreaming`: use `testutil.SlowReader` to drip a
+    multi-failure fixture; assert at least one Event arrives
+    before the source closes.
+  - `TestJest_ParseDeterministic`: same input twice → byte-equal
+    sequence of Events.
+  - `TestJest_ParseStripsANSIFromTitle`: feed a `●` block whose
+    assertion line is wrapped in red ANSI escapes; assert the
+    Event's Title is the stripped form.
+  - `TestJest_ParseContextCancellation`: cancel mid-stream;
+    parser drains and exits; no goroutine leak.
+- **Docs:**
+  - Extend `docs/formats/jest.md`: example failure block (default
+    reporter) + the Event it produces, the list of dropped
+    artifacts (coverage, console.log, passing tests), the Unicode
+    `›` → `>` normalisation rule.
+  - No SCHEMA.md change — `test_failure` is already listed under
+    jest's kind values.
+
+### M12.3 — Snapshot mismatch handling (snapshot_mismatch)
+
+Jest's snapshot diffs are multi-line, structured, and high-signal.
+M12.3 detects them, emits a dedicated `snapshot_mismatch` kind so
+downstream consumers can render them specially, and preserves the
+diff in `Body` while extracting a short Title.
+
+- **DoD:**
+  - Inside `stateFailureBody`, when the accumulator sees the
+    line `expect(received).toMatchSnapshot(...)` or
+    `expect(received).toMatchInlineSnapshot(...)` followed by a
+    `Snapshot:` / `Received:` pair, the Event's `Kind` is set to
+    `"snapshot_mismatch"` instead of `"test_failure"`.
+  - `Title` = `Snapshot mismatch: <Snapshot path>` when the
+    snapshot is loaded from a file (jest prints the snapshot key
+    on the `Snapshot name:` line); falls back to `Snapshot
+    mismatch` when no name is printed (inline-snapshot case).
+  - **Snapshot block accumulation.** After a `Snapshot:` line is
+    matched, the accumulator captures every subsequent indented
+    line (`+`-prefixed and `-`-prefixed diff lines plus context
+    lines) until the indent drops back to the failure-block
+    baseline or the block terminator fires. The captured diff
+    becomes part of `Body` verbatim — no parsing or normalisation,
+    so the downstream consumer can render or diff it as-is.
+  - **`Metadata["snapshot_kind"]`** = `"file"` or `"inline"`,
+    distinguishing `toMatchSnapshot` from `toMatchInlineSnapshot`.
+  - **Max diff lines.** Hard cap at `maxSnapshotLines = 200` to
+    keep memory bounded under adversarial input. When the cap
+    fires, the last Body line is the sentinel `... [snapshot
+    truncated]` (parallel to M9.3's block-overflow handling). A
+    `Metadata["snapshot_truncated"] = "true"` field flags the
+    case so encoders can render it. The cap is a package-level
+    constant.
+  - **Frames** are still extracted from the stack at the tail of
+    the block (M12.4 wires the actual extraction); for M12.3 the
+    Frames slice may be nil — snapshot mismatches usually have a
+    stack pointing into jest internals which the M5 collapse
+    stage handles.
+- **Tests:**
+  - `TestJest_ParseSnapshotMismatch`: fixture with a single
+    `toMatchSnapshot` failure; assert
+    `Kind="snapshot_mismatch"`, `metadata.snapshot_kind="file"`,
+    Body contains every diff line.
+  - `TestJest_ParseInlineSnapshotMismatch`: fixture with a
+    `toMatchInlineSnapshot` failure; assert
+    `metadata.snapshot_kind="inline"` and the Title falls back to
+    the generic form.
+  - `TestJest_ParseSnapshotMaxLines`: synthesise a fixture with a
+    250-line snapshot diff; assert Body has exactly 200 lines
+    plus the truncation sentinel, and
+    `metadata.snapshot_truncated == "true"`.
+  - `TestJest_ParseSnapshotAndOrdinaryFailure`: fixture with one
+    snapshot mismatch and one ordinary assertion failure; assert
+    two Events with the correct distinct Kinds in source order.
+- **Docs:**
+  - Extend `docs/formats/jest.md` with the snapshot section: how
+    a snapshot block is recognised, file vs inline, the
+    truncation rule, the `snapshot_kind` and
+    `snapshot_truncated` metadata fields.
+  - No SCHEMA.md change — `snapshot_mismatch` is already listed
+    under jest's kinds. M12.3 ensures the parser emits it.
+
+### M12.4 — Stack frame extraction, suite_error, and reporter modes
+
+Populate `Event.Frames` from the trailing stack-frame block, emit
+`suite_error` for failures that occur outside any test (top-level
+imports, `beforeAll` hooks, file-load syntax errors), and handle the
+`--verbose` reporter and CI reporter modes uniformly.
+
+- **DoD:**
+  - **Frame extraction.** After a block terminates (failure,
+    snapshot, or suite error), a single regex sweeps the captured
+    Body for lines matching
+    `^\s+at\s+(?P<fn>[^(]+)\s+\((?P<path>[^:]+):(?P<line>\d+):(?P<col>\d+)\)$`
+    (jest's standard frame shape) and
+    `^\s+at\s+(?P<path>[^:]+):(?P<line>\d+):(?P<col>\d+)$` (no
+    function name, common in async or bundled output). One
+    `StackFrame` per match. `Vendor` is left false — the M5
+    CollapseStage's `ClassifyFrames` re-populates it via the
+    `node_modules/` pattern catalogue.
+  - **Frames are emitted only when at least one line matches;**
+    otherwise `Frames` stays nil. This matches the M10/M11 rule
+    so encoders see consistent shape across formats.
+  - **`suite_error` kind.** When the parser sees an `●` header
+    whose path is the file itself (no test-name continuation) or
+    the special heading `● Test suite failed to run`, the Event's
+    `Kind` is set to `"suite_error"` rather than `"test_failure"`.
+    `Metadata["test_id"]` is absent in this case (there is no
+    individual test); `Metadata["suite_file"]` carries the file
+    path.
+  - **Reporter modes:**
+    - **Default reporter:** the canonical shape M12.2 targets.
+    - **`--verbose` reporter:** adds `✓` / `✗` lines per test
+      before the summary; the parser still anchors on `●` markers
+      and ignores the per-test indicator lines.
+    - **`--ci` / `--reporters=default` CI mode:** drops colours
+      (no ANSI), wraps lines differently. The ANSI strip is a
+      no-op; line wrapping is handled because the state machine
+      keys off content markers (`●`, `FAIL`, `Snapshot:`), not
+      column positions. M12.4 captures fixtures for both modes
+      so the test suite locks the behaviour.
+    - **JSON reporter (`--json` / `--reporters=jest-json`)** is
+      out of scope for v1 — it's a different format (structured
+      JSON, no terminal output). M12 documents the gap; v1.1 can
+      pick it up if demand surfaces.
+- **Tests:**
+  - `TestJest_ParseExtractsFrames`: a default-reporter failure
+    fixture; assert the Event's `Frames` has at least one entry
+    whose File/Line match the bottom traceback frame.
+  - `TestJest_ParseFramesEmptyOnLineOnly`: a failure block whose
+    stack has been suppressed (jest's `--noStackTrace`); assert
+    `Frames == nil` and the failure Event still emits with its
+    Title and Body.
+  - `TestJest_ParseSuiteError`: fixture with a `● Test suite
+    failed to run` block produced by a `require` error in the
+    test file; assert one Event with `Kind="suite_error"`,
+    `suite_file` populated, `test_id` absent.
+  - `TestJest_ParseVerboseSameAsTerse`: same logical failure as
+    `TestJest_ParseSingleFailure` but rendered with `--verbose`;
+    assert the Events emitted are identical to the terse form
+    (modulo content order — the verbose reporter adds `✓`/`✗`
+    lines that the parser drops).
+  - `TestJest_ParseCIReporter`: same fixture rendered in CI mode
+    (no ANSI); assert identical Events to the default rendering.
+- **Docs:**
+  - Extend `docs/formats/jest.md`: the three reporter modes side
+    by side, frame-extraction rule, when `Frames` is populated vs
+    nil, the `suite_error` example, the explicit out-of-scope
+    note for `--json`.
+
+### M12.5 — Fixtures, ARCHITECTURE update, and integration coverage
+
+Tie M12 off with the canonical fixture set per
+[CONTRIBUTING.md § Adding a format](./CONTRIBUTING.md#adding-a-format),
+the format-list update, and the third positive end-to-end
+integration test (mirroring M10.5 and M11.5; addresses
+[KNOWN_ISSUES.md § 6](./KNOWN_ISSUES.md) for jest).
+
+- **DoD:**
+  - Eight fixtures under `internal/formats/jest/testdata/`,
+    matching the v1 design's minimum for a real format:
+    `clean.input` (all green, parser emits nothing),
+    `single-fail.input`,
+    `multi-suite-fail.input` (two `FAIL` files, three failures
+    total),
+    `snapshot-mismatch.input` (file-based snapshot),
+    `inline-snapshot-mismatch.input` (inline snapshot),
+    `suite-error.input` (require-time failure),
+    `verbose.input` (default failure but rendered with
+    `--verbose` so the `✓`/`✗` lines exercise the parser's
+    drop-rule),
+    `console-log-noise.input` (failure with interleaved
+    `console.log` output that must not leak into the Event).
+  - Each `.input` has a `.expected` companion in the JSON shape
+    the shared harness reads (the harness already lives in
+    `internal/formats/testing.go` from M9.5).
+  - The harness supports `go test -update ./...` to regenerate
+    fixtures.
+  - ARCHITECTURE.md format list updated to mention `jest` as
+    "shipped" rather than "planned".
+  - `formats.All()` (after the side-effect import) includes jest
+    in alphabetical position — verified by extending
+    `cmd/distill-ai/list_formats_test.go`.
+  - README format list updated alongside ARCHITECTURE.
+  - `.opencode/skills/distill-output/SKILL.md` gains a "Distil a
+    jest run" recipe paralleling the M10/M11 recipes, per
+    [CONTRIBUTING.md § Adding a format step 10](./CONTRIBUTING.md#adding-a-format).
+  - **Integration suite** gains a `jest-fail.input` fixture (new
+    — the integration testdata does not yet carry one) and a
+    `TestBinary_JestEndToEndProducesOutput` test mirroring the
+    M10 and M11 patterns. Closes
+    [KNOWN_ISSUES.md § 6](./KNOWN_ISSUES.md) for jest.
+- **Tests:**
+  - `TestJest_Goldens`: harness walks `testdata/`, runs the
+    parser on each `.input`, marshals Events to JSON, diffs
+    against `.expected`. Run with `-update` to regenerate.
+  - `TestJest_FixtureCount`: hard assertion that exactly the
+    eight enumerated fixtures exist, so future drift is caught.
+  - `TestBinary_JestEndToEndProducesOutput` (integration suite,
+    per the DoD).
+- **Docs:**
+  - `docs/formats/jest.md` finalised: detection markers, every
+    parsed event kind with an example, what's dropped, the
+    `--json` out-of-scope note, the eight fixtures referenced by
+    file name.
+  - ARCHITECTURE.md updated per DoD.
+  - README.md format list updated.
+  - SKILL.md recipe added.
+
+### M12 exit criteria
+
+- All five sub-items ticked.
+- `make check` clean; no race hits; no goroutine leaks.
+- M12 milestone drift check: `formats.Get("jest")` returns the
+  registered Format; `docs/formats/jest.md` exists and describes
+  every Event kind the parser emits; SCHEMA.md's jest kind values
+  list (`test_failure`, `snapshot_mismatch`, `suite_error`)
+  matches the parser's emitted kinds exactly — no extras, no
+  omissions; the eight fixtures live under
+  `internal/formats/jest/testdata/` with `*.input` + `*.expected`
+  pairs; the SKILL.md jest recipe is present; integration suite's
+  jest end-to-end test passes.
+- M12 completes the v1 specific-format set (gotest, pytest, jest).
+  Combined with M9's generic fallback, every input shape the v1
+  scope targets is now covered. M13 layers envelope handling on
+  top so CI-wrapped versions of all three formats parse cleanly.
 
 ---
 
-## M12 — go test format
+## M13 — Envelope stripper
 
-- [ ] `internal/formats/gotest/gotest.go`
-- [ ] `Detect`: `--- FAIL:`, `FAIL\t<pkg>` markers
-- [ ] Parse `--- FAIL: TestName (Xs)` blocks
-- [ ] Parse panic blocks (separate event kind)
-- [ ] Parse build failures (separate event kind)
-- [ ] Handle `-json` mode (already structured, but distill removes noise)
-- [ ] Handle `-v` and non-`-v`
-- [ ] Race detector output: extract race report as single event
-- [ ] Fixtures: pass, single fail, panic, build error, race, subtests, table-driven
+A pre-processing decorator that strips wrapper-level metadata from
+input bytes before format autodetection runs, and surfaces wrapper-
+level signals as their own Events. The canonical use case is CI logs
+— GitHub Actions, GitLab CI — where the real command output is
+wrapped in per-line timestamps, group markers, and severity envelope
+commands. The design is deliberately not CI-specific: anything that
+decorates command output with per-line orchestrator metadata
+(Docker buildkit prefixes, systemd `journal` envelope, `tee`-style
+wrappers, future-unknown orchestrators) fits the same shape.
+
+The envelope stripper sits **before** detection in the pipeline:
+input → envelope detection → envelope stripping → format autodetect
+→ Format.Parse. Inner-format detection runs against the cleaned
+bytes, so a GitHub Actions log wrapping `go test` output detects as
+gotest with `Confidence=1.0`, not as some new "github-actions"
+format. Wrapper-level signals (a `##[error]` line outside any
+group; a failed-step boundary) become Events with their own Kind so
+downstream consumers can route on them.
+
+Cross-references
+[ARCHITECTURE.md § Autodetection](./ARCHITECTURE.md#autodetection)
+(the stripper sits before the existing detector),
+[ARCHITECTURE.md § Pipeline](./ARCHITECTURE.md#pipeline) (the
+stripper is a new `Source` decorator concept, parallel to but
+distinct from `Stage`),
+[docs/formats/SCHEMA.md § Kind values](./docs/formats/SCHEMA.md#kind-values)
+(M13 adds a new `envelope` kind family).
+
+M13 builds on M1, M3, M5, M7, M9, M10, M11, M12. Each item below
+lists Definition of Done, required tests, and required doc updates
+per the [alignment rule](./.opencode/rules/alignment.md).
+
+### M13.1 — `internal/envelope/envelope.go`: stripper interface and skeleton
+
+Define the `Stripper` concept and land an empty default
+implementation. Detection plumbing happens in M13.2; envelope-
+specific implementations in M13.3 / M13.4.
+
+- **DoD:**
+  - New package `internal/envelope` exporting:
+    - `Stripper` interface with three methods:
+      `Name() string` (e.g., `"github-actions"`, `"gitlab-ci"`),
+      `Detect(sample []byte) Confidence` (uses the same
+      Confidence type from `internal/event`; ≥ 0.6 wins),
+      `Strip(ctx, r io.Reader) (cleaned io.Reader, signals <-chan event.Event, err error)`.
+      `Strip` returns a Reader yielding the input with envelope
+      metadata removed, plus a channel of envelope-level Events
+      the stripper synthesises (e.g., a `##[error]` line becomes
+      one Event with `Kind="envelope_error"`).
+    - `Register(s Stripper)` and `All() []Stripper` mirroring the
+      `formats` registry shape. `Get(name)` for lookup. Same
+      thread-safety (RWMutex) and alphabetical-sort guarantees.
+    - A `Noop` Stripper that returns the input Reader unchanged
+      and closes the signals channel immediately. Used as the
+      explicit "no envelope" choice when `--strip-envelope=none`
+      is passed.
+  - **Decorator placement.** A new function
+    `envelope.Wrap(ctx, r io.Reader, opts Options) (cleaned io.Reader, signals <-chan event.Event, chosen Stripper, err error)`
+    runs envelope detection against the first 4 KiB of `r` (via
+    the existing `TeeReader` sample pattern) and returns either
+    the matching Stripper's `Strip` output or the `Noop` output.
+    `Options` carries the user's `--strip-envelope` choice
+    (`auto` | `none` | a specific name).
+  - **Streaming.** `Strip` is required to be streaming: the
+    returned Reader must produce cleaned output incrementally as
+    input arrives. No full-input buffering. The signals channel
+    is bounded (default capacity 16, matching the pipeline's
+    `BufferSize`); a slow consumer applies backpressure to the
+    stripper.
+  - **Signal Events**. Envelope strippers emit Events with the
+    new `Kind` values:
+    - `envelope_error` — wrapper-level error signal (GitHub
+      `##[error]`, GitLab `section_end` with non-zero exit).
+    - `envelope_warning` — wrapper-level warning
+      (`##[warning]`, similar GitLab patterns).
+    - `envelope_step_failure` — a named job step / section
+      ended with a non-zero exit code; Title carries the step
+      name, Metadata["step"] and Metadata["exit_code"] are set.
+    - All envelope signal Events have `Severity=SeverityError`
+      for `envelope_error` and `envelope_step_failure`,
+      `SeverityWarn` for `envelope_warning`.
+  - **No format coupling.** The envelope package imports
+    `internal/event` for the Event/Severity types only. It must
+    not depend on `internal/formats` or `internal/detect`;
+    wiring lives in `cmd/distill-ai/run.go` and
+    `internal/pipeline/build.go` (M13.5).
+- **Tests** (`internal/envelope/envelope_test.go`):
+  - `TestEnvelope_RegisterAndGet`: stub Stripper registers and
+    looks up.
+  - `TestEnvelope_DuplicateRegisterPanics`: programmer-error
+    guard parallel to `formats.Register`.
+  - `TestEnvelope_AllIsSorted`: alphabetical determinism.
+  - `TestEnvelope_NoopStripPassesThroughBytes`: `Noop.Strip`
+    returns a Reader whose contents byte-equal the input.
+  - `TestEnvelope_NoopSignalsChannelClosesImmediately`: the
+    signals channel from `Noop.Strip` closes without sending
+    any Events, and a downstream goroutine reading from it
+    doesn't leak.
+  - `TestEnvelope_WrapAutoChoosesHighestConfidence`: register
+    two stub Strippers with different confidences against the
+    same sample; assert the higher one is chosen.
+  - `TestEnvelope_WrapNoneForcesNoop`: even with a Stripper
+    that would claim the sample, `Options{Choice: "none"}`
+    forces `Noop`.
+- **Docs:**
+  - Godoc on `Stripper`, `Wrap`, `Register`, `Noop`, `Options`,
+    each envelope Event kind constant.
+  - New `docs/envelope.md` with an overview: what envelopes are,
+    why they're decorators not formats, the streaming contract,
+    the signal-Event Kinds. M13.3 and M13.4 extend with
+    per-implementation sections.
+  - Update [ARCHITECTURE.md § Autodetection](./ARCHITECTURE.md#autodetection)
+    to describe the new pre-detection step.
+  - Update [docs/formats/SCHEMA.md § Kind values](./docs/formats/SCHEMA.md#kind-values):
+    new section "Envelope kinds" listing `envelope_error`,
+    `envelope_warning`, `envelope_step_failure` as additive
+    kinds (no schema_version bump per the additive-change rule).
+
+### M13.2 — `--strip-envelope` CLI flag and pipeline wiring
+
+Expose envelope handling on the CLI and wire it into the pipeline
+between input and detection. M13.2 lands the flag plus the no-op
+behaviour change (no Strippers are registered yet, so the flag's
+default is a no-op until M13.3).
+
+- **DoD:**
+  - New flag `--strip-envelope=auto|none|<name>` on the `run`
+    and `explain` subcommands. Default `auto`.
+  - Flag wiring in `cmd/distill-ai/run.go` constructs
+    `envelope.Options{Choice: <flag value>}` and passes it to a
+    new `envelope.Wrap` call **before** `detect.Detect`.
+  - `pipeline.Build` (in `internal/pipeline/build.go`) gains a
+    new optional `EnvelopeSignals <-chan event.Event` field on
+    `Options`. When non-nil, `Build` constructs a fan-in stage
+    that merges envelope signals with the format Parser's
+    Events before either reaches the rest of the pipeline. The
+    fan-in preserves arrival order across the two streams.
+  - Envelope signals participate in the same downstream stages
+    as parser Events (Collapse, Dedupe, Budget). Their Kinds
+    (`envelope_error`, etc.) flow through to encoders without
+    special-casing.
+  - **`--from-ci` is NOT a flag** — the previous design draft
+    used that name; the renamed `--strip-envelope=auto|...`
+    flag is the only form. Documented in the flag help text and
+    the CONTRIBUTING.md flag-policy reasoning.
+  - The SKILL.md `cli-surface` manifest is updated in the same
+    commit; the integration suite's
+    `TestSkill_DocumentsCurrentCLISurface` test fails loudly
+    otherwise.
+- **Tests:**
+  - `TestRun_StripEnvelopeAutoNoStrippers` (in
+    `cmd/distill-ai/run_test.go`): with no registered Strippers,
+    `--strip-envelope=auto` acts as `none`; the pipeline
+    behaves identically to today.
+  - `TestRun_StripEnvelopeNoneSkipsLookup`: explicit `none`
+    short-circuits even if a future Stripper would have matched
+    (uses a registered stub Stripper that would claim the
+    sample).
+  - `TestRun_StripEnvelopeNameSelectsExplicit`: explicit
+    `<name>` bypasses detection and uses the named Stripper
+    directly; unknown name returns exit 2.
+  - `TestBuild_EnvelopeSignalsMergedIntoStream`: pipeline-level
+    test that signals delivered on `Options.EnvelopeSignals`
+    appear in the Sink's output stream alongside parser Events,
+    in arrival order.
+- **Docs:**
+  - Update SKILL.md `cli-surface` manifest with
+    `--strip-envelope`.
+  - Update README.md flag list and the `run --help` text.
+  - Update [ARCHITECTURE.md § Flags](./ARCHITECTURE.md#flags)
+    with the new flag entry.
+  - Extend `docs/envelope.md` with the CLI section.
+
+### M13.3 — GitHub Actions stripper
+
+Implement the first concrete `Stripper` for GitHub Actions logs.
+
+- **DoD:**
+  - New `internal/envelope/githubactions/` package with one file:
+    `githubactions.go`. `func init() { envelope.Register(Stripper{}) }`.
+  - `Name() string` returns `"github-actions"`.
+  - `Detect(sample []byte) Confidence`:
+    - `1.0` when the sample contains a line starting with
+      `##[group]`, `##[error]`, `##[warning]`, `##[debug]`,
+      `##[notice]`, or `::set-output ` (legacy).
+    - `0.8` when the sample contains a per-line RFC3339-Z
+      timestamp prefix matching `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z `
+      on at least 3 of the first 10 non-blank lines.
+    - `0.0` otherwise.
+  - `Strip` performs three transformations:
+    1. **Timestamp strip:** lines beginning with the
+       RFC3339-Z prefix have the prefix removed.
+    2. **Group folding:** `##[group]NAME` and `##[endgroup]`
+       lines are removed from output. Group nesting is tracked
+       in state (max depth 8, defensive cap).
+    3. **Signal extraction:** `##[error]`, `##[warning]`,
+       `##[notice]` lines produce envelope signal Events
+       (not forwarded to the cleaned Reader) with the
+       documented Kinds; the message after the marker becomes
+       the Title.
+  - **Step-failure detection.** A workflow step that fails
+    emits `##[error]Process completed with exit code N.` as
+    its terminal line. M13.3 maps this specific pattern to
+    `envelope_step_failure` with
+    `Metadata["exit_code"] = "N"`; the step name is recovered
+    from the most recent `##[group]NAME` seen in scope.
+  - ANSI escape sequences in input are left for the inner
+    format to handle (every existing format already strips ANSI
+    from Title where needed). The envelope stripper does not
+    re-ANSI-strip.
+- **Tests:**
+  - `TestGHA_DetectGroupMarker`: clear group marker → 1.0.
+  - `TestGHA_DetectTimestampHeuristic`: only timestamps, no
+    workflow commands → 0.8.
+  - `TestGHA_StripTimestamps`: input with timestamped lines →
+    cleaned output has timestamps removed.
+  - `TestGHA_StripGroupMarkers`: `##[group]/##[endgroup]`
+    removed; group depth tracked.
+  - `TestGHA_ErrorSignalEmitted`: `##[error]X` produces one
+    envelope_error Event with Title `X`.
+  - `TestGHA_StepFailureSignal`: a `Process completed with
+    exit code 1.` line emits one `envelope_step_failure` Event
+    with `exit_code="1"` and `step` set to the surrounding
+    group name.
+  - `TestGHA_StripPreservesInnerFormatBytes`: feed a real
+    `gotest`-wrapped fixture; assert the cleaned output
+    detects as gotest with `Confidence=1.0` via the same
+    `detect.Detect` the production binary uses.
+  - `TestGHA_StreamingStripsIncrementally`: use
+    `testutil.SlowReader` to verify cleaned output appears
+    before EOF.
+- **Docs:**
+  - Godoc on `Stripper`, `Detect`, `Strip`.
+  - Extend `docs/envelope.md` with the GitHub Actions section:
+    workflow command catalogue, what's stripped, what becomes
+    a signal, example I/O.
+
+### M13.4 — GitLab CI stripper
+
+Parallel to M13.3 for GitLab CI logs.
+
+- **DoD:**
+  - New `internal/envelope/gitlabci/` package with one file:
+    `gitlabci.go`. `func init() { envelope.Register(Stripper{}) }`.
+  - `Name() string` returns `"gitlab-ci"`.
+  - `Detect(sample []byte) Confidence`:
+    - `1.0` when the sample contains a line matching
+      `^section_start:\d+:[a-z0-9_]+\r?$` or
+      `^section_end:\d+:[a-z0-9_]+\r?$` (GitLab's CR-terminated
+      section envelope markers).
+    - `0.8` when the sample contains ANSI colour escapes
+      densely (≥ 5 distinct CSI sequences in the first 1 KiB)
+      combined with a `Running with gitlab-runner ` line —
+      the standard GitLab CI runner banner.
+    - `0.0` otherwise.
+  - `Strip` performs:
+    1. **Section folding:** `section_start:NS:NAME` and
+       `section_end:NS:NAME` lines removed; section names
+       tracked to attribute step-failure signals.
+    2. **CR strip:** lines ending in `\r\n` are normalised to
+       `\n` (GitLab uses `\r` to overwrite progress indicators
+       in interactive runners; the inner format usually doesn't
+       care, but distill-ai's downstream encoders are happier
+       with normalised line endings).
+    3. **Signal extraction:** the line
+       `ERROR: Job failed: exit code N` (the GitLab runner's
+       canonical job-failure line) emits one
+       `envelope_step_failure` Event with the current
+       section's name and the exit code in metadata.
+  - **No timestamp strip needed** — GitLab CI doesn't
+    prefix per-line timestamps by default. If a runner config
+    enables them, the inner format handles them (timestamps
+    that happen to land in the input look like ordinary line
+    prefixes to gotest / pytest / jest and don't anchor any
+    Event).
+- **Tests:**
+  - `TestGitLab_DetectSectionMarker`: clear section marker → 1.0.
+  - `TestGitLab_DetectRunnerBanner`: banner + dense ANSI → 0.8.
+  - `TestGitLab_StripSectionMarkers`: section markers removed
+    from cleaned output; section name tracked.
+  - `TestGitLab_StripCRLF`: `\r\n` line endings normalised to
+    `\n`.
+  - `TestGitLab_JobFailureSignal`: `ERROR: Job failed: exit
+    code 2` produces an `envelope_step_failure` Event with the
+    current section name and `exit_code="2"`.
+  - `TestGitLab_StripPreservesInnerFormatBytes`: feed a
+    gotest-wrapped fixture; assert the cleaned output detects
+    as gotest.
+  - `TestGitLab_StreamingStripsIncrementally`: as M13.3's
+    streaming test.
+- **Docs:**
+  - Godoc on `Stripper`, `Detect`, `Strip`.
+  - Extend `docs/envelope.md` with the GitLab CI section.
+
+### M13.5 — Fixtures, integration coverage, dogfood recipe
+
+Tie M13 off with fixtures, the integration test, and the SKILL.md
+recipe.
+
+- **DoD:**
+  - Six fixtures under `internal/envelope/testdata/`:
+    `gha-gotest-fail.input` (GHA envelope wrapping a gotest
+    failure),
+    `gha-pytest-fail.input` (GHA + pytest),
+    `gha-step-failure.input` (GHA + a clean inner stream that
+    nevertheless ends with a step-failure marker),
+    `gitlab-gotest-fail.input` (GitLab + gotest),
+    `gitlab-pytest-fail.input` (GitLab + pytest),
+    `gitlab-job-failure.input` (GitLab + clean inner + job
+    failure marker).
+  - Each `.input` has a `.expected` companion in the JSON shape
+    the format-test harness reads. The harness is extended to
+    accept an envelope-test mode that runs `envelope.Wrap`
+    before parsing.
+  - **Integration suite** gains
+    `TestBinary_EnvelopeGHAGotestEndToEnd` and
+    `TestBinary_EnvelopeGitLabGotestEndToEnd`: feed the
+    wrapped gotest fixtures via stdin and assert the
+    distilled output contains the expected inner Event Title
+    plus the envelope_step_failure Title.
+  - ARCHITECTURE.md updated: new section "Envelope handling"
+    under or adjacent to "Autodetection".
+  - README.md gains an "Envelopes" subsection in the format
+    overview.
+  - `.opencode/skills/distill-output/SKILL.md` gains a "Distil
+    a GitHub Actions log" recipe and a "Distil a GitLab CI
+    log" recipe, both showing `gh run view --log | ./bin/distill-ai`
+    and `glab ci trace | ./bin/distill-ai` as the canonical
+    forms.
+- **Tests:**
+  - `TestEnvelope_Goldens`: harness walks `testdata/`, runs
+    `envelope.Wrap` + the relevant inner Format, marshals
+    Events to JSON, diffs against `.expected`.
+  - `TestEnvelope_FixtureCount`: exactly the six enumerated
+    fixtures.
+  - Integration tests per the DoD.
+- **Docs:**
+  - `docs/envelope.md` finalised: overview, the two shipped
+    strippers, the signal Kinds, the six fixtures referenced
+    by file name, examples of `gh run view --log` and `glab ci
+    trace` invocations.
+  - ARCHITECTURE.md updated per DoD.
+  - README.md updated per DoD.
+  - SKILL.md recipes added.
+
+### M13 exit criteria
+
+- All five sub-items ticked.
+- `make check` clean; no race hits; no goroutine leaks.
+- M13 milestone drift check: `envelope.Get("github-actions")` and
+  `envelope.Get("gitlab-ci")` both return registered Strippers;
+  `docs/envelope.md` exists and describes both; SCHEMA.md
+  documents the three envelope kinds; the SKILL.md manifest
+  includes `--strip-envelope`; the SKILL.md recipes cover both
+  envelope sources; the integration suite's envelope tests pass.
+- M13 makes `gh run view --log` and `glab ci trace` first-class
+  distill-ai inputs without changing the format-author contract.
+  Future envelope additions (CircleCI, Buildkite, Docker
+  buildkit, systemd journal) follow the same pattern as M13.3 /
+  M13.4: new package, register a `Stripper`, six fixtures, one
+  integration test. No architectural change required.
 
 ---
 
-## M13 — Config file support
+## M14 — Config file support
 
 - [ ] `internal/config/config.go`: load `.distill-ai.toml` from CWD upward, then `~/.config/distill-ai/config.toml`
 - [ ] Precedence: CLI flag > project config > user config > default
@@ -2175,7 +3412,7 @@ and the format-list update.
 
 ---
 
-## M14 — Library API
+## M15 — Library API
 
 - [ ] `pkg/distill/distill.go`: exported `Distill(ctx, r, opts) (<-chan Event, error)`
 - [ ] Stable public API; document in package godoc
@@ -2184,7 +3421,7 @@ and the format-list update.
 
 ---
 
-## M15 — Documentation
+## M16 — Documentation
 
 - [ ] `man/distill-ai.1` man page generated from cobra
 - [ ] README usage examples expanded with real fixtures
@@ -2196,9 +3433,9 @@ and the format-list update.
 
 ---
 
-## M16 — v1.0 release prep
+## M17 — v1.0 release prep
 
-- [ ] All M0–M15 complete or explicitly deferred
+- [ ] All M0–M16 complete or explicitly deferred
 - [ ] `go test ./...` clean, `golangci-lint run` clean
 - [ ] Cross-compile verified on linux/darwin/windows × amd64/arm64
 - [ ] Binary size budget: ≤6 MB stripped (with tiktoken)
@@ -2218,7 +3455,7 @@ and the format-list update.
 - [ ] `mocha` format
 
 > Compiler / build-error formats (rustc, tsc, gcc) live in
-> [M21](#m21--compiler--build-error-formats) under v1.3 — they
+> [M22](#m22--compiler--build-error-formats) under v1.3 — they
 > overlap with code distillation conceptually and ship in that
 > sequence.
 
@@ -2238,7 +3475,7 @@ and the format-list update.
 
 Extend distill-ai from "distil logs / test output / stack traces" to
 "distil source code too." Same `Event` / `Format` / pipeline machinery
-as M1–M16; each language becomes a Format whose `Detect` matches
+as M1–M17; each language becomes a Format whose `Detect` matches
 files by extension or shebang and whose `Parse` walks an AST instead
 of scanning lines. New `Kind` values land in
 [`docs/formats/SCHEMA.md`](./docs/formats/SCHEMA.md): `package`,
@@ -2247,14 +3484,14 @@ of scanning lines. New `Kind` values land in
 Architectural decision recorded in
 [ADR-0001](./docs/decisions/0001-reject-cgo-tree-sitter-prefer-wasm.md):
 CGo tree-sitter is rejected; WASM tree-sitter via wazero is the
-multi-language path. Go-only (M17) uses the stdlib first to avoid any
+multi-language path. Go-only (M18) uses the stdlib first to avoid any
 dependency until the design proves itself.
 
 Each milestone below ships scoped (DoD, tests, docs) before its
 branch opens, per the
 [scoping convention](#scoping-format).
 
-### M17 — Source-code distillation (Go-only)
+### M18 — Source-code distillation (Go-only)
 
 - [ ] `internal/formats/gocode/`: Go source as a Format using
       `go/parser` from the stdlib
@@ -2267,7 +3504,7 @@ branch opens, per the
       of this codebase
 - [ ] Per-event token cost ≤ 20 tokens for a typical signature
 
-### M18 — Multi-language code distillation (WASM tree-sitter)
+### M19 — Multi-language code distillation (WASM tree-sitter)
 
 - [ ] Add `wazero` dependency, justified per
       [dependencies rule](./.opencode/rules/dependencies.md)
@@ -2281,19 +3518,19 @@ branch opens, per the
       tree-sitter; document the floor in
       [performance rule](./.opencode/rules/performance.md)
 
-### M19 — Agent-read wrapper
+### M20 — Agent-read wrapper
 
 - [ ] CLI mode that takes a file/dir and emits the distilled view
       first, full content on demand
-- [ ] Integrate as an MCP tool exposed via `distill-ai mcp` (M14 /
+- [ ] Integrate as an MCP tool exposed via `distill-ai mcp` (M15 /
       v1.2): `read_distilled(path)` returns symbol summary;
       `read_full(path, ranges?)` returns verbatim bytes
 - [ ] Document the agent-side workflow in
       `docs/integration-agent-reads.md` (how Claude Code / opencode
       can be configured to prefer the distilled read)
-- [ ] Depends on M17 (Go), ideally M18 (other languages)
+- [ ] Depends on M18 (Go), ideally M19 (other languages)
 
-### M20 — AST-aware diff distillation
+### M21 — AST-aware diff distillation
 
 - [ ] Take a unified diff (or `git diff` output) and parse the
       before/after of each hunk through the relevant language Format
@@ -2302,16 +3539,16 @@ branch opens, per the
 - [ ] Non-code text diffs fall back to line-level distillation
 - [ ] Subsumes the backlog `--diff` idea for source files; log diffs
       still use the original line-level approach
-- [ ] Depends on M17/M18
+- [ ] Depends on M18/M19
 
-### M21 — Compiler / build-error formats
+### M22 — Compiler / build-error formats
 
 - [ ] `rustc` / `cargo` output as a Format
 - [ ] `tsc` output as a Format
 - [ ] `go build` output as a Format (currently overlaps with `gotest`;
       decide whether to merge or split)
 - [ ] `gcc` / `clang` output as a Format
-- [ ] Independent of M17–M20 architecturally; this is "more formats"
+- [ ] Independent of M18–M21 architecturally; this is "more formats"
       in the v1.1 sense, but listed here because compiler errors
       reference source positions and benefit from the same per-event
       structure code distillation defines

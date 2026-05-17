@@ -152,10 +152,14 @@ proves the binary boots, parses argv, separates stdout/stderr, and
 respects the SKILL.md manifest. It does **not** prove that
 `cmd | distill-ai > out.txt` ever produces a non-empty `out.txt`.
 
-M9.5 / M10.5 / M11.5 each have a bullet about "positive-detection
-assertion replacing the pre-format no-match path" — but only for the
-`detect` subcommand. None has a bullet for "exit 0 + non-empty
-distilled stdout from `run`."
+After the M10/M11/M12 reordering (gotest first, pytest second, jest
+third), each format milestone's `.5` sub-item now carries an explicit
+`TestBinary_<Format>EndToEndProducesOutput` bullet — M10.5 for
+gotest, M11.5 for pytest, M12.5 for jest. M9.5 (generic) is the
+remaining gap: its DoD covers replacing the
+`TestBinary_DetectGotest...FallsThrough` assertions but doesn't
+explicitly add a positive-distillation test for generic-fallback
+input.
 
 **Why it matters.** The integration suite is the only test layer
 that exercises argv → cobra → run → pipeline → sink end-to-end. The
@@ -164,14 +168,17 @@ proved at that boundary, not just in unit tests. Drift between the
 pipeline assembly logic in `cmd/distill-ai/run.go` and the in-process
 unit tests is the kind of bug that integration tests exist to catch.
 
-**Owning milestone.** Each of M9.5, M10.5, M11.5.
+**Owning milestone.** M9.5 (the remaining gap; M10.5/M11.5/M12.5
+already carry the bullet after the reordering).
 
-**Recommendation.** Add to each milestone's M*.5 sub-item:
-`TestBinary_<Format>EndToEndProducesOutput` in
-`test/integration/integration_test.go`. Feed the canonical fixture in
-via stdin, assert exit 0 and a substring of the expected Event title
-appears on stdout. One test per format. Cumulative cost: a handful
-of seconds in CI; coverage gain: large.
+**Recommendation.** Add to M9.5: `TestBinary_GenericEndToEndProducesOutput`
+in `test/integration/integration_test.go`. Feed
+`test/integration/testdata/fixtures/plaintext.input` (or a new
+fixture with a `ERROR:` line) via stdin, assert exit 1 (because the
+generic fallback produces output but might have no high-severity
+events depending on the fixture) or 0 (with events) — pick the
+fixture so the expected exit code is unambiguous — and a substring of
+the expected Event title appears on stdout.
 
 ## 7. `Source` interface mid-stream error contract is broken
 
@@ -193,11 +200,12 @@ no second error return path on the channel.
 "emit-then-close on EOF / ctx-cancel; never error mid-stream"
 because pytest / jest / generic all parse text-shaped input where
 errors degrade to a best-effort Event rather than a hard stop.
-M12's gotest is different: a `-json` mid-stream protocol error or a
-malformed build-failure block is a genuine reason to surface an error
-that's currently invisible.
+M10's gotest is different: the `-json` mode (M10.4) consumes a
+structured JSON-per-line protocol where a mid-stream JSON parse
+error or a malformed build-failure block is a genuine reason to
+surface an error that's currently invisible.
 
-**Owning milestone.** M12 (gotest) when scoped.
+**Owning milestone.** M10.4 (gotest `-json` mode handling).
 
 **Recommendation.** Two options:
 
@@ -206,12 +214,15 @@ that's currently invisible.
    unrecoverable failure. Convert non-fatal problems to a
    best-effort Event with `Severity=SeverityError` and continue."
    Matches what every existing parser does; aligns the spec with
-   reality. Zero code change.
+   reality. Zero code change. M10.4's `-json` parse errors would
+   emit a best-effort `Event{Kind:"json_parse_error"}` and continue
+   to the next line.
 2. **Widen the contract.** Add a side-channel error return — either
    a `<-chan error` alongside the event channel, or fold the error
    into a sentinel Event with a reserved `Kind`. Code change in
    `Pipeline.Run` and every Source implementation.
 
 The first option is the lower-cost answer and probably the right one
-for v1. Defer the decision to M12 scoping; pre-decide here that the
-default is option 1 unless M12 surfaces a concrete need for option 2.
+for v1. Defer the decision to M10.4 implementation time; pre-decide
+here that the default is option 1 unless M10.4 surfaces a concrete
+need for option 2.
