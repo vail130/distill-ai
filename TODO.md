@@ -1149,7 +1149,7 @@ Promote the cross-cutting invariants to single-source-of-truth tests.
 
 ---
 
-## M8 — CLI surface
+## M8 — CLI surface ✅
 
 Final user-facing surface: flag parsing, subcommand dispatch, file vs
 stdin input, exit-code mapping. Everything M0–M7 built is hidden from
@@ -1358,7 +1358,7 @@ root and adds flags.
 - **Docs:** Help text update; ARCHITECTURE.md detect subcommand
   section already documents the behaviour.
 
-### M8.6 — `explain FILE` subcommand
+### M8.6 — `explain FILE` subcommand ✅
 
 Dry-run mode: annotate kept/dropped/why without writing distilled
 output. Built atop the existing pipeline with a special Sink that

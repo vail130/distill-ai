@@ -136,7 +136,7 @@ func registerRunFlags(cmd *cobra.Command, fl *runFlags) {
 		"Suppress the trailing 'collapsed X, dropped Y' summary. (Ignored by --output=json; the summary is part of the schema.)")
 	// Behaviour.
 	cmd.Flags().BoolVar(&fl.explain, "explain", false,
-		"Dry-run mode: annotate which events were kept or dropped and why, without distilled output. (Plumbing lands in M8.6.)")
+		"Dry-run mode: annotate which events were kept or dropped and why, without distilled output. Equivalent to the 'explain' subcommand; the flag is registered for convenience but the subcommand is preferred.")
 	cmd.Flags().BoolVar(&fl.strict, "strict", false,
 		"Fail with exit code 2 when autodetect can't pick a specific format with confidence ≥ 0.6.")
 	cmd.Flags().BoolVar(&fl.passthrough, "passthrough", false,
@@ -157,6 +157,11 @@ func runRun(cmd *cobra.Command, args []string, fl *runFlags) error {
 		// subcommand. Delegate to its implementation so both code
 		// paths produce byte-identical output.
 		return runListFormats(cmd, nil)
+	}
+	if fl.explain {
+		// --explain is a shortcut for the explain subcommand.
+		// Delegate so both spellings produce identical output.
+		return runExplain(cmd, args, fl)
 	}
 	stdout := cmd.OutOrStdout()
 	stderr := cmd.ErrOrStderr()

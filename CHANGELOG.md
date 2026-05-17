@@ -11,6 +11,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial project scaffolding.
 - Architecture, contribution, and roadmap documentation.
+- M8 CLI surface, end-to-end usable from a pipe:
+  - `distill-ai run [FORMAT] [FILE...]` (also the default subcommand)
+    runs the full distillation pipeline against stdin or one or more
+    files.
+  - `distill-ai detect FILE` autodetects a format and prints stable
+    key:value diagnostics; `--strict` turns the no-match outcome
+    into exit 2 for CI use.
+  - `distill-ai list-formats` enumerates the registered formats.
+  - `distill-ai explain [FORMAT] [FILE...]` is a dry-run mode that
+    annotates every event with `kept`/`dropped:<reason>` and inline
+    `<dedupe-evicted=K>` / `<vendor-collapsed=N>` / `<truncated>`
+    markers. Powered by `pipeline.BuildExplain` +
+    `pipeline.ExplainingBudgetStage` + `output.ExplainSink`.
+  - `distill-ai completions [bash|zsh|fish|powershell]` generates
+    a shell completion script.
+  - `distill-ai version` prints build info one field per line.
+  - Named exit-code constants (`ExitOK`, `ExitNoEvents`, `ExitError`,
+    `ExitPartial`) in `cmd/distill-ai/exitcode.go` with the
+    documented precedence `ExitError > ExitPartial > ExitNoEvents
+    > ExitOK`.
+  - JSON `summary.exit_code` is now derived from observed Sink
+    state (events emitted + `BudgetCounters.ForcedDrops()`) so it
+    is honest even though the encoder writes its trailer inside
+    `Pipeline.Run`.
+  - All v1 flags from ARCHITECTURE.md § Flags registered on the
+    `run` and `explain` commands. `--auto`, `--keep-vendor`,
+    `--dedupe`, `--no-dedupe`, `--dedupe-window`, `--output`,
+    `--output-streaming`, `--budget`, `--no-footer`, `--strict`,
+    `--tokenizer`, `--explain`, `--list-formats`, `-v` / `--verbose`
+    are fully plumbed. `--max-events`, `--keep-warnings`,
+    `--severity`, `--context`, `--passthrough` are registered with
+    documented help text and "(plumbing lands in M8.2.x)" notices.
+
+### Changed
+
+- `cmd/distill-ai/main.go` switched from a hand-rolled switch on
+  `os.Args[1]` to a `cobra`-based root command. Production behaviour
+  for `--help`, `--version`, and `detect` is preserved.
+- `-v` is now `--verbose`, not `--version`. The long-form
+  `--version` is unchanged.
+- An unknown positional verb is no longer "unknown subcommand"; the
+  root accepts `cobra.ArbitraryArgs` so `cmd | distill-ai pytest`
+  works, and an unknown name flows to the input resolver (yielding
+  "no such file or directory" when nothing matches). Unknown flags
+  still error with cobra's standard "unknown flag" wording.
+- Adds dependencies `github.com/spf13/cobra`, `github.com/spf13/pflag`,
+  and `github.com/inconshreveable/mousetrap` (Windows-only). All
+  pure Go, MIT/BSD, no CGo. Documented in ARCHITECTURE.md.
 
 ### Changed
 
