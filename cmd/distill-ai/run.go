@@ -153,10 +153,10 @@ func registerRunFlags(cmd *cobra.Command, fl *runFlags) {
 // and translates the result into an exit code.
 func runRun(cmd *cobra.Command, args []string, fl *runFlags) error {
 	if fl.listFormats {
-		// M8.4 lands the full list-formats subcommand; until then
-		// the flag prints a brief notice on stderr and exits 0 so
-		// nothing breaks for callers using the flag form.
-		return runListFormatsViaFlag(cmd)
+		// --list-formats is a shortcut for the list-formats
+		// subcommand. Delegate to its implementation so both code
+		// paths produce byte-identical output.
+		return runListFormats(cmd, nil)
 	}
 	stdout := cmd.OutOrStdout()
 	stderr := cmd.ErrOrStderr()
@@ -237,19 +237,6 @@ func runRun(cmd *cobra.Command, args []string, fl *runFlags) error {
 	}
 	if readEmitted(sink) == 0 {
 		return &exitCodeError{code: ExitNoEvents}
-	}
-	return nil
-}
-
-// runListFormatsViaFlag is the placeholder behaviour for --list-formats
-// until M8.4 wires the dedicated subcommand. It writes a deterministic
-// "name\tversion\tsource" line per registered format to stdout and
-// exits 0. The error return matches the cobra RunE shape so the run
-// command can dispatch uniformly; today it always returns nil.
-func runListFormatsViaFlag(cmd *cobra.Command) error { //nolint:unparam // err return matches RunE; M8.4 may surface real errors
-	w := cmd.OutOrStdout()
-	for _, f := range formats.All() {
-		fmt.Fprintf(w, "%s\t1\tbuiltin\n", f.Name())
 	}
 	return nil
 }

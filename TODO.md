@@ -1321,7 +1321,7 @@ Make the four exit codes (0/1/2/3) authoritative.
   - Cross-link from ARCHITECTURE.md back to the constants so the
     spec and the implementation stay anchored.
 
-### M8.4 — `list-formats` subcommand
+### M8.4 — `list-formats` subcommand ✅
 
 - **DoD:**
   - `distill-ai list-formats` prints one line per registered

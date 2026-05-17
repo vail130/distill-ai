@@ -62,6 +62,9 @@ pytest 2>&1 | distill-ai -v
 # Identify a file's format without running the full pipeline
 distill-ai detect pytest-output.log
 distill-ai detect -          # read stdin
+
+# List every format the binary knows about
+distill-ai list-formats
 ```
 
 ### Exit codes
