@@ -1,0 +1,71 @@
+TODO.md
+  61f3a3b9f905523c 1768
+CHANGELOG.md
+  61f3a3b9f905523c 83-99
+docs/formats/SCHEMA.md
+  61f3a3b9f905523c 107-125
+.opencode/skills/distill-output/SKILL.md
+  61f3a3b9f905523c 46-51,57-58
+internal/formats/format.go
+  61f3a3b9f905523c 95-116
+docs/formats/generic.md
+  61f3a3b9f905523c 179-219
+cmd/distill-ai/explain.go
+  61f3a3b9f905523c 99-104
+cmd/distill-ai/run.go
+  61f3a3b9f905523c 14,115,117,121,201-206,332-352
+internal/formats/generic/scanner.go
+  61f3a3b9f905523c 160-164,170,227,356-400
+internal/formats/generic/filter_test.go
+  61f3a3b9f905523c 1-138
+KNOWN_ISSUES.md
+  61f3a3b9f905523c 12,41,77
+cmd/distill-ai/parseopts_test.go
+  61f3a3b9f905523c 1-189
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "ea375151b975d4b79357a87752d5cb082504f8a9",
+  "prompts": {
+    "61f3a3b9f905523c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1cbed2dafffeJQzHgrrSYU0Ey3",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 542,
+      "total_deletions": 66,
+      "accepted_lines": 527,
+      "overriden_lines": 0
+    },
+    "78f5fa7238861741": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1cc3a6cf6ffeZwdo2JZM4UmsZO",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 4675,
+      "overriden_lines": 4
+    },
+    "ab2bb0b85a01f798": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1d1396929ffelA77PVRH1hlfH1",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": null,
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 3,
+      "overriden_lines": 0
+    }
+  }
+}
