@@ -37,21 +37,43 @@ claiming non-Go runtime dumps that happen to mention the word
 
 ## What gets extracted
 
-M10.1 ships only the skeleton: `Parse` returns an
-immediately-closed channel so the autodetect → parse path is
-exercised end-to-end while the scanner is under construction.
+M10.2 ships the `--- FAIL:` block scanner. One Event per failure
+block, with `Severity=error` and `Kind=test_failure`. Future
+sub-items extend the kind set: M10.3 adds `panic` and
+`build_failure`; M10.4 adds `race_condition` and stack frame
+extraction.
 
-M10.2–M10.4 fill in the parser:
+### `test_failure` Event shape
 
-- `--- FAIL:` failure blocks → `Kind="test_failure"`.
-- Panic blocks → `Kind="panic"`, with structured Frames extracted
-  from the goroutine dump.
-- `go build` / `go vet` errors emitted before tests run →
-  `Kind="build_failure"`.
-- Race-detector reports (the `==================` block) →
-  `Kind="race_condition"`.
+The scanner anchors on `--- FAIL:` headers and groups them with
+the preceding indented per-test output and any body lines emitted
+before the next block delimiter (`--- FAIL`/`--- PASS`/`--- SKIP`,
+`=== RUN`, `FAIL\t<pkg>`, `PASS`, or EOF).
 
-The set is finalised in M10.5 with the canonical fixture set.
+| Field                  | Source                                                                                                                  |
+|------------------------|-------------------------------------------------------------------------------------------------------------------------|
+| `severity`             | `error`.                                                                                                                |
+| `kind`                 | `test_failure`.                                                                                                         |
+| `title`                | The assertion message — the `<file>:<line>: <msg>` shape gotest's `t.Errorf` / `t.Fatalf` emit. Falls back to the `--- FAIL:` header line when no assertion shape is found. |
+| `location`             | `file.go:line` parsed from the assertion line. `nil` when no assertion line matched.                                    |
+| `body`                 | The verbatim block lines: the assertion(s) plus the `--- FAIL:` header.                                                 |
+| `metadata.test_id`     | The test name parsed from the `--- FAIL:` header, including subtest path (`TestParse/empty_input`).                     |
+| `metadata.package`     | The Go import path from the trailing `FAIL\t<pkg>` summary line, when known.                                            |
+| `metadata.duration`    | The duration string from the `--- FAIL:` header (e.g. `0.02s`).                                                         |
+
+### Per-package buffering
+
+Gotest emits the package import path only on the trailing
+`FAIL\t<pkg>` summary line, after every per-test `--- FAIL:` block
+in the package. The scanner buffers per-package failures and
+flushes them when the package summary line is consumed, so each
+emitted Event carries `metadata.package`. The buffer is bounded —
+a Go package rarely has more than a handful of failing tests per
+run — and across packages the scanner still streams: the first
+package's events emerge as soon as that package's summary line
+arrives, while the next package's tests are still being scanned.
+This is the M10.2 trade-off documented in
+[TODO.md § M10.2](../../TODO.md#m102--parse----fail-blocks-test_failure).
 
 ## What gets dropped
 

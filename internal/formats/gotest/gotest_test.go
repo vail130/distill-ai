@@ -120,15 +120,20 @@ func TestGotest_RegisteredAtInit(t *testing.T) {
 	}
 }
 
-// TestGotest_ParseEmptyStub — M10.1 ships the stub Parse that
-// closes the channel immediately. M10.2 fills it in. The early
-// stub lets the autodetect → parse path work end-to-end while
-// the scanner is still under construction.
-func TestGotest_ParseEmptyStub(t *testing.T) {
+// TestGotest_ParseCleanInputEmitsNothing — input with no failure
+// markers (all passing tests) produces zero Events. The scanner
+// drops `=== RUN`, `--- PASS:`, and the trailing summary on the
+// floor.
+func TestGotest_ParseCleanInputEmitsNothing(t *testing.T) {
 	f, _ := formats.Get("gotest")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	ch, err := f.Parse(ctx, strings.NewReader("--- FAIL: TestX (0.01s)\n"), formats.ParseOpts{})
+	input := `=== RUN   TestPass
+--- PASS: TestPass (0.00s)
+PASS
+ok  	example.com/foo	0.123s
+`
+	ch, err := f.Parse(ctx, strings.NewReader(input), formats.ParseOpts{})
 	if err != nil {
 		t.Fatalf("Parse err = %v, want nil", err)
 	}
@@ -137,6 +142,6 @@ func TestGotest_ParseEmptyStub(t *testing.T) {
 		count++
 	}
 	if count != 0 {
-		t.Errorf("got %d events from stub Parse; want 0", count)
+		t.Errorf("got %d events on clean input; want 0", count)
 	}
 }
