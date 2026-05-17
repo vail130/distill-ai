@@ -44,6 +44,14 @@ var catalogue = []severityRule{
 	// match every line containing the word.
 	{regexp.MustCompile(`\bTraceback `), event.SeverityError, "traceback"},
 	{regexp.MustCompile(`^panic:`), event.SeverityError, "panic"},
+	// JVM-form: `Exception in thread "main" pkg.SomeException:
+	// ...` is the canonical Java stack-dump header. Followed by
+	// indented `at pkg.cls.method(File.java:N)` frames, it
+	// behaves as a traceback rather than a one-line exception.
+	{regexp.MustCompile(`^Exception in thread`), event.SeverityError, "traceback"},
+	// Inline `pkg.SomeException:` matched elsewhere in a line
+	// (no `at` stack following) — single-line exception event.
+	{regexp.MustCompile(`\b[A-Z][A-Za-z0-9_]*Exception:`), event.SeverityError, "exception"},
 	{regexp.MustCompile(`\bException:`), event.SeverityError, "exception"},
 	// Generic error markers.
 	{regexp.MustCompile(`\bERROR\b`), event.SeverityError, "error_line"},
@@ -113,14 +121,26 @@ func extractLocation(line string) *event.Location {
 	return loc
 }
 
-// pending is the in-flight Event the scanner is accumulating
-// trailing-context for. The scanner holds at most one pending Event
-// at a time; when its trailing window fills (or EOF arrives), it
-// emits and clears.
+// pending is the in-flight Event the scanner is accumulating for.
+// A pending Event progresses through up to three phases:
+//
+//   - blockOpen: only set for traceback / panic kinds. While true,
+//     subsequent lines append to ev.Body. The phase ends when a
+//     line fails the kind's continuation rule, or when maxBlockLines
+//     is hit, or at EOF.
+//   - post-context: once the block (if any) closes, the next
+//     postNeeded lines append to postContext, then merge into
+//     ev.Context.
+//   - emit: once post-context is full (or EOF), the Event is sent
+//     and cur is cleared.
+//
+// At most one pending Event is held at a time.
 type pending struct {
 	ev          event.Event
-	postNeeded  int      // post-context lines still to collect
-	postContext []string // accumulated post-context
+	blockOpen   bool             // accumulating block lines into ev.Body
+	contRule    continuationRule // block continuation patterns for ev.Kind
+	postNeeded  int              // post-context lines still to collect
+	postContext []string         // accumulated post-context
 }
 
 // parseStream runs the scanner over r and forwards Events to out.
@@ -158,13 +178,30 @@ func parseStream(ctx context.Context, r io.Reader, opts formats.ParseOpts, out c
 		// the line so coloured anchors still anchor; Body keeps
 		// the original line for display.
 		matchTarget := stripANSI(line)
+		// Phase A: if we're inside an open block (traceback /
+		// panic), the line either extends the block or closes it.
+		// Block lines do NOT go through anchor matching — they're
+		// part of the in-flight Event's Body.
+		if cur != nil && cur.blockOpen {
+			if cur.contRule.matches(line) {
+				if len(cur.ev.Body) < maxBlockLines {
+					cur.ev.Body = append(cur.ev.Body, line)
+				} else if cur.ev.Body[len(cur.ev.Body)-1] != blockTruncatedSentinel {
+					cur.ev.Body[len(cur.ev.Body)-1] = blockTruncatedSentinel
+				}
+				preCtx.push(line)
+				continue
+			}
+			// Block terminator: finalise the block and fall
+			// through so this line still gets the post-context
+			// / anchor treatment below.
+			finaliseBlock(cur)
+		}
 		rule := matchCatalogue(matchTarget)
-		// 1. If we have an in-flight Event, this line either
-		//    completes its post-context window or contributes
-		//    one more line to it. We do this BEFORE handling
-		//    the new anchor so back-to-back anchors don't lose
-		//    the first pending Event.
-		if cur != nil {
+		// Phase B: if we have an in-flight Event (block closed
+		// or never open), this line either completes its
+		// post-context window or contributes one more line.
+		if cur != nil && !cur.blockOpen {
 			cur.postContext = append(cur.postContext, line)
 			cur.postNeeded--
 			if cur.postNeeded == 0 {
@@ -175,14 +212,12 @@ func parseStream(ctx context.Context, r io.Reader, opts formats.ParseOpts, out c
 				cur = nil
 			}
 		}
-		// 2. The current line may itself be a new anchor. The
-		//    DoD says "lines that themselves match the severity
-		//    catalogue are still included as context — the
-		//    scanner does not deduplicate adjacent matches into
-		//    a single Event." If a previous Event is still
-		//    pending, flush it first with whatever post-context
-		//    it managed to gather (so the new Event gets its
-		//    own pre-context window starting from this line).
+		// Phase C: the current line may itself be a new anchor.
+		// The DoD says "lines that themselves match the severity
+		// catalogue are still included as context — the scanner
+		// does not deduplicate adjacent matches into a single
+		// Event." If a previous Event is still pending, flush it
+		// first with whatever post-context it managed to gather.
 		if rule != nil {
 			if cur != nil {
 				if len(cur.postContext) > 0 {
@@ -194,25 +229,33 @@ func parseStream(ctx context.Context, r io.Reader, opts formats.ParseOpts, out c
 				cur = nil
 			}
 			ev := buildEvent(line, matchTarget, rule, preCtx.snapshot())
-			if contextLines == 0 {
-				// No post-context wanted; emit immediately.
-				if err := send(ctx, out, ev); err != nil {
+			cur = &pending{ev: ev, postNeeded: contextLines, postContext: make([]string, 0, contextLines)}
+			if contRule, ok := continuationFor(rule.kind); ok {
+				cur.blockOpen = true
+				cur.contRule = contRule
+			}
+			if !cur.blockOpen && contextLines == 0 {
+				// No block, no post-context wanted; emit now.
+				if err := send(ctx, out, cur.ev); err != nil {
 					return err
 				}
-			} else {
-				cur = &pending{ev: ev, postNeeded: contextLines, postContext: make([]string, 0, contextLines)}
+				cur = nil
 			}
 		}
-		// 3. The line slides into the pre-context ring for
-		//    future anchors.
+		// Phase D: the line slides into the pre-context ring
+		// for future anchors.
 		preCtx.push(line)
 	}
 	if err := scanner.Err(); err != nil {
 		return err
 	}
-	// EOF: flush any pending Event with whatever post-context we
+	// EOF: flush any pending Event. If we were still inside a
+	// block, finalise it; then append whatever post-context we
 	// managed to gather.
 	if cur != nil {
+		if cur.blockOpen {
+			finaliseBlock(cur)
+		}
 		if len(cur.postContext) > 0 {
 			cur.ev.Context = append(cur.ev.Context, cur.postContext...)
 		}
@@ -221,6 +264,26 @@ func parseStream(ctx context.Context, r io.Reader, opts formats.ParseOpts, out c
 		}
 	}
 	return nil
+}
+
+// finaliseBlock closes an open traceback / panic block: extracts
+// stack frames from the accumulated Body, re-derives the Title for
+// traceback Events (last non-blank Body line carries the actual
+// exception message), and clears blockOpen so the post-context
+// phase can begin.
+func finaliseBlock(p *pending) {
+	p.blockOpen = false
+	switch p.ev.Kind {
+	case "traceback":
+		p.ev.Frames = extractTracebackFrames(p.ev.Body)
+		if t := lastNonBlank(p.ev.Body); t != "" {
+			p.ev.Title = strings.TrimRight(stripANSI(t), " \t\r")
+		}
+	case "panic":
+		p.ev.Frames = extractGoPanicFrames(p.ev.Body)
+		// Panic Title stays as the original `panic: <message>`
+		// line per the DoD.
+	}
 }
 
 // buildEvent shapes an Event from an anchor line, the ANSI-stripped

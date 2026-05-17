@@ -79,8 +79,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `TestGeneric_ParseStreaming`); bounded-memory under adversarial
   input (`TestGeneric_ParseBoundedMemory` pins a 16 MiB peak-heap
   ceiling for 1.25 MiB of innocuous lines); no goroutine leak on
-  cancellation. M9.3 will extend the scanner with traceback /
-  panic block accumulation; M9.4 wires `--severity` and
+  cancellation.
+- M9.3: traceback / panic block accumulation for the `generic`
+  format. When the scanner anchors a `traceback` or `panic` Event,
+  it switches into block mode: subsequent lines extend
+  `Event.Body` until the kind's continuation rule fails,
+  `maxBlockLines = 100` is hit (final Body line becomes
+  `... [block truncated]`), or EOF arrives. Frame extractors then
+  run over the captured Body to populate `Event.Frames`:
+  Python `File "PATH", line N, in FUNC`, JVM
+  `at pkg.cls.method(File.java:N)`, and Go
+  `pkg.Func(args)` + tab-indented `path:line +0xOFFSET` tails.
+  `traceback` Title is re-derived to the last non-blank Body line
+  (the exception message); `panic` Title stays as the original
+  `panic: <message>`. JVM `Exception in thread "main" ...` headers
+  anchor as `Kind=traceback` (not `exception`) because they
+  behave as a Python-style traceback with a multi-line stack.
+  Bounded memory under adversarial input pinned by
+  `TestGeneric_ParseBlockBoundedMemory` (100k-line traceback
+  inside a 16 MiB ceiling). M9.4 wires `--severity` and
   `--keep-warnings`.
 
 ### Changed
