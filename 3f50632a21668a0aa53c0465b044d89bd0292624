@@ -1,0 +1,27 @@
+TODO.md
+  a4b56f8d8a5c8bb6 1345
+cmd/distill-ai/detect.go
+  a4b56f8d8a5c8bb6 25-26,28,37-41,49-51,81-82,85-88,93-95
+cmd/distill-ai/main_test.go
+  a4b56f8d8a5c8bb6 198-227
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "3f50632a21668a0aa53c0465b044d89bd0292624",
+  "prompts": {
+    "a4b56f8d8a5c8bb6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1ccc6d91fffevYfV8e2nUu5pES",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 220,
+      "total_deletions": 28,
+      "accepted_lines": 3161,
+      "overriden_lines": 1
+    }
+  }
+}
