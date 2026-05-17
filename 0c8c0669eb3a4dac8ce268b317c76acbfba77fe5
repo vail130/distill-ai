@@ -1,0 +1,25 @@
+internal/pipeline/explain_test.go
+  a4b56f8d8a5c8bb6 1-204
+internal/pipeline/explain.go
+  a4b56f8d8a5c8bb6 1-272
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "0c8c0669eb3a4dac8ce268b317c76acbfba77fe5",
+  "prompts": {
+    "a4b56f8d8a5c8bb6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1ccc6d91fffevYfV8e2nUu5pES",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 1225,
+      "total_deletions": 39,
+      "accepted_lines": 3420,
+      "overriden_lines": 5
+    }
+  }
+}
