@@ -1,0 +1,33 @@
+cmd/distill-ai/completions.go
+  a4b56f8d8a5c8bb6 1-73
+README.md
+  a4b56f8d8a5c8bb6 68-70
+.opencode/skills/distill-output/SKILL.md
+  a4b56f8d8a5c8bb6 60,66
+cmd/distill-ai/root.go
+  a4b56f8d8a5c8bb6 69
+cmd/distill-ai/completions_test.go
+  a4b56f8d8a5c8bb6 1-93
+TODO.md
+  a4b56f8d8a5c8bb6 1404
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "792fc3f27a3e490cac523366b41952f61a77f4af",
+  "prompts": {
+    "a4b56f8d8a5c8bb6": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1ccc6d91fffevYfV8e2nUu5pES",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 296,
+      "total_deletions": 19,
+      "accepted_lines": 3116,
+      "overriden_lines": 1
+    }
+  }
+}
