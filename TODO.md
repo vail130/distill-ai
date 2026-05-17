@@ -1689,7 +1689,7 @@ before and after the anchor.
     under a new `generic` section. Per the alignment rule, the
     schema doc lands in the same commit.
 
-### M9.3 — Traceback / panic block accumulation
+### M9.3 — Traceback / panic block accumulation ✅
 
 `Kind=traceback` and `Kind=panic` Events are more useful when their
 Body carries the full block, not just the anchor line. M9.3 extends

@@ -137,8 +137,42 @@ Resulting Event (JSON view):
 The bare `db:5432` does not register as a `Location` because the
 heuristic requires at least one `/` or `\` in the path segment.
 
-Block extraction for `traceback` / `panic` (multi-line body, with
-parsed frames) lands in M9.3.
+### Block extraction (traceback / panic)
+
+When the scanner anchors a `traceback` or `panic` Event, it
+switches into **block mode**: subsequent lines extend `Event.Body`
+until the kind's continuation rule fails, `maxBlockLines = 100`
+is hit (the final Body line becomes `... [block truncated]`), or
+EOF arrives. After the block closes, `Event.Frames` is populated
+by parsing the captured Body, and the trailing-context window
+applies *after* the block, not after the anchor.
+
+Continuation patterns by kind:
+
+| Kind        | Continues on                                              |
+|-------------|------------------------------------------------------------|
+| `traceback` | Indented lines (`^\s`), Python frames (`^\s+File "`), JVM frames (`^\s+at `), JVM `... N more` tail, blank lines, dedented exception-message lines (`^TypeName(Error\|Exception\|Warning):`) |
+| `panic`     | `goroutine N [...]:`, hex-address tails (`^\s*0x...`), any indented line, blank lines, repeated `panic: `, signal subheaders (`^\[signal ...`), Go call lines (`pkg.Func(args)` or `(*T).method(args)`) |
+
+Frame extractors per kind:
+
+- **`traceback`** (Python): `File "PATH", line N, in FUNC` →
+  `StackFrame{File, Line, Function}`.
+- **`traceback`** (JVM): `at pkg.Class.method(File.java:N)` →
+  `StackFrame{File, Line, Function}`. The two extractors run
+  over the same Body so a mixed-language input would still
+  produce frames in source order.
+- **`panic`** (Go): the function name comes from a non-indented
+  `pkg.Func(args)` line; the file and line come from the
+  immediately-following indented `path:line +0xOFFSET` tail.
+
+Title re-derivation:
+
+- **`traceback`** Title is re-set to the last non-blank Body
+  line after the block closes — the actual exception message
+  (`KeyError: 'foo'`, `ValueError: ...`).
+- **`panic`** Title stays as the original `panic: <message>`
+  line.
 
 ## Filtering semantics
 

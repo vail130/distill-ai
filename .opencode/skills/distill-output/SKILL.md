@@ -43,20 +43,17 @@ source of truth.
 
 The full CLI surface — flags, subcommands, exit codes — landed in
 **M8**. The **generic fallback** landed in **M9.1** (registration +
-detect floor) and **M9.2** (severity-anchored scanner). Real
-command output now distills end-to-end via the generic fallback
-when no specific format claims it. `cmd | distill-ai` is the
-canonical invocation: it reads stdin, autodetects the format, and
-distils to stdout.
+detect floor), **M9.2** (severity-anchored scanner), and **M9.3**
+(traceback / panic block accumulation with parsed stack frames).
+Real command output — Python tracebacks, Go panics, JVM stack
+dumps, ERROR / WARN lines — now distills end-to-end. `cmd |
+distill-ai` is the canonical invocation: it reads stdin,
+autodetects the format, and distils to stdout.
 
 The remaining gap is the **specific format set**. Until M10/M11/M12
-ship gotest/pytest/jest, every invocation falls back to `generic`
-— which now extracts `ERROR` / `FATAL` / `panic:` / `Exception:` /
-`Traceback ` / `WARN` lines as Events with surrounding context.
-M9.3 adds multi-line traceback / panic block extraction with
-parsed stack frames; M9.4 wires `--severity` / `--keep-warnings`.
-Use `--strict` to turn the fallback into a hard error (exit 2)
-for CI.
+ship gotest/pytest/jest, every invocation falls back to `generic`.
+M9.4 wires `--severity` / `--keep-warnings`. Use `--strict` to
+turn the fallback into a hard error (exit 2) for CI.
 
 The full surface today is enumerated in the manifest below.
 
@@ -116,9 +113,10 @@ The dogfooding loop today:
 2. Detection always resolves: either to a specific format (once
    M10/M11/M12 ship) or to the `generic` fallback.
 3. The generic scanner extracts ERROR / WARN / panic / Exception /
-   Traceback / FATAL lines with surrounding context. M9.3 will add
-   multi-line block extraction for tracebacks and panics; M9.4
-   adds `--severity` / `--keep-warnings` plumbing.
+   Traceback / FATAL lines with surrounding context. Multi-line
+   blocks (Python tracebacks, Go panics, JVM stack dumps) capture
+   the full block plus parsed stack frames in `Event.Frames`.
+   M9.4 will add `--severity` / `--keep-warnings` plumbing.
 
 ## Recipes
 

@@ -134,6 +134,80 @@ func TestGeneric_ParseBoundedMemory(t *testing.T) {
 	}
 }
 
+// TestGeneric_ParseBlockBoundedMemory — feed an adversarial input
+// that starts a traceback block and then dumps an effectively
+// unbounded number of indented lines via io.Pipe. The maxBlockLines
+// cap (100) must hold and peak heap must stay under a small
+// constant of the bounded buffers.
+//
+// The input is generated on-the-fly by a producer goroutine so it
+// never lives in memory all at once — otherwise the test would
+// measure "scanner state + entire input buffer" rather than the
+// parser's actual memory bound. The producer stops after
+// totalLines so the test terminates; the producer's GC pressure
+// is what stresses the cap.
+func TestGeneric_ParseBlockBoundedMemory(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping memory test in short mode")
+	}
+	const (
+		totalLines = 100000 // far beyond maxBlockLines
+		ceiling    = 32 << 20
+	)
+	pr, pw := io.Pipe()
+	t.Cleanup(func() { _ = pr.Close() })
+	go func() {
+		defer func() { _ = pw.Close() }()
+		_, _ = pw.Write([]byte("Traceback (most recent call last):\n"))
+		line := []byte("  File \"x.py\", line 1, in f\n")
+		for i := 0; i < totalLines; i++ {
+			if _, err := pw.Write(line); err != nil {
+				return
+			}
+		}
+	}()
+	// Settle the runtime before measuring so the baseline reflects
+	// post-startup live memory rather than init transients.
+	runtime.GC()
+	time.Sleep(5 * time.Millisecond)
+	var baseStats runtime.MemStats
+	runtime.ReadMemStats(&baseStats)
+	baseline := baseStats.HeapAlloc
+	f, _ := formats.Get("generic")
+	ch, _ := f.Parse(context.Background(), pr, formats.ParseOpts{})
+	stop := make(chan struct{})
+	finished := make(chan struct{})
+	var peakDelta uint64
+	go func() {
+		defer close(finished)
+		ticker := time.NewTicker(time.Millisecond)
+		defer ticker.Stop()
+		var stats runtime.MemStats
+		for {
+			select {
+			case <-ticker.C:
+				runtime.ReadMemStats(&stats)
+				if stats.HeapAlloc > baseline {
+					if delta := stats.HeapAlloc - baseline; delta > peakDelta {
+						peakDelta = delta
+					}
+				}
+			case <-stop:
+				return
+			}
+		}
+	}()
+	count := 0
+	for range ch {
+		count++
+	}
+	close(stop)
+	<-finished
+	if peakDelta > ceiling {
+		t.Errorf("peak heap delta %d > ceiling %d (block accumulator not bounded?)", peakDelta, ceiling)
+	}
+}
+
 // TestGeneric_ParseContextDeadline — a deadline that expires while
 // the parser is mid-stream causes Parse to clean up promptly. No
 // goroutine leak assertion here (the package-level test covers
