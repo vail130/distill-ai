@@ -22,9 +22,10 @@ import (
 //	0  Detection produced a specific format ≥ ConfidenceMinDetect.
 //	1  Detection fell back to the generic format, or no format
 //	   matched and there is no generic registered.
-//	2  Invalid arguments or I/O failure.
+//	2  Invalid arguments or I/O failure, or --strict was set and no
+//	   specific format matched.
 func newDetectCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "detect FILE",
 		Short: "Identify which format a file is in.",
 		Long: `detect runs the format autodetector against FILE (or stdin
@@ -33,7 +34,11 @@ chosen format, its confidence, the sample size consumed, and the
 runner-up format.
 
 This subcommand exists so users (and tests) can ask "what is this?"
-without running a full distillation pipeline.`,
+without running a full distillation pipeline.
+
+With --strict, detection fails (exit 2) instead of falling back to
+the generic format. Useful in CI where ambiguous input should be a
+build break.`,
 		// We do our own arg validation so error messages match the
 		// pre-cobra wording exactly. cobra.ExactArgs would print
 		// "accepts 1 arg(s)" which existing tests don't grep for.
@@ -41,6 +46,9 @@ without running a full distillation pipeline.`,
 		DisableFlagParsing: false,
 		RunE:               runDetect,
 	}
+	cmd.Flags().Bool("strict", false,
+		"Fail with exit 2 when no specific format scores above the detection threshold, instead of falling back to generic.")
+	return cmd
 }
 
 // runDetect is the cobra RunE entry point. It validates arguments,
@@ -70,14 +78,21 @@ func runDetect(cmd *cobra.Command, args []string) error {
 	if closer != nil {
 		defer func() { _ = closer.Close() }() // best-effort close; nothing we can do on failure
 	}
-	res, err := detect.Detect(context.Background(), r, detect.Opts{})
+	strict, _ := cmd.Flags().GetBool("strict")
+	res, err := detect.Detect(context.Background(), r, detect.Opts{Strict: strict})
 	if err != nil {
 		// ErrNoFormat is a "no match" result, not an internal
-		// failure. Surface it as exit 1 with a helpful message.
+		// failure. Without --strict it maps to ExitNoEvents (1)
+		// with a helpful message; with --strict it maps to
+		// ExitError (2) because the caller asked for the
+		// build-break semantics.
 		if errors.Is(err, detect.ErrNoFormat) {
 			fmt.Fprintf(stderr, "distill-ai: no format matched %s\n", source)
 			fmt.Fprintln(stderr, "Hint: no specific format scored above the detection threshold")
 			fmt.Fprintln(stderr, "      and no generic fallback is registered yet (lands in M9).")
+			if strict {
+				return &exitCodeError{code: ExitError}
+			}
 			return &exitCodeError{code: ExitNoEvents}
 		}
 		fmt.Fprintf(stderr, "distill-ai: detect %s: %v\n", source, err)

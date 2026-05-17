@@ -201,6 +201,36 @@ func TestDetectCmd_NonexistentFile(t *testing.T) {
 	}
 }
 
+// TestDetectCmd_StrictExitsTwoOnLowConfidence — --strict turns the
+// ErrNoFormat outcome from exit 1 to exit 2 so CI scripts can use
+// detect as a build gate.
+func TestDetectCmd_StrictExitsTwoOnLowConfidence(t *testing.T) {
+	formats.ResetForTest()
+	t.Cleanup(formats.ResetForTest)
+	// No formats registered → detect always returns ErrNoFormat.
+	path := writeTempFile(t, "ambiguous")
+	var stdout, stderr bytes.Buffer
+	code := run([]string{"detect", "--strict", path}, strings.NewReader(""), &stdout, &stderr)
+	if code != 2 {
+		t.Errorf("exit code = %d, want 2 (--strict); stderr=%q", code, stderr.String())
+	}
+}
+
+// TestDetectCmd_NonStrictExitsOneOnLowConfidence — the default
+// (no --strict) maps the same ErrNoFormat outcome to exit 1.
+// This is the "before M9 generic fallback" behaviour and will
+// shift when M9 registers a generic format.
+func TestDetectCmd_NonStrictExitsOneOnLowConfidence(t *testing.T) {
+	formats.ResetForTest()
+	t.Cleanup(formats.ResetForTest)
+	path := writeTempFile(t, "ambiguous")
+	var stdout, stderr bytes.Buffer
+	code := run([]string{"detect", path}, strings.NewReader(""), &stdout, &stderr)
+	if code != 1 {
+		t.Errorf("exit code = %d, want 1 (non-strict); stderr=%q", code, stderr.String())
+	}
+}
+
 // writeTempFile creates a temp file with content and returns its path.
 // t.Cleanup ensures it's removed.
 func writeTempFile(t *testing.T, content string) string {
