@@ -51,10 +51,20 @@ Invariants that must hold across every format and every output encoder:
   `TestSinks_FooterReflectsCounters`.
 - **Schema-version stability:** JSON output round-trips through the
   documented schema (enforced today by
-  `TestEvent_JSONSchemaMatchesDoc` and by
-  `TestJSONSink_SchemaVersionMatchesDoc`, which cross-checks
+  `TestEvent_JSONSchemaMatchesDoc`, by
+  `TestJSONSink_SchemaVersionMatchesDoc` (which cross-checks
   `output.SchemaVersion` against the SCHEMA.md "Current schema version"
-  line).
+  line), and by `TestJSONSink_SummarySchemaMatchesDoc` (which pins
+  every JSON tag on the summary struct to a documented row in
+  SCHEMA.md so additive counter fields can't ship undocumented).
+- **No goroutine leak on cancellation:** every Sink must exit cleanly
+  when its context is cancelled mid-stream. Enforced across the Sink
+  set by `TestSinks_NoGoroutineLeakOnCancellation` in
+  `internal/output/property_test.go`, which drives each Sink through
+  20 cancellation iterations and asserts NumGoroutine returns to
+  baseline. Catches the class of bug where a future Sink spawns
+  internal goroutines (a buffered batcher, a parallel encoder) and
+  forgets to wire ctx through.
 
 These are not optional. Property tests are part of the contract.
 

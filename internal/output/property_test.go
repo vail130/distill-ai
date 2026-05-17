@@ -3,6 +3,7 @@ package output
 import (
 	"bytes"
 	"context"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -248,4 +249,71 @@ func TestSinks_FooterReflectsCounters(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestSinks_NoGoroutineLeakOnCancellation drives every Sink through
+// 20 cancellation iterations and asserts NumGoroutine returns to
+// baseline. Per-Sink ContextCancellation tests already exist (they
+// log rather than error on goroutine delta because a single
+// iteration is noisy); this test is the stricter version that
+// catches a regression on the population level.
+//
+// Goroutine-leak risk in a Sink is structural: the Sink reads from
+// `in` until ctx cancels or `in` closes. If a future Sink spawns
+// internal goroutines (a buffered batcher, a parallel encoder,
+// etc.) without wiring ctx-cancellation through them, this test
+// fires.
+//
+// The test runs each Sink in turn rather than in parallel so a
+// failure points unambiguously at one Sink rather than at "one of
+// four Sinks." The slack of 3 absorbs the test framework's own
+// goroutine churn (timer drains, GC sweepers).
+func TestSinks_NoGoroutineLeakOnCancellation(t *testing.T) {
+	for _, f := range allSinks() {
+		f := f
+		t.Run(f.name, func(t *testing.T) {
+			runtime.GC()
+			time.Sleep(20 * time.Millisecond)
+			before := runtime.NumGoroutine()
+			for i := 0; i < 20; i++ {
+				runSinkUntilCancelled(t, f)
+			}
+			// Allow scheduled goroutines a moment to exit.
+			time.Sleep(50 * time.Millisecond)
+			runtime.GC()
+			after := runtime.NumGoroutine()
+			if delta := after - before; delta > 3 {
+				t.Errorf("goroutine leak: before=%d after=%d delta=%d", before, after, delta)
+			}
+		})
+	}
+}
+
+// runSinkUntilCancelled feeds one Event to a Sink, then cancels its
+// context, and waits for Sink.Sink to return. Returns when the Sink
+// has finished or fails the test on timeout. Mirrors the per-Sink
+// ContextCancellation pattern but factored out so the leak test can
+// iterate.
+func runSinkUntilCancelled(t *testing.T, f sinkFactory) {
+	t.Helper()
+	var buf bytes.Buffer
+	s := f.newSink(&buf, false, nil)
+	ch := make(chan event.Event)
+	ctx, cancel := context.WithCancel(context.Background())
+	errCh := make(chan error, 1)
+	go func() { errCh <- s.Sink(ctx, ch) }()
+	select {
+	case ch <- simpleEvent("error", "x"):
+	case <-time.After(1 * time.Second):
+		cancel()
+		t.Fatalf("%s: Sink did not accept event within 1s", f.name)
+	}
+	cancel()
+	select {
+	case <-errCh:
+		// Don't care which error; just that Sink returned.
+	case <-time.After(1 * time.Second):
+		t.Fatalf("%s: Sink did not return after ctx cancel", f.name)
+	}
+	close(ch)
 }
