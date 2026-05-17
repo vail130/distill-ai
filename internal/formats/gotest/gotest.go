@@ -111,14 +111,12 @@ func (Format) Detect(sample []byte) event.Confidence {
 // channel is closed exactly once when r reaches EOF, when ctx is
 // cancelled, or when an unrecoverable I/O error occurs.
 //
-// M10.1 ships only the skeleton: Parse returns an immediately-closed
-// channel with nil error so the M3 autodetection path can resolve
-// the new format end-to-end before the real scanner arrives in
-// M10.2.
-func (Format) Parse(_ context.Context, _ io.Reader, _ formats.ParseOpts) (<-chan event.Event, error) {
-	out := make(chan event.Event)
-	close(out)
-	return out, nil
+// M10.2 ships the `--- FAIL:` block scanner that emits one Event
+// per failure block with `Kind="test_failure"`. M10.3 will add
+// `panic` and `build_failure` kinds; M10.4 the race detector,
+// stack frame extraction, and `-json` reporter handling.
+func (Format) Parse(ctx context.Context, r io.Reader, _ formats.ParseOpts) (<-chan event.Event, error) {
+	return parseStream(ctx, r), nil
 }
 
 // init registers Format so the binary picks it up by side-effect
