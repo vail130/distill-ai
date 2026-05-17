@@ -1,0 +1,31 @@
+internal/formats/gotest/gotest.go
+  3a421fcaa79f89ac 1-126
+cmd/distill-ai/register.go
+  3a421fcaa79f89ac 19-22
+README.md
+  3a421fcaa79f89ac 40-45
+docs/formats/gotest.md
+  3a421fcaa79f89ac 1-79
+internal/formats/gotest/gotest_test.go
+  3a421fcaa79f89ac 1-142
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "c7d2a43cc71ab81a27eb52cc4bf1231e59b2d410",
+  "prompts": {
+    "3a421fcaa79f89ac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c95dba20ffeQVPYW13D0ZBs1Q",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 358,
+      "total_deletions": 4,
+      "accepted_lines": 357,
+      "overriden_lines": 0
+    }
+  }
+}
