@@ -3447,7 +3447,7 @@ which each format reads). Each item below lists Definition of Done,
 required tests, and required doc updates per the
 [alignment rule](./rules/alignment.md).
 
-### M14.1 — Add `BurntSushi/toml` and the `Config` type
+### M14.1 — Add `BurntSushi/toml` and the `Config` type ✅
 
 Land the dependency, define the in-memory `Config` shape, and prove
 the round-trip against the ARCHITECTURE.md schema. No file-system

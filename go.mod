@@ -3,6 +3,7 @@ module github.com/vail130/distill-ai
 go 1.26
 
 require (
+	github.com/BurntSushi/toml v1.6.0
 	github.com/pkoukk/tiktoken-go v0.1.8
 	github.com/pkoukk/tiktoken-go-loader v0.0.2
 	github.com/spf13/cobra v1.10.2

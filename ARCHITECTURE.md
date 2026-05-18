@@ -621,7 +621,9 @@ Lean by design.
   `inconshreveable/mousetrap` (Windows-only mousetrap guard).
   All pure Go, MIT/BSD, no CGo.
 - **Config:** `BurntSushi/toml` (lighter than viper; we don't need viper's
-  multi-source merging).
+  multi-source merging). Shipped in M14.1 alongside `internal/config`,
+  which decodes the `.distill-ai.toml` / `config.toml` schema documented
+  in [docs/config.md](./docs/config.md).
 - **Token estimation:** `pkoukk/tiktoken-go` (the BPE encoder) plus
   `pkoukk/tiktoken-go-loader` (offline vocab loader so first init
   doesn't hit the network). Used only when `--tokenizer=tiktoken` is
