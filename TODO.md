@@ -22,7 +22,7 @@ Each milestone ends with **exit criteria** — a milestone-level drift
 check before the milestone is marked complete (see
 [alignment.md § Enforcement](./rules/alignment.md#enforcement)).
 
-Milestones M1–M13 are scoped this way today, along with the three
+Milestones M1–M14 are scoped this way today, along with the three
 post-v1.0 milestones M23, M24, and M25 that
 [ADR-0002](./docs/decisions/0002-v1.0-scope-and-post-v1.0-roadmap.md)
 introduces. The five v1.6 filter-engine-parity milestones (M26–M30)
@@ -32,14 +32,14 @@ introduced by
 v1.0 ships, in priority order driven by real usage signal. Per the
 working agreement, **at least** the next three open milestones are
 kept fully scoped at all times. As of M11's completion the open
-scoped set is M12 (jest) and M13 (envelope); M14 (config) is next
-in line and needs its sub-items expanded before the M12 milestone
-closes. When the v1.0 release prep (M17) lands and the v1.1 branch
-opens, the next scoped three will be M23 (golangci-lint), M24
-(cargo-json), and M25 (Markdown outline) — already scoped below so
-the v1.1 cut is ready when v1.0 ships. M14–M17 (the rest of v1.0)
-and M18–M22 (v1.3 code distillation) remain sketched. M26–M30
-remain enumerated only.
+scoped set is M12 (jest), M13 (envelope), and M14 (config); M15
+(library API) is next in line and needs its sub-items expanded
+before the M12 milestone closes. When the v1.0 release prep (M17)
+lands and the v1.1 branch opens, the next scoped three will be M23
+(golangci-lint), M24 (cargo-json), and M25 (Markdown outline) —
+already scoped below so the v1.1 cut is ready when v1.0 ships.
+M15–M17 (the rest of v1.0) and M18–M22 (v1.3 code distillation)
+remain sketched. M26–M30 remain enumerated only.
 
 ---
 
@@ -3411,12 +3411,529 @@ recipe.
 
 ## M14 — Config file support
 
-- [ ] `internal/config/config.go`: load `.distill-ai.toml` from CWD upward, then `~/.config/distill-ai/config.toml`
-- [ ] Precedence: CLI flag > project config > user config > default
-- [ ] Per-format config sections override format defaults
-- [ ] Custom regex-based format registration via `[[formats.custom.NAME]]`
-- [ ] Config validation with clear errors
-- [ ] Tests: precedence, override, malformed config
+Read an optional `.distill-ai.toml` from the project (CWD upward to
+git root) and a `~/.config/distill-ai/config.toml` from the user's
+home, merge them with CLI flags using the documented precedence
+chain, and pass the result through `pipeline.Options` and the per-
+format `ParseOpts`. M14 is the milestone that turns the project from
+"works with flags" into "works with project defaults" — a monorepo
+can ship `.distill-ai.toml` and every contributor and agent gets the
+right behaviour without flag-passing gymnastics.
+
+The TOML schema is the one sketched in
+[ARCHITECTURE.md § Config file](./ARCHITECTURE.md#config-file). M14
+implements it verbatim, plus a `[[formats.custom.NAME]]` block that
+registers a regex-driven Format at process start. Custom formats are
+explicitly the long-tail extension hook called out by
+[ADR-0003](./docs/decisions/0003-position-vs-rtk-and-snip.md) — they
+do not replace the format-plugin model for typed formats, but they
+fill the niche where a regex match plus a Title is sufficient.
+
+Cross-references
+[ARCHITECTURE.md § Config file](./ARCHITECTURE.md#config-file),
+[flag-policy rule](./rules/flag-policy.md) (config is a *flag*
+default, never a flag replacement — every config value must have a
+corresponding CLI flag),
+[dependencies rule](./rules/dependencies.md) (adds
+`BurntSushi/toml`; justified below).
+
+M14 builds on M8 (CLI flags — their defaults are now config-driven),
+M5 (DedupeStage, CollapseStage — their options come from
+`pipeline.Options`), M6 (BudgetStage — same), M9 (the generic format
+is the regex-driven precedent the custom-format hook generalises),
+M10/M11/M12 (per-format options are pushed into `formats.ParseOpts`
+which each format reads). Each item below lists Definition of Done,
+required tests, and required doc updates per the
+[alignment rule](./rules/alignment.md).
+
+### M14.1 — Add `BurntSushi/toml` and the `Config` type
+
+Land the dependency, define the in-memory `Config` shape, and prove
+the round-trip against the ARCHITECTURE.md schema. No file-system
+discovery and no merge yet — those are M14.2 and M14.3.
+
+- **DoD:**
+  - Add `github.com/BurntSushi/toml` to `go.mod`. Justified in the
+    commit body per
+    [dependencies rule](./rules/dependencies.md): the project
+    targets a small, layered TOML schema (top-level defaults,
+    per-format sections, custom-format array tables). The stdlib
+    has no TOML decoder; rolling one is unjustifiable when
+    `BurntSushi/toml` is ~5,000 lines of pure Go, MIT, no CGo, no
+    transitive deps, and is the de-facto standard parser used by
+    every major Go project that ships TOML config. `viper` was
+    explicitly rejected in ARCHITECTURE.md § Dependencies — we do
+    not need its multi-source merge, env-var overlay, or
+    file-watcher features.
+  - New package `internal/config` exporting:
+    - `Config` struct mirroring the ARCHITECTURE.md sketch:
+      - `DefaultBudget int` (TOML key `default_budget`).
+      - `DefaultOutput string` (TOML key `default_output`).
+      - `DefaultTokenizer string` (TOML key `default_tokenizer`).
+      - `DefaultStripEnvelope string` (TOML key
+        `default_strip_envelope`).
+      - `MaxEvents int` (TOML key `max_events`).
+      - `KeepWarnings bool` (TOML key `keep_warnings`).
+      - `KeepVendor bool` (TOML key `keep_vendor`).
+      - `DedupeWindow int` (TOML key `dedupe_window`).
+      - `ContextLines int` (TOML key `context_lines`).
+      - `Formats map[string]FormatConfig` (TOML key `formats`).
+      - `CustomFormats map[string]CustomFormatConfig` (TOML key
+        `formats.custom`).
+    - `FormatConfig` struct for the per-format sections. Carries
+      the same option set as `Config` so a per-format value
+      overrides the global one. Unset values use the zero value;
+      detection of "set vs unset" uses `*bool` / `*int` /
+      `*string` pointers so a config file can explicitly opt back
+      into a default. The conventional Go zero-value test (`if
+      cfg.DedupeWindow != 0`) is insufficient because zero is a
+      meaningful value (`--dedupe-window=0` disables dedupe).
+    - `CustomFormatConfig` struct with `DetectRegex string`,
+      `EventStart string`, `EventEnd string` (all required),
+      `Severity string` (optional; default `"error"`), `Kind
+      string` (optional; default `"match"`). String regex bodies
+      are not yet compiled — M14.5 owns compilation and
+      registration.
+    - `SchemaVersion int` field (TOML key `schema_version`) with
+      `const SchemaVersion = 1`. A config whose declared
+      `schema_version` differs from the constant fails Load with
+      a clear error. Mirrors the JSON-output stability story:
+      additive fields don't bump the version; removing or
+      renaming a key requires a bump and a deprecation period
+      (deferred to a v1.x decision).
+  - `func Load(path string) (*Config, error)` decodes one TOML
+    file. Unknown keys (a typo in the user's file) cause Load to
+    return a non-nil error listing every unknown key — the
+    user wants to know they typed `keep_warning` instead of
+    `keep_warnings`, not have it silently ignored. Uses
+    `toml.MetaData.Undecoded()` to enumerate.
+  - **No discovery, no merge.** M14.1 only handles a single TOML
+    path turned into a `*Config`.
+- **Tests** (`internal/config/config_test.go`):
+  - `TestConfig_LoadValid`: feed the ARCHITECTURE.md example
+    verbatim; assert every field decodes to the expected value.
+  - `TestConfig_LoadEmpty`: feed an empty TOML file; assert
+    zero-value Config and nil error.
+  - `TestConfig_LoadUnknownKeyErrors`: feed a config with
+    `keep_warning = true` (singular); assert Load returns an
+    error mentioning the unknown key.
+  - `TestConfig_LoadMalformedTOMLErrors`: feed `default_budget =`
+    (no value); assert a parse error with line:column info.
+  - `TestConfig_LoadSchemaVersionMatch`: a config with
+    `schema_version = 1` decodes; `schema_version = 2` errors
+    with a clear "config schema version 2 not supported by this
+    binary (version 1)" message.
+  - `TestConfig_LoadCustomFormat`: a config with one
+    `[[formats.custom.myapp]]` block decodes into
+    `CustomFormats["myapp"]` with all fields populated.
+  - `TestConfig_LoadCustomFormatMissingRequired`: a custom-format
+    block missing `detect_regex` returns a validation error
+    naming the field and the offending block name.
+  - `TestConfig_PointerFieldDistinguishesUnsetFromZero`: load a
+    `[formats.pytest]` block with `keep_warnings = false`
+    explicitly; assert the pointer is non-nil and
+    `*FormatConfig.KeepWarnings == false`. Then load the same
+    block with no `keep_warnings` line; assert the pointer is
+    nil.
+  - `TestConfig_RoundTripSchemaMatchesDoc`: parse and re-marshal
+    the ARCHITECTURE.md sketch; assert every documented key
+    appears in the encoded form (drift guard).
+- **Docs:**
+  - Godoc on every exported type and field; the field comments
+    name the corresponding TOML key explicitly.
+  - Add `github.com/BurntSushi/toml` to
+    [ARCHITECTURE.md § Dependencies](./ARCHITECTURE.md#dependencies)
+    (it is already listed in the sketch; M14.1 promotes it from
+    sketch to shipped).
+  - New `docs/config.md` with the section skeleton (intro, schema
+    table, every supported key with type/default/description,
+    example file). M14.1 fills in the schema table and the
+    example; M14.2 adds discovery; M14.3 adds precedence;
+    M14.5 adds custom-format docs.
+
+### M14.2 — Discovery: walk CWD upward and read `~/.config/...`
+
+Find the config files the user actually has, in the documented order.
+
+- **DoD:**
+  - `func Discover(cwd string, home string) (project, user string, err error)`.
+    The function returns absolute paths to the two config files,
+    or an empty string for any that doesn't exist.
+    - **Project config:** walk from `cwd` toward `/`, stopping at
+      the first directory that either contains
+      `.distill-ai.toml` or is a git root (contains `.git/`). The
+      git-root stop is so a working directory inside a clone of
+      a repo without its own config doesn't pick up the user's
+      parent-directory home config by accident. The walk is
+      bounded by an absolute depth cap of 32 directories to
+      protect against pathological symlink loops.
+    - **User config:** `$XDG_CONFIG_HOME/distill-ai/config.toml`
+      if `XDG_CONFIG_HOME` is set, else
+      `~/.config/distill-ai/config.toml`. Both arms honour the
+      explicit `home` argument so tests can override; production
+      passes `os.UserHomeDir()`.
+  - `func LoadAll(cwd, home string) (*Config, error)` is the
+    discovery + decode combo: Discover, then Load each non-empty
+    path, then merge per M14.3, then return the merged config.
+  - Both functions take `cwd` and `home` as explicit arguments
+    rather than reading globals. Tests pass `t.TempDir()` for
+    `cwd` and a synthesized `home`. The CLI passes
+    `os.Getwd()` and `os.UserHomeDir()`.
+- **Tests** (`internal/config/discover_test.go`):
+  - `TestDiscover_ProjectConfigInCwd`: synthesise a tempdir with
+    `.distill-ai.toml`; Discover returns its path.
+  - `TestDiscover_ProjectConfigInParent`: synthesise
+    `tempdir/sub/`, put `.distill-ai.toml` in `tempdir/`; Discover
+    walks up and finds it.
+  - `TestDiscover_StopsAtGitRoot`: synthesise
+    `tempdir/.git/`, `tempdir/sub/`, no `.distill-ai.toml` at
+    either level; Discover returns empty project path (does not
+    walk past the git root).
+  - `TestDiscover_HonoursXdgConfigHome`: set
+    `XDG_CONFIG_HOME=/tmp/xdg`, put
+    `/tmp/xdg/distill-ai/config.toml`; Discover returns that
+    path.
+  - `TestDiscover_FallsBackToHomeConfig`: unset
+    `XDG_CONFIG_HOME`; Discover returns
+    `<home>/.config/distill-ai/config.toml`.
+  - `TestDiscover_NoConfigsReturnsEmpty`: tempdir with neither
+    config; Discover returns two empty strings and nil error.
+  - `TestDiscover_DepthCapPreventsRunaway`: synthesise a 40-deep
+    directory hierarchy with no git root and no config; Discover
+    halts at the cap and returns empty without error.
+  - `TestLoadAll_BothPresentMerges`: project + user configs both
+    exist; assert the merged result follows M14.3's precedence
+    rules.
+- **Docs:**
+  - Godoc on `Discover`, `LoadAll`, the env-var precedence, the
+    git-root stop rule, the depth cap.
+  - Extend `docs/config.md` with the discovery section: where the
+    binary looks, in what order, when it stops walking.
+
+### M14.3 — Merge: precedence chain and per-format overrides
+
+Combine CLI flags, project config, user config, and built-in
+defaults so the right value wins.
+
+- **DoD:**
+  - Documented precedence: **CLI flag > project config > user
+    config > built-in default.** The "built-in default" is the
+    same zero-value default the CLI used to ship before M14.
+  - `func Merge(user, project *Config) *Config` takes the two
+    loaded configs and returns a single merged `*Config` where
+    project values override user values (because `nil` user
+    fields fall through). Both arguments may be nil — `Merge(nil,
+    nil)` returns an empty `*Config`.
+  - `func (c *Config) ApplyToOptions(opts *pipeline.Options, formatName string)` walks
+    the merged config and sets every option whose pointer in the
+    `*FormatConfig` for `formatName` (or the top-level `*Config`
+    fallback) is non-nil. The CLI then overrides any field for
+    which the user explicitly passed a flag — that wiring lives
+    in M14.4.
+  - **Per-format overrides** work as documented in
+    ARCHITECTURE.md: a `[formats.pytest]` section's
+    `keep_warnings` value overrides the top-level
+    `keep_warnings` value when the active format is pytest. The
+    fallback chain inside ApplyToOptions is "per-format → top-
+    level → built-in default."
+  - Custom format entries in `Config.CustomFormats` are not
+    applied here — they're consumed by M14.5 at registry build
+    time.
+- **Tests** (`internal/config/merge_test.go`):
+  - `TestMerge_BothNilReturnsEmpty`.
+  - `TestMerge_ProjectOverridesUser`: user sets
+    `default_budget = 1000`; project sets `default_budget =
+    2000`; merged value is 2000.
+  - `TestMerge_UserFillsGap`: user sets `default_output =
+    "json"`; project sets nothing; merged value is `"json"`.
+  - `TestMerge_PointerFieldsCarryThrough`: user sets
+    `keep_warnings = false` (explicit pointer); project sets
+    nothing; merged `*KeepWarnings` is non-nil and `false`.
+  - `TestApplyToOptions_PerFormatBeatsTopLevel`: config with
+    top-level `dedupe_window = 100` and
+    `[formats.pytest] dedupe_window = 200`; assert
+    `ApplyToOptions(opts, "pytest")` sets `opts.DedupeWindow =
+    200`, and `ApplyToOptions(opts, "gotest")` sets it to 100.
+  - `TestApplyToOptions_ZeroValueDistinguishedFromUnset`: config
+    explicitly sets `dedupe_window = 0` for pytest; assert
+    `opts.DedupeWindow = 0`, not the top-level default.
+  - `TestApplyToOptions_UnsetFallsThroughToDefault`: config has
+    no value for `default_budget`; `ApplyToOptions` does not
+    modify the existing `opts.Budget`, so the built-in default
+    (zero) or the CLI's pre-applied flag value survives.
+- **Docs:**
+  - Godoc on `Merge`, `ApplyToOptions`, every field of `Config`
+    and `FormatConfig` (re-cap of where each field applies).
+  - Extend `docs/config.md` with the precedence diagram and a
+    worked example showing flag + project + user + default
+    resolution for a single key.
+
+### M14.4 — Wire `Config` into the CLI
+
+Make every flag's default come from the merged Config and document
+the resolution chain.
+
+- **DoD:**
+  - `cmd/distill-ai/root.go` (or wherever cobra is rooted) calls
+    `config.LoadAll(os.Getwd(), os.UserHomeDir())` before flag
+    parsing. The resulting `*Config` is held on a package
+    variable that the subcommand initialisers consult when
+    declaring flag defaults.
+  - Each flag's default is computed as:
+    1. The corresponding field on the merged `*Config` if set
+       (per the M14.3 pointer-vs-zero distinction).
+    2. The built-in zero default otherwise.
+    - The CLI's `pflag` defaults are populated from that
+      resolved value at registration time.
+  - **`--config <path>`** flag overrides Discover entirely. When
+    given, the binary loads only that file (no merge with user
+    config, no project walk). Useful for CI workflows that ship
+    a vetted config explicitly.
+  - **`--print-config`** subcommand-flag on `run` and `explain`:
+    when set, the binary prints the merged effective Config as
+    TOML to stdout and exits 0 without running the pipeline.
+    Lets users debug "which config is winning?" without
+    reverse-engineering the precedence chain.
+  - The SKILL.md `cli-surface` manifest gains `--config` and
+    `--print-config` entries. The integration suite's
+    `TestSkill_DocumentsCurrentCLISurface` test fails loudly
+    otherwise.
+  - **No new flags beyond `--config` and `--print-config`.**
+    Every config key has an existing CLI flag (per the flag-
+    policy rule); M14 does not add per-key flags for keys that
+    don't already have one.
+- **Tests** (`cmd/distill-ai/config_integration_test.go`):
+  - `TestRun_ProjectConfigSetsDefaultBudget`: synthesise a
+    tempdir with `.distill-ai.toml` setting `default_budget =
+    500`; invoke `distill-ai run` in that dir with no
+    `--budget`; assert the pipeline runs with `Budget=500`.
+  - `TestRun_CLIFlagOverridesConfig`: same tempdir, but invoke
+    with `--budget=1000`; assert `Budget=1000`.
+  - `TestRun_UserConfigOverridable`: synthesise a fake home with
+    `default_output = "json"`; assert the binary defaults to
+    JSON output unless a project config or `--output` overrides.
+  - `TestRun_ConfigFlagShortCircuitsDiscover`: synthesise both a
+    project and a user config that would normally apply; invoke
+    with `--config=<explicit-path>`; assert only the explicit
+    file's values apply.
+  - `TestRun_PrintConfigPrintsMergedResult`: invoke
+    `--print-config` and parse the output; assert it round-trips
+    through `config.Load` to the same effective values.
+  - `TestRun_PrintConfigExitsBeforePipeline`: assert no stdin is
+    read and no events are emitted when `--print-config` is set.
+- **Docs:**
+  - Update SKILL.md `cli-surface` manifest with `--config` and
+    `--print-config`.
+  - Update README.md flag list and the relevant `--help` text.
+  - Update [ARCHITECTURE.md § Flags](./ARCHITECTURE.md#flags)
+    with the new flags.
+  - Extend `docs/config.md` with a "Debugging effective
+    configuration" section that demonstrates `--print-config`.
+
+### M14.5 — Custom-format registration via `[[formats.custom.NAME]]`
+
+Land the regex-driven extension hook. Each `[[formats.custom.NAME]]`
+block becomes a Format registered in `formats.All()` at process
+start, indistinguishable from a built-in Format from the pipeline's
+perspective.
+
+- **DoD:**
+  - New package `internal/formats/custom` exporting `Format` (a
+    runtime-configured implementation, not a value type — one
+    `Format` instance per `[[formats.custom.NAME]]` block).
+  - `func RegisterFromConfig(custom map[string]CustomFormatConfig) error`
+    is called from `cmd/distill-ai/root.go` after `LoadAll`. The
+    function compiles each block's regexes once (returning an
+    error that names the offending block and field on failure),
+    constructs a `Format` instance, and calls
+    `formats.Register` on each.
+  - **Per-block Format shape:**
+    - `Name() string` returns `"custom:NAME"` (namespaced so a
+      built-in format named "myapp" can never collide with a
+      custom block of the same name).
+    - `Detect(sample []byte) Confidence` returns `1.0` when the
+      sample contains a line matching the block's `detect_regex`,
+      else `0.0`. Custom formats deliberately have only two
+      confidence values — they're regex-based, so the user's
+      regex is the authority.
+    - `Parse(ctx, r, opts)` scans the input line-by-line. A line
+      matching `event_start` opens an Event; subsequent lines are
+      appended to `Body` until a line matches `event_end` (or
+      another `event_start`, or EOF). Each Event has:
+      - `Severity` = the block's `Severity` (default
+        `SeverityError`).
+      - `Kind` = the block's `Kind` (default `"match"`).
+      - `Title` = the matched `event_start` line, ANSI-stripped
+        (per the M9.2 convention so encoder Output stays clean).
+      - `Body` = the verbatim block lines.
+      - `Location` = best-effort extraction via M9's
+        slash-required location regex, applied to the matched
+        line.
+      - `Metadata["custom_format"]` = the block name (without the
+        `custom:` prefix).
+  - **Validation timing.** Regex compilation errors fail the
+    binary at startup — before stdin is read — so the user sees
+    "config invalid: formats.custom.myapp.event_start: error
+    parsing regexp: ..." rather than a silent fallback. This
+    matches the M1.3 "panic on bad init" rule.
+  - **Confidence-tie precedence.** A custom Format and a built-in
+    Format may both detect at 1.0. The detector's tie-breaking
+    rule (M3.1) is "specific beats generic", but custom formats
+    don't have a built-in priority. M14.5 documents that built-in
+    formats win ties with custom formats — the detector's sort
+    runs alphabetically and a tie among 1.0-confidence formats
+    picks the lexicographically smallest name; the `custom:`
+    prefix sorts after every alphanumeric built-in name. If a
+    user wants their custom format to win, they should run with
+    the explicit positional `FORMAT` argument.
+  - **No streaming surprise.** Custom Formats are streaming-first
+    by virtue of the line-scanner loop. The trailing-block-emit
+    rule from M9.2 applies: an Event is forwarded when its
+    terminator line is consumed or input closes.
+- **Tests** (`internal/formats/custom/custom_test.go`):
+  - `TestCustom_RegisterFromConfig_RegistersAllBlocks`: feed a
+    config with three custom-format blocks; assert
+    `formats.All()` contains three new entries named
+    `custom:foo`, `custom:bar`, `custom:baz`.
+  - `TestCustom_RegisterFromConfig_BadRegexFails`: a block with
+    `detect_regex = "("` (unbalanced paren); assert
+    `RegisterFromConfig` returns an error naming the block and
+    field.
+  - `TestCustom_DetectMatchesLine`: a sample line matching the
+    block's `detect_regex` → `Confidence == 1.0`.
+  - `TestCustom_DetectMissesNonMatching`: → `0.0`.
+  - `TestCustom_ParseSingleEvent`: input with one start/end
+    pair; one Event with the documented shape.
+  - `TestCustom_ParseMultipleEvents`: input with three
+    start/end pairs interleaved with unrelated lines; three
+    Events, no leakage between them.
+  - `TestCustom_ParseImpliedEndOnNewStart`: input with two
+    `event_start` lines and no `event_end` between them;
+    assert the first Event terminates at the second start, the
+    second Event terminates at EOF.
+  - `TestCustom_ParseHonoursOptsContext`: a block with no
+    `event_end` regex but a positive `--context=3` flag; assert
+    each Event picks up the documented number of trailing
+    context lines (this exercises the path where `event_end` is
+    optional; M14.5 supports the omission and falls back to a
+    one-line-per-Event model — DoD update: `event_end` is
+    optional, default behaviour is "one Event per matched
+    start line").
+  - `TestCustom_FormatNameIsNamespaced`: assert
+    `Format.Name()` returns `"custom:myapp"` for a block named
+    `myapp`.
+  - `TestCustom_DetectorTieBreakerPrefersBuiltins`: register a
+    custom format named `gotest`; feed a real gotest fixture;
+    assert the detector picks the built-in gotest, not
+    `custom:gotest`.
+  - Golden tests under `internal/formats/custom/testdata/`
+    proving the harness from M9.5 / `internal/formats/testing.go`
+    accepts runtime-configured Formats. Minimum five cases:
+    single match with end terminator, single match without end
+    (implicit one-line Event), multiple matches, custom
+    severity, custom kind.
+- **Docs:**
+  - Godoc on `Format`, `RegisterFromConfig`, the namespacing
+    rule, the tie-breaker rule.
+  - Extend `docs/config.md` with a "Custom formats" section: the
+    `[[formats.custom.NAME]]` schema, every supported field, the
+    namespacing rule, an end-to-end example (config → input →
+    distilled output).
+  - Add a new SCHEMA.md section "Custom format kinds" noting
+    that the `Kind` field is open-set for `custom:*` formats —
+    the user picks the string and SCHEMA.md does not enumerate
+    it.
+  - README.md format list mentions custom formats under a
+    separate "Extensions" subsection; not in the main "shipped"
+    list because custom formats are user-configured, not
+    project-shipped.
+
+### M14.6 — Resolve KNOWN_ISSUES.md § 1 (`--max-events`, `--passthrough`)
+
+Tie off the two inert flags carried forward from M8. M14 owns the
+fix per
+[KNOWN_ISSUES.md § 1](./KNOWN_ISSUES.md), recommendation arm 1
+(plumb them through). The plumbing fits naturally inside M14
+because both flags benefit from config-file defaults:
+`max_events = 100` in a monorepo's `.distill-ai.toml` is the
+common case.
+
+- **DoD:**
+  - **`--max-events=N`** wires through `pipeline.Options.MaxEvents`
+    into a new `MaxEventsStage` in `internal/pipeline/maxevents.go`.
+    The stage counts emitted events; once `N` reaches the cap, it
+    closes its output channel and signals the source to cancel
+    (via `ctx`). Inserted into the pipeline by `Build` when
+    `MaxEvents > 0`. Position: after BudgetStage so the budget
+    truncation runs first (otherwise a 10-event cap with a
+    1-event budget would let the parser do unbounded work then
+    drop 9/10 of it). When both `--budget` and `--max-events`
+    cap, both apply: `--budget` shrinks total tokens, then
+    `--max-events` caps event count.
+  - **`--passthrough`** wires through `pipeline.Options.Passthrough`
+    into the Sink layer. When set, if `Pipeline.Run` completes
+    with `Sink.EventsEmitted() == 0`, the binary copies the raw
+    input bytes to stdout before exiting 0 (instead of exiting 1
+    per M8.3's `ExitNoEvents`). The raw bytes come from a
+    `TeeReader` the CLI inserts when `--passthrough` is set, so
+    the source can be replayed exactly once.
+  - **Config defaults.** Both flags pick up defaults from
+    `Config.MaxEvents` and `Config.Passthrough` (new field,
+    `*bool`). M14.4's `ApplyToOptions` walks these the same way
+    every other key works.
+  - **Help-text drift.** The current `--help` text mentions
+    "Plumbing lands in M8.2.x." Replace with documented
+    behaviour in the same commit that lands the plumbing.
+  - **KNOWN_ISSUES.md update.** Delete § 1 in the same commit;
+    the issue is resolved.
+- **Tests:**
+  - `TestMaxEventsStage_StopsAtCap`: pipeline with
+    `MaxEvents=3` and a Source producing 10 events; assert the
+    Sink sees exactly 3 and the Source's ctx is cancelled.
+  - `TestMaxEventsStage_ZeroDisablesCap`: `MaxEvents=0` →
+    pass-through behaviour identical to no MaxEventsStage in
+    the chain.
+  - `TestMaxEventsStage_RunsAfterBudget`: pipeline with
+    `Budget=50`, `MaxEvents=10`, and 20 events totalling 100
+    tokens; assert BudgetStage truncates first (sees all 20),
+    then MaxEventsStage caps to 10.
+  - `TestPassthrough_NoEventsCopiesInput`: synthesise input
+    that detects as `generic` but contains no severity hits;
+    invoke with `--passthrough`; assert the raw bytes appear on
+    stdout and the exit code is 0 (not 1).
+  - `TestPassthrough_EventsFoundSuppressesPassthrough`: input
+    that does produce an Event; assert the distilled output is
+    emitted as normal (passthrough is a fallback only).
+  - `TestPassthrough_TeeReaderDoesNotDoubleRead`: synthesise a
+    Reader that fails on a second call to `Read`; assert
+    passthrough works without invoking `Read` twice.
+  - `TestConfig_MaxEventsFromProjectConfig`: tempdir
+    `.distill-ai.toml` with `max_events = 5`; invoke without
+    the flag; assert the pipeline caps at 5.
+- **Docs:**
+  - Godoc on `MaxEventsStage`, the Sink-layer passthrough
+    plumbing, the `Config.MaxEvents` / `Config.Passthrough`
+    fields.
+  - Update [ARCHITECTURE.md § Pipeline](./ARCHITECTURE.md#pipeline)
+    with the MaxEventsStage in the chain order.
+  - Update README.md and the relevant `--help` text to match.
+  - Delete `KNOWN_ISSUES.md` § 1.
+
+### M14 exit criteria
+
+- All six sub-items ticked.
+- `make check` clean; no race hits; no goroutine leaks.
+- M14 milestone drift check: every key in the ARCHITECTURE.md
+  config sketch is implemented and tested; `docs/config.md` exists
+  with the full schema; every flag in the SKILL.md `cli-surface`
+  manifest has a corresponding config key where applicable; the
+  KNOWN_ISSUES.md § 1 entry has been deleted in the M14.6 commit;
+  the binary exits cleanly with `distill-ai --config /tmp/x.toml
+  run` on a config file that exercises every supported key.
+- After M14 ships, every previously-CLI-only knob can be set via
+  config. Monorepos and CI pipelines no longer need to repeat the
+  same flag list on every invocation; agents inherit the right
+  defaults by virtue of running in the project's directory.
 
 ---
 
