@@ -104,6 +104,49 @@ the same `io.MultiReader` shape
 The CLI's `--strip-envelope` flag (M13.2) maps directly onto
 `Options.Choice`.
 
+## CLI
+
+`--strip-envelope=<choice>` is registered on both the `run` and
+`explain` subcommands, with default `auto`. Behaviour:
+
+```bash
+# Default: detect a registered stripper from the first 4 KiB of
+# input; fall back to Noop if nothing claims it.
+gh run view --log | distill-ai run
+
+# Equivalent (auto is the default).
+gh run view --log | distill-ai run --strip-envelope=auto
+
+# Skip envelope handling entirely. Useful when stdin is bare
+# command output and you want to short-circuit detection.
+go test ./... 2>&1 | distill-ai run --strip-envelope=none
+
+# Force a specific stripper, bypassing detection. Lets the user
+# override an ambiguous sample, or pin behaviour in CI.
+glab ci trace | distill-ai run --strip-envelope=gitlab-ci
+```
+
+Errors:
+
+- Unknown stripper name → exit code 2, stderr names the unknown
+  value.
+- `--strip-envelope=auto` with no registered strippers (the
+  state today, before M13.3 / M13.4) → Wrap silently falls back
+  to Noop, exit code 0. The same fallback fires when the
+  sample doesn't match any registered stripper.
+
+The flag is also reflected in the
+[`cli-surface`](../skills/distill-ai-dev/SKILL.md) manifest;
+[`TestSkill_DocumentsCurrentCLISurface`](../test/integration/integration_test.go)
+gates merges on the manifest staying in sync with the compiled
+binary.
+
+The chosen stripper is reported on stderr when `--verbose` /
+`-v` is set, alongside the existing `format=`, `source=`, and
+`sample_bytes=` line. Noop suppresses the envelope line so the
+verbose output is unchanged for users who don't run inside a CI
+wrapper.
+
 ## The Noop stripper
 
 `envelope.Noop` is the explicit "no envelope" Stripper. It returns

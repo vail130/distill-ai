@@ -240,6 +240,10 @@ func (s ExplainingBudgetStage) Run(ctx context.Context, in <-chan event.Event) <
 // per-event modifications (FramesCollapsed and Count) are visible
 // to downstream Sinks; the explain Sink derives the drop counts
 // from those fields rather than from a side channel.
+//
+// Options.EnvelopeSignals is honoured identically to Build: when
+// non-nil, src is wrapped in a fan-in Source so envelope signal
+// Events join the stream upstream of the instrumented stages.
 func BuildExplain(src Source, sink Sink, opts Options, log *ExplainLog) (*Pipeline, error) {
 	if log == nil {
 		log = &ExplainLog{}
@@ -249,7 +253,7 @@ func BuildExplain(src Source, sink Sink, opts Options, log *ExplainLog) (*Pipeli
 		DedupeStage{Window: opts.DedupeWindow},
 	}
 	p := &Pipeline{
-		Source:     src,
+		Source:     wrapWithEnvelopeSignals(src, opts.EnvelopeSignals),
 		Stages:     stages,
 		Sink:       sink,
 		BufferSize: opts.BufferSize,

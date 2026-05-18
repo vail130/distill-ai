@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/vail130/distill-ai/internal/detect"
+	"github.com/vail130/distill-ai/internal/envelope"
 	"github.com/vail130/distill-ai/internal/output"
 	"github.com/vail130/distill-ai/internal/pipeline"
 )
@@ -81,7 +82,15 @@ func runExplain(cmd *cobra.Command, args []string, fl *runFlags) error {
 		defer func() { _ = closer.Close() }()
 	}
 	lc := &output.LineCounter{Reader: input}
-	chosen, stream, sample, err := resolveFormat(cmd.Context(), formatName, lc, fl.strict)
+	cleaned, signals, stripper, err := envelope.Wrap(cmd.Context(), lc, envelope.Options{Choice: fl.stripEnvelope})
+	if err != nil {
+		fmt.Fprintf(stderr, "distill-ai explain: %v\n", err)
+		return &exitCodeError{code: ExitError}
+	}
+	if fl.verbose && stripper != nil && stripper.Name() != envelope.ChoiceNone {
+		fmt.Fprintf(stderr, "distill-ai: envelope=%s\n", stripper.Name())
+	}
+	chosen, stream, sample, err := resolveFormat(cmd.Context(), formatName, cleaned, fl.strict)
 	if err != nil {
 		if errors.Is(err, detect.ErrNoFormat) {
 			fmt.Fprintf(stderr, "distill-ai explain: no format matched %s\n", sourceLabel)
@@ -96,6 +105,7 @@ func runExplain(cmd *cobra.Command, args []string, fl *runFlags) error {
 			chosen.Name(), sourceLabel, len(sample))
 	}
 	opts := buildPipelineOptions(fl)
+	opts.EnvelopeSignals = signals
 	parseOpts, err := buildParseOpts(fl)
 	if err != nil {
 		fmt.Fprintf(stderr, "distill-ai explain: %v\n", err)

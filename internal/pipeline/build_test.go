@@ -3,6 +3,7 @@ package pipeline
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/vail130/distill-ai/internal/event"
 )
@@ -232,4 +233,134 @@ func TestBuild_UnknownTokenizerDoesNotStartGoroutines(t *testing.T) {
 	if p != nil {
 		t.Errorf("Build returned non-nil Pipeline with error: %+v", p)
 	}
+}
+
+// TestBuild_EnvelopeSignalsNilLeavesSourceUntouched asserts that the
+// fan-in wrapper is only constructed when EnvelopeSignals is
+// actually populated. The bare Source flows straight through Build
+// otherwise, matching the pre-M13 behaviour byte-for-byte.
+func TestBuild_EnvelopeSignalsNilLeavesSourceUntouched(t *testing.T) {
+	src := &channelSource{events: []event.Event{makeEvent("a")}, buf: 1}
+	p := mustBuild(t, src, &collectSink{}, Options{})
+	if p.Source != src {
+		t.Errorf("Build wrapped Source despite nil EnvelopeSignals: got %T, want *channelSource", p.Source)
+	}
+}
+
+// TestBuild_EnvelopeSignalsMergedIntoStream covers the M13.2 DoD:
+// signals delivered on Options.EnvelopeSignals appear in the Sink's
+// output stream alongside parser Events.
+func TestBuild_EnvelopeSignalsMergedIntoStream(t *testing.T) {
+	parserEvents := []event.Event{
+		makeEvent("parser-1"),
+		makeEvent("parser-2"),
+	}
+	signals := make(chan event.Event, 2)
+	signals <- event.Event{Title: "envelope-1", Kind: "envelope_error"}
+	signals <- event.Event{Title: "envelope-2", Kind: "envelope_warning"}
+	close(signals)
+	src := &channelSource{events: parserEvents, buf: 2}
+	sink := &collectSink{}
+	p := mustBuild(t, src, sink, Options{EnvelopeSignals: signals})
+	if err := p.Run(context.Background()); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if len(sink.got) != 4 {
+		t.Fatalf("got %d events from Sink, want 4 (2 parser + 2 envelope)", len(sink.got))
+	}
+	titles := map[string]bool{}
+	kinds := map[string]bool{}
+	for _, ev := range sink.got {
+		titles[ev.Title] = true
+		kinds[ev.Kind] = true
+	}
+	for _, want := range []string{"parser-1", "parser-2", "envelope-1", "envelope-2"} {
+		if !titles[want] {
+			t.Errorf("expected Title %q in Sink output; got titles %v", want, titlesOf(sink.got))
+		}
+	}
+	if !kinds["envelope_error"] || !kinds["envelope_warning"] {
+		t.Errorf("envelope Kinds did not survive the fan-in: kinds=%v", kinds)
+	}
+}
+
+// TestBuild_EnvelopeSignalsClosedFirstStillDrainsParser asserts that
+// closing the signals channel before the parser finishes does NOT
+// terminate the pipeline early. The wrapper must continue draining
+// the parser's stream until it closes too.
+func TestBuild_EnvelopeSignalsClosedFirstStillDrainsParser(t *testing.T) {
+	parserEvents := []event.Event{
+		makeEvent("p1"), makeEvent("p2"), makeEvent("p3"),
+	}
+	signals := make(chan event.Event)
+	close(signals) // closed before any parser event arrives
+	src := &channelSource{events: parserEvents, buf: 3}
+	sink := &collectSink{}
+	p := mustBuild(t, src, sink, Options{EnvelopeSignals: signals})
+	if err := p.Run(context.Background()); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if len(sink.got) != 3 {
+		t.Fatalf("got %d events, want 3 (all parser events should arrive even after signals close)", len(sink.got))
+	}
+}
+
+// TestBuild_EnvelopeSignalsParserClosedFirstStillDrainsSignals is the
+// mirror image of the above: when the parser finishes first, the
+// merger must continue forwarding signals.
+func TestBuild_EnvelopeSignalsParserClosedFirstStillDrainsSignals(t *testing.T) {
+	signals := make(chan event.Event, 2)
+	signals <- event.Event{Title: "s1", Kind: "envelope_error"}
+	signals <- event.Event{Title: "s2", Kind: "envelope_warning"}
+	close(signals)
+	// channelSource with no events closes immediately.
+	src := &channelSource{events: nil, buf: 1}
+	sink := &collectSink{}
+	p := mustBuild(t, src, sink, Options{EnvelopeSignals: signals})
+	if err := p.Run(context.Background()); err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	if len(sink.got) != 2 {
+		t.Fatalf("got %d events, want 2 (signals must drain after parser closes)", len(sink.got))
+	}
+	titles := titlesOf(sink.got)
+	want := map[string]bool{"s1": true, "s2": true}
+	for _, title := range titles {
+		if !want[title] {
+			t.Errorf("unexpected Title %q in Sink output", title)
+		}
+	}
+}
+
+// TestBuild_EnvelopeSignalsHonoursContextCancel asserts that the
+// fan-in goroutine exits when ctx is cancelled rather than blocking
+// on a signal channel that never closes.
+func TestBuild_EnvelopeSignalsHonoursContextCancel(t *testing.T) {
+	// signals is an unbuffered channel that we never close and
+	// never write to. The merger goroutine would block forever
+	// without ctx-cancel handling; this test asserts it doesn't.
+	signals := make(chan event.Event)
+	src := &channelSource{events: nil, buf: 1}
+	sink := &collectSink{}
+	p := mustBuild(t, src, sink, Options{EnvelopeSignals: signals})
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- p.Run(ctx) }()
+	cancel()
+	select {
+	case err := <-done:
+		// Any error (including ctx.Err) is acceptable; the
+		// important property is that Run returned.
+		_ = err
+	case <-time.After(1 * time.Second):
+		t.Fatal("Run did not return within 1s after ctx cancel; fan-in goroutine likely leaked")
+	}
+}
+
+func titlesOf(events []event.Event) []string {
+	out := make([]string, 0, len(events))
+	for i := range events {
+		out = append(out, events[i].Title)
+	}
+	return out
 }
