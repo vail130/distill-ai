@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- M16.1: man pages generated from the cobra command tree. The CLI
+  surface (root command and subcommands) was moved from
+  `cmd/distill-ai/` into a new `internal/cli/` package so the
+  man-page generator at `cmd/distill-ai/gen-man/` can import the
+  same tree the production binary uses — no duplicated wiring, no
+  drift between `--help` and the rendered roff. `cmd/distill-ai/main.go`
+  is now a thin wrapper that forwards build-info ldflags into
+  `internal/cli` via `cli.SetBuildInfo` and dispatches to `cli.Run`.
+  The generator strips the volatile date field cobra/doc would
+  otherwise inject into every `.TH` header, so regenerating on the
+  same source SHA produces byte-identical output and CI doesn't
+  re-touch the files on every run. Seven `.1` pages live under
+  `man/man1/` (root plus six subcommands) and are checked into the
+  repo so distributions install them without re-running the
+  generator. `make man` (and `make all`, which now depends on
+  `build` and `man`) refreshes the pages. A `//go:generate` directive
+  on `internal/cli/root.go` makes `go generate ./internal/cli/`
+  equivalent. `goreleaser.yaml` gains an `nfpms` block that bundles
+  `man/man1/*.1` into the generated `.deb` / `.rpm` packages,
+  installing the pages at `/usr/share/man/man1/`. Three unit tests
+  on the generator (determinism, the `.TH` date-strip shape, the
+  expected subcommand coverage) plus three integration tests
+  (every flag in the SKILL.md `cli-surface` manifest appears in
+  at least one man page; no orphan `distill-ai-<verb>.1` survives
+  a subcommand rename or removal; the pages are checked into the
+  repo) form the drift-guard set: adding a flag or verb without
+  regenerating fails CI.
 - Makefile: `install-skill` and `uninstall-skill` targets that
   symlink `skills/distill-ai/` into `~/.config/opencode/skills/`
   (overridable via `SKILL_DEST=...`). Idempotent: refuses to
