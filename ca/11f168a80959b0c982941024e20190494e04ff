@@ -1,0 +1,44 @@
+CHANGELOG.md
+  6bf018cc3c3cb2a8 12-47
+pkg/distill/internal/orchestrator/orchestrator_test.go
+  6bf018cc3c3cb2a8 1-291
+test/integration/public_api_test.go
+  6bf018cc3c3cb2a8 1-133
+pkg/distill/register.go
+  6bf018cc3c3cb2a8 1-41
+pkg/distill/internal/orchestrator/orchestrator.go
+  6bf018cc3c3cb2a8 1-390
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "ca11f168a80959b0c982941024e20190494e04ff",
+  "prompts": {
+    "6bf018cc3c3cb2a8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c3b7709dffekBdPc4ZFU4gWYD",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 892,
+      "total_deletions": 1,
+      "accepted_lines": 891,
+      "overriden_lines": 0
+    },
+    "aaf3cafde36d6d2d": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c418a5f6ffedSQpnnmGvZIfK6",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 7130,
+      "overriden_lines": 0
+    }
+  }
+}
