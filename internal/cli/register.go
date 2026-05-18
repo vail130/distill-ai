@@ -1,4 +1,4 @@
-package main
+package cli
 
 // Format and envelope-stripper registration via side-effect imports.
 // Each imported package's init() function calls formats.Register or
