@@ -544,8 +544,11 @@ Registry picks it up via `init()`. No central list to edit.
 
 **Formats shipped:** `pytest`, `jest`, `gotest`, `generic`.
 
-These cover ~70% of agent-debugging use cases. `k8s` and structured-`json`
-logs land in v1.1.
+These cover ~70% of agent-debugging use cases. The detailed v1.0
+contract and the post-v1.0 roadmap (v1.1 = static analysis,
+v1.2 = MCP, v1.3 = code distillation, v1.4 = documentation formats,
+v1.5 = more log/test formats) is recorded in
+[ADR-0002](./docs/decisions/0002-v1.0-scope-and-post-v1.0-roadmap.md).
 
 **Token estimator:** heuristic default + tiktoken opt-in.
 
@@ -561,6 +564,14 @@ and binary-size implications are large enough to defer past v1.0. See
 M18–M22, and
 [ADR-0001](./docs/decisions/0001-reject-cgo-tree-sitter-prefer-wasm.md)
 for the parser-toolchain decision.
+
+**Static analysis:** deferred to v1.1. `golangci-lint` (with `go vet`
+fallback) and `cargo` (rustc / cargo build / cargo test / clippy via
+`--message-format=json`) ship as the first post-v1.0 release theme.
+Both consume upstream-emitted JSON envelopes and reuse the existing
+pipeline unchanged. See
+[TODO.md § v1.1](./TODO.md#v11--static-analysis--linting-post-launch)
+for M23 and M24 scoping.
 
 ## Dependencies
 
