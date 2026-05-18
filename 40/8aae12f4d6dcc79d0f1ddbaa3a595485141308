@@ -1,0 +1,48 @@
+CHANGELOG.md
+  aaf3cafde36d6d2d 12-30
+internal/config/discover.go
+  aaf3cafde36d6d2d 1-196
+internal/config/discover_test.go
+  aaf3cafde36d6d2d 1-286
+internal/config/merge.go
+  aaf3cafde36d6d2d 1-203
+TODO.md
+  aaf3cafde36d6d2d 3555,3614
+docs/config.md
+  aaf3cafde36d6d2d 21-22
+internal/config/merge_test.go
+  aaf3cafde36d6d2d 1-330
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "408aae12f4d6dcc79d0f1ddbaa3a595485141308",
+  "prompts": {
+    "9a8cd5e73ec6569c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c73acb8cffeiaC8BALcgVDfNQ",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 299,
+      "overriden_lines": 0
+    },
+    "aaf3cafde36d6d2d": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c418a5f6ffedSQpnnmGvZIfK6",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 1056,
+      "total_deletions": 26,
+      "accepted_lines": 1038,
+      "overriden_lines": 0
+    }
+  }
+}
