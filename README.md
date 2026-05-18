@@ -94,17 +94,15 @@ want. The two are complementary.
   structured stack frames. Honours `--keep-warnings` and
   `--severity`. Documented at
   [docs/formats/pytest.md](./docs/formats/pytest.md).
-- `jest` (M12, in progress — failure-block parsing landed in
-  M12.2; snapshot/suite-error/frame handling pending in
-  M12.3–M12.4) — parses jest output: the `●` failure-block
-  bullet, per-file `FAIL`/`PASS` headers with a path-shaped
-  token guard, and a `Tests:` summary line corroborated by a
-  `jest` mention or a `.test.`/`.spec.` filename. Emits one
-  `test_failure` Event per `●` block with Title derived from the
-  failed `expect(...)` call (or `Expected:` line / error class /
-  test-path fallback), Location from the first stack frame, and
-  metadata carrying the test path (Unicode chevron normalised to
-  `>`) and the suite file. Documented at
+- `jest` (M12) — parses jest output: the `●` failure-block
+  bullet, per-file `FAIL`/`PASS` headers, snapshot mismatches
+  (file-backed and `toMatchInlineSnapshot` forms), suite-level
+  failures (`● Test suite failed to run`), the `--verbose`
+  reporter's `✓`/`✗` indicator lines, and the no-ANSI CI
+  reporter mode. Emits `test_failure`, `snapshot_mismatch`, and
+  `suite_error` Events with structured stack frames, the test
+  path (Unicode chevron normalised to ASCII `>` so it's
+  grep-able), and the suite file in metadata. Documented at
   [docs/formats/jest.md](./docs/formats/jest.md).
 
 Use `distill-ai list-formats` to see what's wired into your binary,

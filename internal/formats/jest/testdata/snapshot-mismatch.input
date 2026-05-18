@@ -1,0 +1,20 @@
+FAIL src/render.test.js
+  ● Render › renders header
+
+    expect(received).toMatchSnapshot()
+
+    Snapshot name: `Render renders header 1`
+
+    - Snapshot  - 1
+    + Received  + 1
+
+      Object {
+    -   "title": "Old",
+    +   "title": "New",
+      }
+
+      at Object.<anonymous> (src/render.test.js:8:21)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 1 total
+Snapshots:   1 failed, 1 total

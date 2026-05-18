@@ -1,0 +1,8 @@
+PASS src/utils.spec.ts
+PASS src/auth.spec.ts
+
+Test Suites: 2 passed, 2 total
+Tests:       7 passed, 7 total
+Snapshots:   0 total
+Time:        0.812 s
+Ran all test suites.

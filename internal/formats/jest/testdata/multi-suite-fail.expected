@@ -1,0 +1,104 @@
+[
+  {
+    "severity": "error",
+    "kind": "test_failure",
+    "title": "AssertionError: expected 200 got 500",
+    "location": {
+      "file": "src/auth.test.js",
+      "line": 10,
+      "column": 5
+    },
+    "body": [
+      "  ● Auth › login fails",
+      "",
+      "    AssertionError: expected 200 got 500",
+      "",
+      "      at Object.\u003canonymous\u003e (src/auth.test.js:10:5)",
+      ""
+    ],
+    "frames": [
+      {
+        "file": "src/auth.test.js",
+        "line": 10,
+        "function": "Object.\u003canonymous\u003e",
+        "vendor": false
+      }
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "suite_file": "src/auth.test.js",
+      "test_id": "Auth \u003e login fails"
+    }
+  },
+  {
+    "severity": "error",
+    "kind": "test_failure",
+    "title": "AssertionError: expected void got Error",
+    "location": {
+      "file": "src/auth.test.js",
+      "line": 20,
+      "column": 5
+    },
+    "body": [
+      "  ● Auth › logout fails",
+      "",
+      "    AssertionError: expected void got Error",
+      "",
+      "      at Object.\u003canonymous\u003e (src/auth.test.js:20:5)",
+      ""
+    ],
+    "frames": [
+      {
+        "file": "src/auth.test.js",
+        "line": 20,
+        "function": "Object.\u003canonymous\u003e",
+        "vendor": false
+      }
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "suite_file": "src/auth.test.js",
+      "test_id": "Auth \u003e logout fails"
+    }
+  },
+  {
+    "severity": "error",
+    "kind": "test_failure",
+    "title": "expect(received).toBe(expected)",
+    "location": {
+      "file": "src/utils.test.js",
+      "line": 5,
+      "column": 9
+    },
+    "body": [
+      "  ● Utils › formatDate handles UTC",
+      "",
+      "    expect(received).toBe(expected)",
+      "",
+      "    Expected: \"2024-01-15\"",
+      "    Received: \"2024-01-14\"",
+      "",
+      "      at Object.\u003canonymous\u003e (src/utils.test.js:5:9)",
+      ""
+    ],
+    "frames": [
+      {
+        "file": "src/utils.test.js",
+        "line": 5,
+        "function": "Object.\u003canonymous\u003e",
+        "vendor": false
+      }
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "suite_file": "src/utils.test.js",
+      "test_id": "Utils \u003e formatDate handles UTC"
+    }
+  }
+]

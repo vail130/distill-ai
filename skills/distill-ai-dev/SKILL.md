@@ -65,9 +65,20 @@ structured stack frames. Emits `test_failure`, `test_error`,
 `collection_error`, and `warning` Events. The filter rules from
 `--keep-warnings` / `--severity` apply.
 
-The remaining gap is jest (**M12**). Until that ships, jest
-output falls back to `generic`. Use `--strict` to turn the
-fallback into a hard error (exit 2) for CI.
+**M12** lands the **jest** format: the `●` failure-block bullet,
+per-file `FAIL`/`PASS` headers, snapshot mismatches (file-backed
+and `toMatchInlineSnapshot` forms), suite-level failures
+(`● Test suite failed to run`), `--verbose` reporter ✓/✗
+indicator lines, and the no-ANSI CI reporter mode. Emits
+`test_failure`, `snapshot_mismatch`, and `suite_error` Events.
+The Unicode chevron (`›`, U+203A) between suite and test name
+is normalised to ASCII `>` in `metadata.test_id` so the value is
+grep-able from any terminal.
+
+With M12 shipped, every v1 specific format is live; only
+`generic` remains as the safety net. `--strict` still works as
+the CI switch to forbid generic fallback (exit 2 instead of
+falling back).
 
 Looking past v1.0: the post-v1.0 roadmap is recorded in
 [ADR-0002](../../docs/decisions/0002-v1.0-scope-and-post-v1.0-roadmap.md).
@@ -210,6 +221,28 @@ detector path.
 `--keep-warnings` captures entries from the `=== warnings summary
 ===` section; warnings are dropped by default so the distilled
 output stays focused on failures.
+
+### Distil a jest run
+
+```sh
+npx jest 2>&1 | ./bin/distill-ai
+npx jest --ci 2>&1 | ./bin/distill-ai jest --output=markdown
+./bin/distill-ai run jest test/integration/testdata/fixtures/jest-fail.input
+```
+
+The CI form (`--ci`) drops ANSI escapes; the binary handles both
+coloured and plain renderings identically. The explicit `jest`
+positional skips autodetect. Useful when working on
+`internal/formats/jest/`: feed a fixture, inspect the distilled
+output, iterate.
+
+Snapshot mismatches surface as `Kind=snapshot_mismatch` with the
+diff lines preserved in the Event Body; file-backed and inline
+forms are distinguished by `metadata.snapshot_kind`
+(`"file"` vs `"inline"`). The Unicode chevron jest renders
+between suite and test name is normalised to ASCII `>` in
+`metadata.test_id` so grep / jq queries don't need to know how
+to type U+203A.
 
 ### Compare distilled output against a golden file
 

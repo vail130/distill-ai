@@ -512,6 +512,40 @@ func TestBinary_PytestEndToEndProducesOutput(t *testing.T) {
 	}
 }
 
+// TestBinary_JestEndToEndProducesOutput pins the M12 happy
+// path: feeding a jest-shaped fixture through the binary detects
+// the jest format, runs the M12.2 / M12.3 / M12.4 scanner, and
+// emits a non-empty distilled summary.
+//
+// Mirrors TestBinary_GotestEndToEndProducesOutput and
+// TestBinary_PytestEndToEndProducesOutput so the three real-format
+// end-to-end tests stay in lock-step.
+func TestBinary_JestEndToEndProducesOutput(t *testing.T) {
+	input := readFixture(t, "jest-fail.input")
+	got := runBinary(t, input)
+	if got.exitCode != 0 {
+		t.Fatalf("exit = %d, want 0 (events emitted); stdout=%q stderr=%q",
+			got.exitCode, got.stdout, got.stderr)
+	}
+	wants := []string{
+		"events from jest",
+		// Title derived from the expect(...).toBe(...) call.
+		"expect(received).toBe(expected)",
+		// Body retains the verbatim header so the test path
+		// (Unicode chevron and all) appears in the rendered
+		// output. metadata.test_id carries the normalised form
+		// but the text encoder doesn't surface it inline today.
+		"● Auth › login redirects to dashboard",
+		// Location is printed in the per-event block.
+		"src/auth.test.js:15",
+	}
+	for _, w := range wants {
+		if !strings.Contains(got.stdout, w) {
+			t.Errorf("stdout missing %q; got:\n%s", w, got.stdout)
+		}
+	}
+}
+
 // TestBinary_GenericEndToEndProducesOutput pins the M9 happy
 // path at the integration boundary: `cmd | distill-ai > out.txt`
 // produces a non-empty out.txt when stdin contains a severity

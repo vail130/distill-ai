@@ -1,0 +1,10 @@
+FAIL src/import-broken.test.js
+  ● Test suite failed to run
+
+    Cannot find module 'missing-pkg' from 'src/import-broken.test.js'
+
+      at Resolver.resolveModule (node_modules/jest-resolve/build/index.js:303:11)
+      at Object.<anonymous> (src/import-broken.test.js:1:1)
+
+Test Suites: 1 failed, 1 total
+Tests:       0 total

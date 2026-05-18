@@ -1,0 +1,43 @@
+[
+  {
+    "severity": "error",
+    "kind": "test_failure",
+    "title": "expect(received).toBe(expected)",
+    "location": {
+      "file": "src/auth.test.js",
+      "line": 15,
+      "column": 24
+    },
+    "body": [
+      "  ● Auth › login redirects to dashboard",
+      "",
+      "    expect(received).toBe(expected) // Object.is equality",
+      "",
+      "    Expected: 302",
+      "    Received: 200",
+      "",
+      "      14 |     const res = await login('user', 'pass');",
+      "    \u003e 15 |     expect(res.status).toBe(302);",
+      "         |                        ^",
+      "      16 |   });",
+      "",
+      "      at Object.\u003canonymous\u003e (src/auth.test.js:15:24)",
+      ""
+    ],
+    "frames": [
+      {
+        "file": "src/auth.test.js",
+        "line": 15,
+        "function": "Object.\u003canonymous\u003e",
+        "vendor": false
+      }
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "suite_file": "src/auth.test.js",
+      "test_id": "Auth \u003e login redirects to dashboard"
+    }
+  }
+]

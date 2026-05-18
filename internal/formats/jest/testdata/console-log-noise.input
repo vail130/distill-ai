@@ -1,0 +1,20 @@
+FAIL src/api.test.js
+  console.log
+    DEBUG: warming up cache
+      at src/api.js:14:9
+
+  console.error
+    [error] downstream timeout
+      at src/api.js:42:11
+
+  Api
+    ✗ fetches user (5 ms)
+
+  ● Api › fetches user
+
+    Error: timeout
+
+      at Object.<anonymous> (src/api.test.js:8:5)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 1 total

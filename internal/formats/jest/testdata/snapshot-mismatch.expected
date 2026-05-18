@@ -1,0 +1,46 @@
+[
+  {
+    "severity": "error",
+    "kind": "snapshot_mismatch",
+    "title": "Snapshot mismatch: Render renders header 1",
+    "location": {
+      "file": "src/render.test.js",
+      "line": 8,
+      "column": 21
+    },
+    "body": [
+      "  ● Render › renders header",
+      "",
+      "    expect(received).toMatchSnapshot()",
+      "",
+      "    Snapshot name: `Render renders header 1`",
+      "",
+      "    - Snapshot  - 1",
+      "    + Received  + 1",
+      "",
+      "      Object {",
+      "    -   \"title\": \"Old\",",
+      "    +   \"title\": \"New\",",
+      "      }",
+      "",
+      "      at Object.\u003canonymous\u003e (src/render.test.js:8:21)",
+      ""
+    ],
+    "frames": [
+      {
+        "file": "src/render.test.js",
+        "line": 8,
+        "function": "Object.\u003canonymous\u003e",
+        "vendor": false
+      }
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "snapshot_kind": "file",
+      "suite_file": "src/render.test.js",
+      "test_id": "Render \u003e renders header"
+    }
+  }
+]
