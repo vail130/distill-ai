@@ -244,6 +244,55 @@ between suite and test name is normalised to ASCII `>` in
 `metadata.test_id` so grep / jq queries don't need to know how
 to type U+203A.
 
+### Distil a GitHub Actions log
+
+```sh
+gh run view --log              | ./bin/distill-ai
+gh run view --log <run-id>     | ./bin/distill-ai --output=markdown
+./bin/distill-ai run test/integration/testdata/fixtures/gha-gotest-fail.input
+```
+
+`gh run view --log` returns the raw workflow log with the
+GHA wrapper still in place — per-line RFC3339-Z timestamps,
+`##[group]NAME` / `##[endgroup]` markers, and the trailing
+`##[error]Process completed with exit code N.` line on a
+failing step. `--strip-envelope=auto` (the default) picks the
+`github-actions` stripper, removes the metadata, and hands the
+inner bytes to the format detector. A wrapped `go test` run
+detects as `gotest` with `Confidence=1.0`, identical to a
+bare-stdout run.
+
+The step-failure marker becomes one
+`Kind=envelope_step_failure` Event with `metadata.exit_code`
+and (when the wrapping group is still open)
+`metadata.step` set. `##[error]` / `##[warning]` / `##[notice]`
+lines outside the step-failure pattern become
+`envelope_error` / `envelope_warning` Events.
+
+To opt out for an already-bare stdout: `--strip-envelope=none`.
+
+### Distil a GitLab CI log
+
+```sh
+glab ci trace                  | ./bin/distill-ai
+glab ci trace --job=test       | ./bin/distill-ai --output=json
+./bin/distill-ai run test/integration/testdata/fixtures/gitlab-gotest-fail.input
+```
+
+`glab ci trace` streams the raw job log; the GitLab wrapper is
+the `section_start:NS:NAME\r` / `section_end:NS:NAME\r` markers
+that collapse spans in the UI, plus the runner's terminal
+`ERROR: Job failed: exit code N` line on a failing job.
+`--strip-envelope=auto` picks the `gitlab-ci` stripper, removes
+the markers, and normalises the bare-`\r` line endings the
+runner emits when it overwrites progress indicators.
+
+The job-failure line becomes one
+`Kind=envelope_step_failure` Event with `metadata.exit_code` and
+(when the surrounding section is still open) `metadata.step`
+set. Sections cleanly closed before the marker fires — the
+common case — leave `metadata.step` empty.
+
 ### Compare distilled output against a golden file
 
 ```sh

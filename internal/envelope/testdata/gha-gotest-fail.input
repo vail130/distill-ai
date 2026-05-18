@@ -1,0 +1,8 @@
+2024-01-15T10:23:45.1234567Z ##[group]Run go test ./...
+2024-01-15T10:23:46.1234567Z === RUN   TestLogin
+2024-01-15T10:23:47.1234567Z --- FAIL: TestLogin (0.02s)
+2024-01-15T10:23:48.1234567Z     auth_test.go:42: expected 200, got 502
+2024-01-15T10:23:49.1234567Z FAIL
+2024-01-15T10:23:50.1234567Z FAIL	github.com/example/m	0.123s
+2024-01-15T10:23:51.1234567Z ##[endgroup]
+2024-01-15T10:23:52.1234567Z ##[error]Process completed with exit code 1.

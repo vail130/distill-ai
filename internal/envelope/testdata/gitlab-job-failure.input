@@ -1,0 +1,7 @@
+Running with gitlab-runner 16.0.0 (abcdef12)
+section_start:1700000000:deploy
+Deploying release v1.2.3
+Uploading artifacts
+Connection refused to deploy.example.com
+section_end:1700000000:deploy
+ERROR: Job failed: exit code 17

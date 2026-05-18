@@ -1,0 +1,48 @@
+{
+  "stripper": "github-actions",
+  "format": "pytest",
+  "signals": [
+    {
+      "severity": "error",
+      "kind": "envelope_step_failure",
+      "title": "",
+      "location": null,
+      "body": [
+        "Process completed with exit code 1."
+      ],
+      "frames_collapsed": 0,
+      "count": 0,
+      "truncated": false,
+      "metadata": {
+        "exit_code": "1"
+      }
+    }
+  ],
+  "parser_events": [
+    {
+      "severity": "error",
+      "kind": "test_failure",
+      "title": "AssertionError: assert 'login' == 'dashboard'",
+      "location": {
+        "file": "tests/test_auth.py",
+        "line": 8,
+        "column": null
+      },
+      "body": [
+        "_________________________ test_login_returns_dashboard _________________________",
+        "",
+        "    def test_login_returns_dashboard():",
+        "\u003e       assert login(\"user\", \"pass\") == \"dashboard\"",
+        "E       AssertionError: assert 'login' == 'dashboard'",
+        "",
+        "tests/test_auth.py:8: AssertionError"
+      ],
+      "frames_collapsed": 0,
+      "count": 0,
+      "truncated": false,
+      "metadata": {
+        "test_id": "test_login_returns_dashboard"
+      }
+    }
+  ]
+}

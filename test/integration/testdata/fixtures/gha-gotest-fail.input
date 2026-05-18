@@ -1,0 +1,11 @@
+2024-01-15T10:23:45.1234567Z ##[group]Run go test ./...
+2024-01-15T10:23:46.1234567Z === RUN   TestThing
+2024-01-15T10:23:47.1234567Z     thing_test.go:42: expected 200, got 500
+2024-01-15T10:23:48.1234567Z --- FAIL: TestThing (0.01s)
+2024-01-15T10:23:49.1234567Z === RUN   TestOtherThing
+2024-01-15T10:23:50.1234567Z --- PASS: TestOtherThing (0.00s)
+2024-01-15T10:23:51.1234567Z FAIL
+2024-01-15T10:23:52.1234567Z exit status 1
+2024-01-15T10:23:53.1234567Z FAIL	github.com/example/project/thing	0.123s
+2024-01-15T10:23:54.1234567Z ##[endgroup]
+2024-01-15T10:23:55.1234567Z ##[error]Process completed with exit code 1.

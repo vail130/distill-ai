@@ -1,0 +1,9 @@
+Running with gitlab-runner 16.0.0 (abcdef12)
+section_start:1700000000:run_go_test
+=== RUN   TestLogin
+--- FAIL: TestLogin (0.02s)
+    auth_test.go:42: expected 200, got 502
+FAIL
+FAIL	github.com/example/m	0.123s
+section_end:1700000000:run_go_test
+ERROR: Job failed: exit code 1

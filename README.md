@@ -109,6 +109,31 @@ Use `distill-ai list-formats` to see what's wired into your binary,
 and `distill-ai detect FILE` to ask the autodetector which format it
 picks for a given input.
 
+### Envelopes
+
+distill-ai also strips wrapper-level metadata that CI systems and
+orchestrators add to command output, **before** format detection
+runs. A wrapped `go test` log still detects as `gotest` with full
+confidence because the cleaned bytes the detector sees are exactly
+what `go test` emitted. Wrapper-level signals (a step exiting
+non-zero, a `##[error]` directive) surface as Events with the
+dedicated `envelope_*` Kinds alongside the parser's own events.
+
+- `github-actions` (M13.3) — strips per-line timestamps,
+  `##[group]` / `##[endgroup]` markers, and the
+  `##[error]/##[warning]/##[notice]` workflow commands.
+  Translates the `##[error]Process completed with exit code N`
+  marker into `envelope_step_failure`.
+- `gitlab-ci` (M13.4) — strips `section_start:` / `section_end:`
+  markers and trailing carriage returns. Translates the runner's
+  `ERROR: Job failed: exit code N` line into
+  `envelope_step_failure`.
+
+Use `--strip-envelope=auto` (the default) for autodetect,
+`--strip-envelope=none` to pass bytes through unchanged, or
+`--strip-envelope=<name>` to force a specific stripper.
+Documented in detail at [docs/envelope.md](./docs/envelope.md).
+
 ## Usage
 
 ```bash

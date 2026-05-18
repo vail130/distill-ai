@@ -1,0 +1,23 @@
+{
+  "stripper": "github-actions",
+  "format": "generic",
+  "signals": [
+    {
+      "severity": "error",
+      "kind": "envelope_step_failure",
+      "title": "Run deployment",
+      "location": null,
+      "body": [
+        "Process completed with exit code 17."
+      ],
+      "frames_collapsed": 0,
+      "count": 0,
+      "truncated": false,
+      "metadata": {
+        "exit_code": "17",
+        "step": "Run deployment"
+      }
+    }
+  ],
+  "parser_events": []
+}

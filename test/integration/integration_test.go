@@ -546,6 +546,65 @@ func TestBinary_JestEndToEndProducesOutput(t *testing.T) {
 	}
 }
 
+// TestBinary_EnvelopeGHAGotestEndToEnd pins the M13.5 happy path:
+// feeding a GHA-wrapped gotest fixture through the binary detects
+// the github-actions envelope, strips it, detects gotest on the
+// cleaned bytes, and emits both the inner test_failure event and
+// the envelope_step_failure signal into the distilled output.
+func TestBinary_EnvelopeGHAGotestEndToEnd(t *testing.T) {
+	input := readFixture(t, "gha-gotest-fail.input")
+	got := runBinary(t, input)
+	if got.exitCode != 0 {
+		t.Fatalf("exit = %d, want 0 (events emitted); stdout=%q stderr=%q",
+			got.exitCode, got.stdout, got.stderr)
+	}
+	wants := []string{
+		// Format detection survives the envelope strip: the
+		// cleaned bytes detect as gotest with full confidence.
+		"events from gotest",
+		// Inner gotest event title (the assertion line).
+		"expected 200, got 500",
+		// Test ID metadata appears in the per-event block.
+		"TestThing",
+		// The envelope_step_failure signal reaches the encoder.
+		// Title is empty (the group closed before the
+		// ##[error]Process completed... line); the Body carries
+		// the marker text verbatim into the per-event block.
+		"Process completed with exit code 1.",
+	}
+	for _, w := range wants {
+		if !strings.Contains(got.stdout, w) {
+			t.Errorf("stdout missing %q; got:\n%s", w, got.stdout)
+		}
+	}
+}
+
+// TestBinary_EnvelopeGitLabGotestEndToEnd is the M13.4 mirror of
+// the above: same gotest output wrapped in GitLab CI section
+// markers and an `ERROR: Job failed: exit code N` line. The
+// distilled output should reach the same shape via a different
+// stripper.
+func TestBinary_EnvelopeGitLabGotestEndToEnd(t *testing.T) {
+	input := readFixture(t, "gitlab-gotest-fail.input")
+	got := runBinary(t, input)
+	if got.exitCode != 0 {
+		t.Fatalf("exit = %d, want 0 (events emitted); stdout=%q stderr=%q",
+			got.exitCode, got.stdout, got.stderr)
+	}
+	wants := []string{
+		"events from gotest",
+		"expected 200, got 500",
+		"TestThing",
+		// envelope_step_failure body text from gitlab-ci.
+		"Job failed: exit code 1",
+	}
+	for _, w := range wants {
+		if !strings.Contains(got.stdout, w) {
+			t.Errorf("stdout missing %q; got:\n%s", w, got.stdout)
+		}
+	}
+}
+
 // TestBinary_GenericEndToEndProducesOutput pins the M9 happy
 // path at the integration boundary: `cmd | distill-ai > out.txt`
 // produces a non-empty out.txt when stdin contains a severity

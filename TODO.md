@@ -31,16 +31,15 @@ introduced by
 **listed but not yet scoped in detail**; they will be scoped after
 v1.0 ships, in priority order driven by real usage signal. Per the
 working agreement, **at least** the next three open milestones are
-kept fully scoped at all times. As of M12's completion the open
-scoped set is M13 (envelope), M14 (config), and M15 (library API).
-When M13 lands, M16 (documentation) is next in line and needs its
-sub-items expanded before the M13 milestone closes. When the v1.0
-release prep (M17) lands and the v1.1 branch opens, the next
-scoped three will be M23 (golangci-lint), M24 (cargo-json), and
-M25 (Markdown outline) — already scoped below so the v1.1 cut is
-ready when v1.0 ships. M16–M17 (the rest of v1.0) and M18–M22
-(v1.3 code distillation) remain sketched. M26–M30 remain
-enumerated only.
+kept fully scoped at all times. As of M13's completion the open
+scoped set is M14 (config) and M15 (library API); M16
+(documentation) is next in line and needs its sub-items expanded
+before the M14 milestone closes. When the v1.0 release prep (M17)
+lands and the v1.1 branch opens, the next scoped three will be M23
+(golangci-lint), M24 (cargo-json), and M25 (Markdown outline) —
+already scoped below so the v1.1 cut is ready when v1.0 ships.
+M16–M17 (the rest of v1.0) and M18–M22 (v1.3 code distillation)
+remain sketched. M26–M30 remain enumerated only.
 
 ---
 
@@ -3044,7 +3043,7 @@ integration test (mirroring M10.5 and M11.5; addresses
 
 ---
 
-## M13 — Envelope stripper
+## M13 — Envelope stripper ✅
 
 A pre-processing decorator that strips wrapper-level metadata from
 input bytes before format autodetection runs, and surfaces wrapper-
@@ -3340,7 +3339,7 @@ Parallel to M13.3 for GitLab CI logs.
   - Godoc on `Stripper`, `Detect`, `Strip`.
   - Extend `docs/envelope.md` with the GitLab CI section.
 
-### M13.5 — Fixtures, integration coverage, dogfood recipe
+### M13.5 — Fixtures, integration coverage, dogfood recipe ✅
 
 Tie M13 off with fixtures, the integration test, and the SKILL.md
 recipe.

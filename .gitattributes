@@ -15,6 +15,8 @@
 # Treat fixture inputs and expected outputs as binary-ish:
 # don't normalise line endings, don't show in diffs by default.
 internal/formats/*/testdata/**  -text -diff
+internal/envelope/testdata/**   -text -diff
+test/integration/testdata/fixtures/**  -text -diff
 
 # Generated files: exclude from language stats, hide from default diffs.
 **/*.pb.go              linguist-generated=true
