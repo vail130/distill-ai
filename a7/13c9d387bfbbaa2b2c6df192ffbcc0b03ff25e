@@ -1,0 +1,31 @@
+TODO.md
+  fd7eab3202b5b30f 25-35,3449-3483,3485-3498,3500-3834,3920-3926,3929-4098
+ARCHITECTURE.md
+  fd7eab3202b5b30f 547-551,568-574
+docs/decisions/0002-v1.0-scope-and-post-v1.0-roadmap.md
+  fd7eab3202b5b30f 1-203
+.opencode/skills/distill-output/SKILL.md
+  fd7eab3202b5b30f 56-64
+CHANGELOG.md
+  fd7eab3202b5b30f 190-202
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "a713c9d387bfbbaa2b2c6df192ffbcc0b03ff25e",
+  "prompts": {
+    "fd7eab3202b5b30f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c77d61adffe635L0LVUCf28KN",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 812,
+      "total_deletions": 30,
+      "accepted_lines": 812,
+      "overriden_lines": 0
+    }
+  }
+}
