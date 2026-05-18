@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- M15.1: `pkg/distill` public library API surface. New
+  `Options` struct exposes every CLI flag's library equivalent
+  (Format, Strict, Output, Budget, Tokenizer, DedupeWindow,
+  KeepVendor, KeepWarnings, MinSeverity, MaxEvents, ContextLines,
+  StripEnvelope, Writer, NoFooter, FenceLang). New
+  `OutputFormat` typed string with constants `OutputText`,
+  `OutputJSON`, `OutputJSONStreaming`, `OutputMarkdown` so
+  callers choose the encoder without depending on
+  `internal/output`. New `Summary` struct mirrors the JSON
+  schema's summary object (input_lines, events_emitted,
+  events_dropped_budget, etc.) plus a `ForcedDrops()` helper
+  that's nil-safe. Five sentinel errors — `ErrNilWriter`,
+  `ErrUnknownOutput`, `ErrUnknownTokenizer`, `ErrUnknownFormat`,
+  `ErrUnknownStripEnvelope` — surface setup failures before any
+  goroutine starts so callers see deterministic errors. The
+  existing type aliases (`Event`, `Severity`, `Location`,
+  `StackFrame`, `Confidence`, `Format`, `ParseOpts`,
+  `SeverityError`/`SeverityWarn`/`SeverityInfo`,
+  `ConfidenceMinDetect`) carry over from M1.4 unchanged. The
+  `Distill` function lands in M15.2; M15.1 only ships the types
+  the function consumes. Tests pin every default, every
+  stringer, every ForcedDrops arm (true on drops, true on
+  truncations, false on clean run, false on nil receiver), and a
+  drift-guard against SCHEMA.md's summary table.
 - M14.6: `--max-events` and `--passthrough` plumbed end-to-end;
   closes KNOWN_ISSUES § 1. `--max-events=N` adds a new
   MaxEventsStage to the pipeline that caps Events at N and

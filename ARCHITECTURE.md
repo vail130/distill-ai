@@ -276,13 +276,25 @@ pkg/
     distill/              # exported API for library use
 ```
 
-The `pkg/distill` package is the stable public library API. Until M14
-lands the streaming `Distill(ctx, r, opts) (<-chan Event, error)` entry
-point, this package exposes type aliases only (`Event`, `Severity`,
-`Format`, `ParseOpts`, etc.), letting downstream code import the
-public path so M14 doesn't have to rearrange imports. Internal
-packages (`internal/event`, `internal/formats`, etc.) are not part of
-the API contract and may change without a version bump.
+The `pkg/distill` package is the stable public library API. M15
+ships the streaming entry point
+`Distill(ctx, r, opts) (<-chan Event, *Summary, error)` plus the
+`Options` and `Summary` types library callers compose against. The
+package also re-exports the core types (`Event`, `Severity`,
+`Format`, `ParseOpts`, etc.) as type aliases so downstream code can
+import the public path without depending on `internal/`. Internal
+packages (`internal/event`, `internal/formats`, etc.) are not part
+of the API contract and may change without a version bump. The
+`pkg/distill/internal/orchestrator` subpackage hosts the
+`pipeline.Build` plumbing — Go's `internal/` visibility rule keeps
+it unreachable from outside the `pkg/distill` subtree, so the
+public surface stays clean while the orchestrator can still touch
+every internal package it needs.
+
+Config-file loading (`.distill-ai.toml`) is deliberately outside
+the library API; it is a CLI concern. Library callers compose their
+own `Options`; a future v1.x decision may expose config loading via
+a separate intermediate package.
 
 ### Core types
 

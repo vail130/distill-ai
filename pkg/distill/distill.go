@@ -2,16 +2,43 @@
 //
 // Most users invoke the CLI binary (`distill-ai`) directly. This
 // package exists for code that wants to embed the distillation
-// pipeline as a library: a custom tool, a server, a test runner.
+// pipeline as a library: a custom tool, a server, a test runner,
+// an MCP server, an editor integration.
 //
-// In milestone M1 (the current state) this package re-exports the
-// core types only. The streaming entry point — `Distill(ctx, r, opts)
-// (<-chan Event, error)` — lands in M14. Until then the exported type
-// aliases let downstream code import this package without depending on
-// internal/, so M14 doesn't have to restructure imports.
+// # Surface
+//
+// The library API is intentionally narrow. There is one entry point
+// and four types:
+//
+//   - [Distill] — the streaming entry point. Reads from an
+//     io.Reader, emits Events on a channel, populates a *Summary
+//     when the channel closes.
+//   - [Options] — the one struct callers fill in. Mirrors the CLI
+//     flags but is decoupled from internal/pipeline so future
+//     refactoring doesn't break callers.
+//   - [Summary] — the run-level counters. Same numbers a JSON
+//     consumer of `distill-ai run --output=json` would see.
+//   - [Event], [Severity], [Location], [StackFrame],
+//     [Confidence] — re-exported core types. Same shape as the
+//     internal event package.
+//
+// # Config files
+//
+// Config-file loading is deliberately not part of this package.
+// `.distill-ai.toml` is a CLI concern; library callers compose
+// their own [Options]. See docs/library-api.md for the rationale.
+//
+// # Versioning
+//
+// This package is the project's public Go API surface. Breaking
+// changes follow the project's SemVer commitment (see CHANGELOG.md
+// and [output-stability rule]); callers should pin to a major
+// version (`v1`) and review the CHANGELOG before bumping.
 //
 // See ARCHITECTURE.md § Library API for the design intent and
 // CHANGELOG.md for the public API timeline.
+//
+// [output-stability rule]: https://github.com/vail130/distill-ai/blob/main/rules/output-stability.md
 package distill
 
 import (
