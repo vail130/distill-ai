@@ -64,6 +64,12 @@ type runFlags struct {
 
 	// Standard.
 	verbose bool
+
+	// printConfig dumps the merged effective configuration as
+	// TOML and exits 0 without running the pipeline. Useful for
+	// debugging "which config is winning?" without reverse-
+	// engineering the precedence chain.
+	printConfig bool
 }
 
 // dedupeWindowDefault is the LRU capacity used when --dedupe is set
@@ -154,12 +160,25 @@ func registerRunFlags(cmd *cobra.Command, fl *runFlags) {
 	// Standard.
 	cmd.Flags().BoolVarP(&fl.verbose, "verbose", "v", false,
 		"Write pipeline diagnostics to stderr (chosen format, sample bytes consumed, per-stage event counts).")
+	cmd.Flags().BoolVar(&fl.printConfig, "print-config", false,
+		"Print the merged effective configuration as TOML and exit. Useful for debugging which config or flag is winning.")
 }
 
 // runRun is the cobra RunE entry point for the run subcommand. It
 // resolves input, picks a format, builds the pipeline, executes it,
 // and translates the result into an exit code.
 func runRun(cmd *cobra.Command, args []string, fl *runFlags) error {
+	if fl.printConfig {
+		// --print-config short-circuits the pipeline. Print the
+		// merged Config as TOML and exit successfully so users
+		// can pipe the output back into a file for inspection.
+		cfg := configFromContext(cmd.Context())
+		if err := printConfigTOML(cmd.OutOrStdout(), cfg); err != nil {
+			fmt.Fprintf(cmd.ErrOrStderr(), "distill-ai run: %v\n", err)
+			return &exitCodeError{code: ExitError}
+		}
+		return nil
+	}
 	if fl.listFormats {
 		// --list-formats is a shortcut for the list-formats
 		// subcommand. Delegate to its implementation so both code
@@ -174,6 +193,10 @@ func runRun(cmd *cobra.Command, args []string, fl *runFlags) error {
 	stdout := cmd.OutOrStdout()
 	stderr := cmd.ErrOrStderr()
 	stdin := cmd.InOrStdin()
+	// Honour config-driven defaults for --output and
+	// --strip-envelope before any decision they influence.
+	applyOutputConfig(cmd, &fl.outputFormat)
+	applyStripEnvelopeConfig(cmd, &fl.stripEnvelope)
 	formatName, files := splitRunArgs(args)
 	if !fl.autoDetect && formatName == "" {
 		fmt.Fprintln(stderr, "distill-ai run: --auto=false requires a positional FORMAT argument")
@@ -222,6 +245,10 @@ func runRun(cmd *cobra.Command, args []string, fl *runFlags) error {
 		fmt.Fprintf(stderr, "distill-ai run: %v\n", err)
 		return &exitCodeError{code: ExitError}
 	}
+	// Apply config-driven defaults for any flag the user did not
+	// explicitly pass. CLI > config; the helper guards against
+	// overwriting Changed flag values.
+	applyConfigToFlags(cmd, &opts, &parseOpts, chosen.Name())
 	src := &pipeline.FormatSource{Format: chosen, Reader: stream, Opts: parseOpts}
 	sink, sinkInfo := newSinkFromFlags(fl, chosen.Name(), stdout)
 	pipe, err := pipeline.Build(src, sink, opts)

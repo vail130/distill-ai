@@ -57,6 +57,19 @@ See ARCHITECTURE.md and TODO.md for the roadmap.`,
 	// subcommand owns the -v binding now. The version flag stays
 	// long-form only at the root level.
 	root.Flags().Bool("version", false, "Show version.")
+	// --config <path> overrides config discovery: when set, only
+	// the named TOML file is loaded (no project walk, no user
+	// config). Persistent so every subcommand can read it.
+	var configPath string
+	root.PersistentFlags().StringVar(&configPath, "config", "",
+		"Path to a TOML configuration file. Overrides automatic discovery (no project walk, no user config).")
+	// Persistent pre-run resolves --config or runs LoadAll, then
+	// stores the result on the command's context for subcommands
+	// to consume via configFromContext. Failures propagate as
+	// exitCodeError so the binary exits with the right code.
+	root.PersistentPreRunE = func(cmd *cobra.Command, _ []string) error {
+		return loadConfigForRoot(cmd, configPath)
+	}
 	// Hide cobra's auto-generated `completion` subcommand until
 	// M8.7 explicitly wires shell completion. Leaving it visible
 	// would expose a verb that isn't documented in --help / docs
