@@ -32,14 +32,14 @@ introduced by
 v1.0 ships, in priority order driven by real usage signal. Per the
 working agreement, **at least** the next three open milestones are
 kept fully scoped at all times. As of M14's completion the open
-scoped set is M15 (library API) and M16 (documentation); M17
-(v1.0 release prep) is next in line and needs its sub-items
-expanded before the M15 milestone closes. When the v1.0 release
-prep (M17) lands and the v1.1 branch opens, the next scoped three
-will be M23 (golangci-lint), M24 (cargo-json), and M25 (Markdown
-outline) — already scoped below so the v1.1 cut is ready when
-v1.0 ships. M17 (the rest of v1.0) and M18–M22 (v1.3 code
-distillation) remain sketched. M26–M30 remain enumerated only.
+scoped set is M15 (library API), M16 (documentation), and M17
+(v1.0 release prep) — all three fully expanded with DoD / Tests /
+Docs per sub-item. When the v1.0 release prep (M17) lands and the
+v1.1 branch opens, the next scoped three will be M23 (golangci-
+lint), M24 (cargo-json), and M25 (Markdown outline) — already
+scoped below so the v1.1 cut is ready when v1.0 ships. M18–M22
+(v1.3 code distillation) remain sketched. M26–M30 remain
+enumerated only.
 
 ---
 
@@ -4667,13 +4667,258 @@ release section, and updates the Keep a Changelog metadata.
 
 ## M17 — v1.0 release prep
 
-- [ ] All M0–M16 complete or explicitly deferred
-- [ ] `go test ./...` clean, `golangci-lint run` clean
-- [ ] Cross-compile verified on linux/darwin/windows × amd64/arm64
-- [ ] Binary size budget: ≤6 MB stripped (with tiktoken)
-- [ ] Cold-start latency budget: ≤20 ms (heuristic), ≤120 ms (tiktoken)
-- [ ] Throughput budget: ≥50 MB/sec single core
-- [ ] Tag `v1.0.0`, run `goreleaser`, publish
+The final v1.0 milestone. M0–M16 deliver code, tests, and docs;
+M17 verifies the cumulative result against the performance and
+distribution budgets the project has committed to, then cuts the
+`v1.0.0` tag and publishes the release artefacts. M17 is
+deliberately small in surface area — no new features, no new
+formats — but every sub-item is a hard gate the release cannot
+cross without satisfying.
+
+The five sub-items split along the natural axis of release work:
+exit-criteria verification (M17.1), performance budget verification
+(M17.2), cross-platform release artefacts (M17.3), distribution
+channels (M17.4), and the tag-and-publish step (M17.5). Each
+sub-item depends on its predecessor: a failed cross-compile means
+no Homebrew tap, which means no tag.
+
+Cross-references
+[performance rule](./rules/performance.md) (the budgets M17.2
+verifies are documented there),
+[ARCHITECTURE.md § Dependencies](./ARCHITECTURE.md#dependencies)
+(the binary-size budget is shaped by what's listed there),
+[CHANGELOG.md](./CHANGELOG.md) (M16.5 prepared the `[1.0.0]`
+section; M17.5 fills in the date).
+
+M17 builds on every preceding milestone: M0–M16 must all be
+complete (or explicitly deferred with a documented justification)
+before M17.1 starts. Each item below lists Definition of Done,
+required tests, and required doc updates per the
+[alignment rule](./rules/alignment.md).
+
+### M17.1 — Cumulative exit-criteria audit
+
+Verify every M0–M16 milestone's exit criteria, deferral notes,
+and drift guards are still satisfied at HEAD. M17.1 is the
+checkpoint before the release machinery runs.
+
+- **DoD:**
+  - Walk every `### M<N> exit criteria` block in TODO.md and
+    confirm each bullet is satisfied at HEAD. Any unsatisfied
+    bullet is either fixed in a follow-up commit before M17.1
+    completes or moved to KNOWN_ISSUES.md with a v1.x landing
+    point.
+  - Confirm `make check` is green on the release branch: `go
+    test ./...`, `golangci-lint run`, the integration suite,
+    every drift guard (`TestSkill_DocumentsCurrentCLISurface`,
+    `TestEvent_JSONSchemaMatchesDoc`,
+    `TestPerFormatDocs_KindsMatch`, etc.).
+  - Confirm `KNOWN_ISSUES.md` has no open items scoped to
+    M0–M16. Any open items must be either resolved or
+    explicitly deferred to v1.x with a one-line rationale.
+  - The release-prep commit body cross-references each
+    deferred item by anchor so the release notes can claim the
+    deferral was deliberate, not an oversight.
+- **Tests:**
+  - `TestRelease_NoOpenKnownIssuesAtV10` (new, integration
+    suite): parses `KNOWN_ISSUES.md`, asserts every remaining
+    issue has an `Owning milestone:` line pointing to a
+    post-v1.0 milestone (`M2[3-9]`, `M30`, or `v1.x`).
+  - The existing project-wide test suite is the rest of the
+    deliverable; M17.1 doesn't add new behaviour, it audits
+    what's already there.
+- **Docs:**
+  - Update CHANGELOG.md `[1.0.0]` section's release summary
+    paragraph with the actual scope verified by M17.1. The
+    paragraph from M16.5 is the placeholder; M17.1 fills in
+    "shipped formats: gotest, pytest, jest, generic; shipped
+    envelope strippers: github-actions, gitlab-ci; shipped
+    library API…" verbatim against what `formats.All()` and
+    `envelope.All()` report.
+
+### M17.2 — Performance budget verification
+
+Run the three hard performance budgets named in
+[rules/performance.md](./rules/performance.md) and record the
+results. Any regression below budget blocks the release.
+
+- **DoD:**
+  - **Throughput:** run `make bench` with
+    `BenchmarkPipeline_EndToEnd_Throughput` (new, if not
+    already present) feeding a synthetic 100 MB log through
+    each shipped Format with the default Heuristic estimator.
+    Record MB/sec via `b.SetBytes`. Required floor: ≥50
+    MB/sec single core on the canonical test machine (Apple
+    M-series or modern x86 laptop). A regression > 10% below
+    the M0–M16 baseline blocks the release; results
+    annotated to the M17.2 commit body.
+  - **Cold-start latency:** measure `time distill-ai run
+    < /dev/null` and `time distill-ai run --tokenizer=tiktoken
+    < /dev/null` across five runs each; report the median.
+    Required floors: ≤20 ms (heuristic), ≤120 ms (tiktoken).
+  - **Binary size:** record `ls -l bin/distill-ai` after a
+    stripped release build (`make release` or
+    `goreleaser build --snapshot --clean`). Required ceiling:
+    ≤6 MB stripped on `linux/amd64`. The tiktoken vocab is the
+    dominant contributor per
+    [ARCHITECTURE.md § Token estimation](./ARCHITECTURE.md#token-estimation).
+  - **Memory:** confirm `TestPipeline_BoundedMemory_PeakSampling`
+    (M2.3) still passes — that test is itself the budget guard.
+  - **Heuristic-estimator throughput:** `BenchmarkHeuristic_Estimate`
+    must still report ≥100 MB/sec per
+    [rules/performance.md § Hard targets](./rules/performance.md#hard-targets).
+- **Tests:**
+  - `BenchmarkPipeline_EndToEnd_Throughput` (new): wire a
+    100 MB synthetic gotest stream through `pipeline.Build` +
+    a discarding Sink; measure MB/sec via `b.SetBytes`. Lives
+    in `internal/pipeline/`. Run via `make bench`, not the
+    default suite.
+  - `TestRelease_BinarySizeUnderBudget` (new, integration
+    suite): when run under `-tags release`, builds the binary
+    with the release ldflags, stats the output, and asserts
+    size < 6 MB. Skipped in normal test runs because the
+    build is slow.
+- **Docs:**
+  - Record the measured numbers in the M17.2 commit body so
+    they're searchable in `git log`.
+  - Update [rules/performance.md](./rules/performance.md)'s
+    "soft expectations" section if any budget is revised.
+
+### M17.3 — Cross-platform release artefacts
+
+Build, test, and verify the binary on every supported
+platform / architecture pair. The CI matrix already runs the
+unit tests across the three OSes; M17.3 adds the release
+artefacts produced by `goreleaser`.
+
+- **DoD:**
+  - `goreleaser release --snapshot --clean` produces release
+    artefacts for the documented matrix: linux/amd64,
+    linux/arm64, darwin/amd64, darwin/arm64, windows/amd64,
+    windows/arm64. Per the M0 scaffolding the matrix is
+    already configured; M17.3 verifies it works end-to-end
+    against the M0–M16 codebase.
+  - Each artefact passes a smoke test:
+    `<binary> --version` prints the expected version string,
+    `<binary> run < testdata/gotest-fail.input` produces
+    non-empty distilled output, `<binary> detect testdata/...`
+    returns a valid format. The smoke tests run inside the
+    CI release workflow.
+  - The `man/man1/*.1` pages M16.1 generates are included in
+    `.deb`/`.rpm` artefacts via `goreleaser`'s `nfpms` config.
+    Confirm the man pages are installed at the canonical
+    location (`/usr/share/man/man1/`) after a `.deb` install
+    in a Docker container CI step.
+  - Shell completions (M8.7) are included in the same
+    `.deb`/`.rpm` artefacts under
+    `/usr/share/{bash-completion,zsh,fish}/` paths.
+- **Tests:**
+  - The existing CI workflow's release-snapshot job is the
+    primary test. M17.3 adds a `TestRelease_SmokeArtefacts`
+    integration test (skipped under `-short`) that walks the
+    `dist/` directory produced by `goreleaser` and invokes
+    each platform's binary under `qemu-user-static` for
+    cross-arch coverage on the linux runner.
+- **Docs:**
+  - Update README.md installation section to list every
+    supported platform / architecture explicitly.
+  - Document any platform-specific install caveats in
+    `docs/install.md` (new file if needed).
+
+### M17.4 — Distribution channels (Homebrew, GitHub Releases, `go install`)
+
+Three channels users actually use. M17.4 lands the
+configuration / formula / docs for each one.
+
+- **DoD:**
+  - **Homebrew tap:** create a public `homebrew-distill-ai`
+    repository under the project's GitHub org; ship a
+    `distill-ai.rb` formula that downloads the release
+    archive and installs the binary + man pages + shell
+    completions. The formula's `url`/`sha256` are populated
+    by `goreleaser`'s `brews` config so the tap updates
+    automatically on tag.
+  - **GitHub Releases:** the `goreleaser release` (non-
+    snapshot) step uploads each platform's tarball / zip,
+    `checksums.txt`, `.deb`, `.rpm`, and signed SLSA
+    provenance attestation (if feasible without a paid
+    signing service; deferred to v1.x otherwise).
+  - **`go install`:** confirm
+    `go install github.com/vail130/distill-ai/cmd/distill-ai@latest`
+    works against HEAD. Document in README.md install
+    section.
+  - Each channel has a smoke-test recipe in
+    `docs/install.md`: a fresh user follows the README,
+    installs via that channel, runs `distill-ai --version`,
+    confirms the binary works.
+- **Tests:**
+  - `TestRelease_HomebrewFormulaParses` (new, integration
+    suite): parses the generated `distill-ai.rb` and asserts
+    every required field (name, desc, homepage, url, sha256,
+    license) is present and non-empty. Skipped when the file
+    doesn't exist (i.e., when goreleaser hasn't run).
+- **Docs:**
+  - `docs/install.md` (new): one section per channel with
+    the canonical install command plus the smoke test.
+  - README.md installation section links to `docs/install.md`
+    for the detailed walkthrough.
+
+### M17.5 — Tag `v1.0.0`, run `goreleaser`, publish
+
+The final step. M17.5 is short — every preceding sub-item set
+up the conditions for it — but it's the gate that flips the
+project from "v1.0 in flight" to "v1.0 shipped."
+
+- **DoD:**
+  - All M17.1–M17.4 sub-items ticked; `make check` clean on
+    the release branch.
+  - Update CHANGELOG.md `[1.0.0]` section's date placeholder
+    to the actual release date. Move the entire `[Unreleased]`
+    block's contents into `[1.0.0]` (Keep a Changelog
+    convention).
+  - Update `cmd/distill-ai/version.go`'s default version
+    string to `1.0.0` (it's normally injected via ldflag at
+    release time; setting the default protects against a
+    `go install`-built binary printing `dev` after v1.0).
+  - Tag the release commit as `v1.0.0`:
+    `git tag -a v1.0.0 -m "v1.0.0"`.
+  - Push the tag to trigger the goreleaser CI workflow:
+    `git push origin v1.0.0`.
+  - Verify the workflow completes successfully: GitHub
+    Release published, Homebrew tap updated, all artefacts
+    uploaded with valid checksums.
+  - Post-release: add a v1.1 banner / forward reference in
+    README.md and CHANGELOG.md so contributors landing on
+    HEAD know v1.0 has shipped and v1.1 work (M23/M24) has
+    begun.
+- **Tests:**
+  - The release workflow itself is the test. M17.5 has no
+    new unit / integration tests — every drift guard from
+    M0–M16 has already run by the time the tag is pushed.
+- **Docs:**
+  - CHANGELOG.md filled in.
+  - README.md updated with the v1.0 release announcement
+    paragraph and the new v1.1 banner.
+  - The `[Unreleased]` block is reset to empty subsections
+    (Added / Changed / Deprecated / Removed / Fixed /
+    Security) ready for v1.1 entries.
+
+### M17 exit criteria
+
+- All five sub-items ticked.
+- `v1.0.0` tag exists on `origin` and the GitHub Release page
+  shows the published artefacts.
+- The Homebrew tap installs the binary cleanly on a fresh
+  macOS or Linux host: `brew install vail130/distill-ai/distill-ai`
+  succeeds, `distill-ai --version` prints `1.0.0`,
+  `distill-ai run < some.log` produces distilled output.
+- `go install github.com/vail130/distill-ai/cmd/distill-ai@v1.0.0`
+  installs an equivalent binary.
+- CHANGELOG.md's `[1.0.0]` section is filled in and the
+  `[Unreleased]` block is reset for v1.1.
+- The project's documentation surface is now versioned: any
+  post-v1.0 doc change carries a CHANGELOG entry under the
+  next version's heading.
 
 ---
 
