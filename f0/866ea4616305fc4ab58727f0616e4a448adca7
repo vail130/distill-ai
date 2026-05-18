@@ -1,0 +1,69 @@
+rules/performance.md
+  9a8cd5e73ec6569c 1-45
+rules/flag-policy.md
+  9a8cd5e73ec6569c 1-23
+CHANGELOG.md
+  9a8cd5e73ec6569c 174-188,217-218
+TODO.md
+  9a8cd5e73ec6569c 17,23,69,249,266,421,441,514,774,957,966,1097,1150,1177,1185,1197,1500,1940,2295,2379,2597,2675,3001,3078,3372,3505,3667,3891,3900,3972,4168,4190
+rules/dependencies.md
+  9a8cd5e73ec6569c 1-19
+internal/tokens/benchmark_test.go
+  9a8cd5e73ec6569c 15
+skills/distill-ai/SKILL.md
+  9a8cd5e73ec6569c 1-119
+rules/code-style.md
+  9a8cd5e73ec6569c 1-19
+README.md
+  9a8cd5e73ec6569c 193-200
+KNOWN_ISSUES.md
+  9a8cd5e73ec6569c 20
+rules/commits.md
+  9a8cd5e73ec6569c 1-56
+AGENTS.md
+  9a8cd5e73ec6569c 33-65,68-69,71-87
+internal/pipeline/property_test.go
+  9a8cd5e73ec6569c 24
+docs/formats/SCHEMA.md
+  9a8cd5e73ec6569c 5
+CONTRIBUTING.md
+  9a8cd5e73ec6569c 119,122,133,153,165,176
+skills/distill-ai-dev/SKILL.md
+  9a8cd5e73ec6569c 1-283
+docs/decisions/0001-reject-cgo-tree-sitter-prefer-wasm.md
+  9a8cd5e73ec6569c 80
+docs/decisions/0003-position-vs-rtk-and-snip.md
+  9a8cd5e73ec6569c 135
+test/integration/integration_test.go
+  9a8cd5e73ec6569c 583,668,674,691
+opencode.json
+  9a8cd5e73ec6569c 4
+rules/alignment.md
+  9a8cd5e73ec6569c 1-74
+rules/output-stability.md
+  9a8cd5e73ec6569c 1-38
+.github/PULL_REQUEST_TEMPLATE.md
+  9a8cd5e73ec6569c 9,84,91,93-97,116
+rules/testing.md
+  9a8cd5e73ec6569c 1-81
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "f0866ea4616305fc4ab58727f0616e4a448adca7",
+  "prompts": {
+    "9a8cd5e73ec6569c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c73acb8cffeiaC8BALcgVDfNQ",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 1241,
+      "total_deletions": 149,
+      "accepted_lines": 893,
+      "overriden_lines": 0
+    }
+  }
+}
