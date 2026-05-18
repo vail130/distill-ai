@@ -111,7 +111,9 @@ func TestOrchestrator_UnknownStripEnvelopeErrors(t *testing.T) {
 
 // TestOrchestrator_EndToEndGotest exercises the full pipeline: a
 // real gotest fixture, autodetected, distilled to a Text sink,
-// summary populated by Wait.
+// summary populated by Wait. The Event channel is drained in a
+// goroutine so the teeingSink doesn't block when callers don't
+// consume programmatic Events.
 func TestOrchestrator_EndToEndGotest(t *testing.T) {
 	w := &bytes.Buffer{}
 	cfg := orchestrator.Config{Writer: w}
@@ -119,7 +121,13 @@ func TestOrchestrator_EndToEndGotest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Setup: %v", err)
 	}
-	run.Start(t.Context())
+	events := run.Start(t.Context())
+	var collected []event.Event
+	go func() {
+		for ev := range events {
+			collected = append(collected, ev)
+		}
+	}()
 	summary, err := run.Wait()
 	if err != nil {
 		t.Fatalf("Wait: %v", err)
@@ -138,6 +146,34 @@ func TestOrchestrator_EndToEndGotest(t *testing.T) {
 	}
 }
 
+// TestOrchestrator_EventChannelExposesEvents asserts the documented
+// streaming contract: the channel returned by Start delivers every
+// Event the pipeline emits in source order.
+func TestOrchestrator_EventChannelExposesEvents(t *testing.T) {
+	cfg := orchestrator.Config{Writer: &bytes.Buffer{}, Format: "gotest"}
+	run, err := orchestrator.Setup(t.Context(), cfg, strings.NewReader(gotestFixture))
+	if err != nil {
+		t.Fatalf("Setup: %v", err)
+	}
+	events := run.Start(t.Context())
+	got := 0
+	for ev := range events {
+		_ = ev
+		got++
+	}
+	if got == 0 {
+		t.Fatalf("expected at least one Event on the channel")
+	}
+	summary, err := run.Wait()
+	if err != nil {
+		t.Fatalf("Wait: %v", err)
+	}
+	if summary.EventsEmitted != got {
+		t.Errorf("channel saw %d events; Summary.EventsEmitted = %d",
+			got, summary.EventsEmitted)
+	}
+}
+
 // TestOrchestrator_ExplicitFormatBeatsAutodetect asserts that
 // Config.Format bypasses detection.
 func TestOrchestrator_ExplicitFormatBeatsAutodetect(t *testing.T) {
@@ -147,7 +183,7 @@ func TestOrchestrator_ExplicitFormatBeatsAutodetect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Setup: %v", err)
 	}
-	run.Start(t.Context())
+	drain(run.Start(t.Context()))
 	summary, err := run.Wait()
 	if err != nil {
 		t.Fatalf("Wait: %v", err)
@@ -168,7 +204,7 @@ func TestOrchestrator_SummaryNoEventsExitCode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Setup: %v", err)
 	}
-	run.Start(t.Context())
+	drain(run.Start(t.Context()))
 	summary, err := run.Wait()
 	if err != nil {
 		t.Fatalf("Wait: %v", err)
@@ -193,7 +229,7 @@ func TestOrchestrator_ContextCancellation(t *testing.T) {
 		t.Fatalf("Setup: %v", err)
 	}
 	cancel()
-	run.Start(ctx)
+	drain(run.Start(ctx))
 	_, _ = run.Wait()
 	// We don't assert a specific error: pipelines may complete
 	// cleanly if all events are processed before cancellation
@@ -216,7 +252,7 @@ func TestOrchestrator_OutputJSONStreaming(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Setup: %v", err)
 	}
-	run.Start(t.Context())
+	drain(run.Start(t.Context()))
 	if _, err := run.Wait(); err != nil {
 		t.Fatalf("Wait: %v", err)
 	}
@@ -242,7 +278,7 @@ func TestOrchestrator_OutputMarkdownPicksMarkdownSink(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Setup: %v", err)
 	}
-	run.Start(t.Context())
+	drain(run.Start(t.Context()))
 	if _, err := run.Wait(); err != nil {
 		t.Fatalf("Wait: %v", err)
 	}
@@ -277,7 +313,7 @@ func TestOrchestrator_MinSeverityRespected(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Setup: %v", err)
 			}
-			run.Start(t.Context())
+			drain(run.Start(t.Context()))
 			summary, err := run.Wait()
 			if err != nil {
 				t.Fatalf("Wait: %v", err)
@@ -288,4 +324,16 @@ func TestOrchestrator_MinSeverityRespected(t *testing.T) {
 			}
 		})
 	}
+}
+
+// drain spawns a no-op consumer for an Event channel. Tests that
+// care only about the Writer's encoded output use this so the
+// teeingSink doesn't backpressure the pipeline waiting for someone
+// to read the public channel.
+func drain(ch <-chan event.Event) {
+	go func() {
+		//nolint:revive // empty loop is intentional: discard events
+		for range ch {
+		}
+	}()
 }

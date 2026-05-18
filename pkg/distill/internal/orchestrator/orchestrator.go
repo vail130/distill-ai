@@ -90,37 +90,47 @@ const (
 // orchestrator doesn't have to re-parse public string values on
 // every call.
 type Config struct {
-	Format          string
-	Strict          bool
-	Output          Output
-	Budget          int
-	Tokenizer       string
-	DedupeWindow    int
-	KeepVendor      bool
-	KeepWarnings    bool
-	MinSeverity     event.Severity
-	MaxEvents       int
-	ContextLines    int
-	StripEnvelope   string
-	Writer          io.Writer
-	NoFooter        bool
-	FenceLang       string
+	Format        string
+	Strict        bool
+	Output        Output
+	Budget        int
+	Tokenizer     string
+	DedupeWindow  int
+	KeepVendor    bool
+	KeepWarnings  bool
+	MinSeverity   event.Severity
+	MaxEvents     int
+	ContextLines  int
+	StripEnvelope string
+	Writer        io.Writer
+	NoFooter      bool
+	FenceLang     string
 }
 
 // Run captures everything Setup wired up. The caller invokes Start
-// (which returns the Event channel and starts the pipeline goroutine)
-// and Wait (which blocks for completion and returns the Summary).
+// (which begins the pipeline goroutine and returns the Event
+// channel) and Wait (which blocks for completion and returns the
+// Summary).
 //
 // Separating Start and Wait lets the library caller stream Events
 // to its own consumer while the pipeline runs, then read the
 // Summary once the channel closes — matching the documented
 // "fields valid only after Event channel closes" contract.
+//
+// The Event channel returned by Start receives every Event the
+// pipeline produces post-stages (after Collapse, Dedupe, Budget,
+// MaxEvents) and pre-Sink-encoding. Library callers that want
+// programmatic access to Events read from the channel; library
+// callers that only want the encoded output through Writer can
+// drain the channel with a no-op goroutine, ignoring its content.
+// Either way the Sink still writes to Writer in parallel.
 type Run struct {
 	// pipeline is the assembled pipeline.Pipeline ready to Run.
 	pipeline *pipeline.Pipeline
 
-	// sink is the Sink that pipeline.Run drives. Kept on the Run
-	// so Wait can read EventsEmitted after the pipeline drains.
+	// sink is the underlying encoder Sink. The pipeline drives a
+	// teeing wrapper that fans Events to both this Sink and the
+	// public Event channel.
 	sink pipeline.Sink
 
 	// lineCounter wraps the input Reader to count input lines for
@@ -131,8 +141,10 @@ type Run struct {
 	// Summary's Estimator field is accurate.
 	estimatorName string
 
-	// events is the Event channel the pipeline tees into. Populated
-	// by Start; nil before Start is called.
+	// events is the channel published to the library caller. The
+	// teeingSink pushes each Event here before forwarding to the
+	// underlying Sink, so a slow caller backpressures the entire
+	// pipeline.
 	events chan event.Event
 
 	// done is closed by Start's runner goroutine after pipeline.Run
@@ -142,6 +154,69 @@ type Run struct {
 	// runErr is the error returned by pipeline.Run. Read after
 	// done closes.
 	runErr error
+}
+
+// teeingSink fans each Event to a channel and to an underlying
+// Sink in parallel. The channel send happens first so the caller's
+// consumer applies backpressure to the pipeline; the underlying
+// Sink then encodes the Event to its writer. Both operations honour
+// ctx.
+type teeingSink struct {
+	out  chan<- event.Event
+	sink pipeline.Sink
+}
+
+// Sink implements pipeline.Sink. Each Event read from in is sent on
+// out (so the public channel sees it) and forwarded into a relay
+// channel the underlying Sink drains. When in closes, the relay
+// closes, the underlying Sink returns, and out closes.
+func (t teeingSink) Sink(ctx context.Context, in <-chan event.Event) error {
+	relay := make(chan event.Event, cap(in))
+	sinkErr := make(chan error, 1)
+	go func() {
+		sinkErr <- t.sink.Sink(ctx, relay)
+	}()
+	defer func() {
+		close(relay)
+		// Drain the underlying Sink's error so the goroutine exits.
+		<-sinkErr
+		close(t.out)
+	}()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case ev, ok := <-in:
+			if !ok {
+				return nil
+			}
+			// Push to the public channel first so a slow caller
+			// backpressures the pipeline; if ctx cancels while
+			// we're blocked, return cleanly.
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case t.out <- ev:
+			}
+			// Then forward to the underlying Sink. The relay
+			// channel is buffered to BufferSize so this rarely
+			// blocks.
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case relay <- ev:
+			}
+		}
+	}
+}
+
+// EventsEmitted exposes the underlying Sink's count so Run.summary
+// can read it through the teeingSink without a type assertion.
+func (t teeingSink) EventsEmitted() int {
+	if e, ok := t.sink.(interface{ EventsEmitted() int }); ok {
+		return e.EventsEmitted()
+	}
+	return 0
 }
 
 // Summary mirrors pkg/distill.Summary. The Run.Wait return value
@@ -212,11 +287,16 @@ func Setup(ctx context.Context, cfg Config, r io.Reader) (*Run, error) {
 		MinSeverity:  cfg.MinSeverity,
 	}
 	src := &pipeline.FormatSource{Format: chosenFormat, Reader: stream, Opts: parseOpts}
-	// Build the Sink and pipeline.
-	sink, err := buildSink(cfg, chosenFormat.Name(), estimatorName)
+	// Build the encoder Sink, then wrap it in a teeingSink so the
+	// pipeline drives both the encoder (writing to cfg.Writer) and
+	// the public Event channel returned by Start. The teeingSink
+	// owns closing the public channel when the pipeline drains.
+	innerSink, err := buildSink(cfg, chosenFormat.Name(), estimatorName)
 	if err != nil {
 		return nil, err
 	}
+	events := make(chan event.Event, pipeline.DefaultBufferSize)
+	wrappedSink := teeingSink{out: events, sink: innerSink}
 	pipeOpts := pipeline.Options{
 		DedupeWindow:    cfg.DedupeWindow,
 		KeepVendor:      cfg.KeepVendor,
@@ -225,20 +305,21 @@ func Setup(ctx context.Context, cfg Config, r io.Reader) (*Run, error) {
 		MaxEvents:       cfg.MaxEvents,
 		EnvelopeSignals: signals,
 	}
-	pipe, err := pipeline.Build(src, sink, pipeOpts)
+	pipe, err := pipeline.Build(src, wrappedSink, pipeOpts)
 	if err != nil {
 		return nil, fmt.Errorf("orchestrator: build pipeline: %w", err)
 	}
-	// Wire BudgetCounters into the Sink so its footer reflects
-	// drop / token statistics. Each Sink type exposes a Counters
-	// field; we set it via a type switch rather than promoting
-	// the field to the pipeline.Sink interface.
-	attachCounters(sink, pipe.BudgetCounters)
+	// Wire BudgetCounters into the underlying Sink so its footer
+	// reflects drop / token statistics. The teeingSink is just a
+	// fan-out; the encoded output and the counters live on the
+	// inner Sink.
+	attachCounters(innerSink, pipe.BudgetCounters)
 	return &Run{
 		pipeline:      pipe,
-		sink:          sink,
+		sink:          innerSink,
 		lineCounter:   lc,
 		estimatorName: estimatorName,
+		events:        events,
 		done:          make(chan struct{}),
 	}, nil
 }
@@ -323,17 +404,26 @@ func attachCounters(s pipeline.Sink, c *pipeline.BudgetCounters) {
 	}
 }
 
-// Start launches the pipeline in a goroutine and returns immediately.
-// The pipeline runs to completion in the background; the caller
+// Start launches the pipeline in a goroutine and returns the Event
+// channel. The pipeline runs to completion in the background; the
+// caller reads from the channel for programmatic access, and / or
 // invokes Wait to block until it finishes and receive the Summary.
 //
-// Start must be called exactly once per Run. Calling it twice is a
-// programmer error and may panic.
-func (r *Run) Start(ctx context.Context) {
+// The returned channel closes when the pipeline drains (whether
+// because the input EOF'd, the ctx was cancelled, or an error
+// occurred). A caller that doesn't care about programmatic Event
+// access can drain the channel with a no-op goroutine, ignoring
+// every Event; the encoder Sink writes to cfg.Writer in parallel
+// either way.
+//
+// Start must be called exactly once per Run. Calling it twice is
+// a programmer error and may panic.
+func (r *Run) Start(ctx context.Context) <-chan event.Event {
 	go func() {
 		defer close(r.done)
 		r.runErr = r.pipeline.Run(ctx)
 	}()
+	return r.events
 }
 
 // Wait blocks until the pipeline finishes and returns the Summary
