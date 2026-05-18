@@ -4668,18 +4668,19 @@ release section, and updates the Keep a Changelog metadata.
 
 The final v1.0 milestone. M0–M16 deliver code, tests, and docs;
 M17 verifies the cumulative result against the performance and
-distribution budgets the project has committed to, then cuts the
-`v1.0.0` tag and publishes the release artefacts. M17 is
-deliberately small in surface area — no new features, no new
-formats — but every sub-item is a hard gate the release cannot
-cross without satisfying.
+distribution budgets the project has committed to, cuts the
+`v1.0.0` tag, publishes the release artefacts, and runs the
+public launch. M17 is deliberately small in code surface area —
+no new features, no new formats — but every sub-item is a hard
+gate the release cannot cross without satisfying.
 
-The five sub-items split along the natural axis of release work:
+The six sub-items split along the natural axis of release work:
 exit-criteria verification (M17.1), performance budget verification
 (M17.2), cross-platform release artefacts (M17.3), distribution
-channels (M17.4), and the tag-and-publish step (M17.5). Each
-sub-item depends on its predecessor: a failed cross-compile means
-no Homebrew tap, which means no tag.
+channels (M17.4), the tag-and-publish step (M17.5), and the
+public launch (M17.6) — website, GitHub presence, and outreach.
+Each sub-item depends on its predecessor: a failed cross-compile
+means no Homebrew tap, which means no tag, which means no launch.
 
 Cross-references
 [performance rule](./rules/performance.md) (the budgets M17.2
@@ -4902,9 +4903,187 @@ project from "v1.0 in flight" to "v1.0 shipped."
     (Added / Changed / Deprecated / Removed / Fixed /
     Security) ready for v1.1 entries.
 
+### M17.6 — Public launch (website, repo presence, outreach)
+
+Treat the launch as a single coordinated event, not a sequence
+of ad-hoc posts. M17.5 produces the artefacts; M17.6 makes
+people aware those artefacts exist. The work splits into three
+threads — owned web presence, GitHub repo presence, and
+external outreach — that share one launch window so each
+amplifies the others (a HN post landing while the GitHub repo
+still has placeholder labels and no website link is wasted
+reach).
+
+The model for the web presence is `rtk-ai.app` linked from
+`github.com/rtk-ai/rtk`: a small marketing site that explains
+what the tool is, shows a before/after, and links to install
+instructions. The site is **not** the documentation — README,
+`docs/`, and `man distill-ai` remain canonical — it is the
+referral surface for people who arrive from a HN thread, a
+tweet, or a coworker's link and need to decide in 30 seconds
+whether to read more.
+
+Cross-references
+[M17.5](#m175--tag-v100-run-goreleaser-publish) (the launch
+window opens when the tag is pushed and the release page is
+live; M17.6 must not run before then or the site links into a
+404),
+[M16.2](#m162--readme-rewrite-around-v10-use-cases) (the
+README rewrite supplies the lede and the before/after numbers
+the launch site reuses verbatim — single source of truth, no
+drift),
+[ARCHITECTURE.md § Design principles](./ARCHITECTURE.md#design-principles)
+(the launch messaging stays inside the documented scope; no
+roadmap-promising in marketing copy).
+
+- **DoD (web presence — `distill-ai.vailgold.com`):**
+  - Subdomain `distill-ai.vailgold.com` registered and serving
+    over HTTPS via Cloudflare Pages (the project already lives
+    in the Cloudflare orbit; Pages is free, zero-state, and
+    matches the tool's "no infrastructure" ethos). Apex
+    `vailgold.com` becomes a one-page project index that links
+    to each `<project>.vailgold.com` subdomain; `distill-ai`
+    is the first entry.
+  - Site sources live in a new `website/` directory at the
+    repo root (or a sibling `vail130/distill-ai-website`
+    repository — decide at execution; co-locating in this
+    repo keeps the doc-drift surface smaller and lets the
+    alignment rule extend to site copy).
+  - Single-page site, ≤ 200 KB total transfer, no JS framework.
+    Static HTML + one CSS file. Contents:
+    - Lede paragraph (same one sentence as the README's
+      opening — single source of truth).
+    - One before/after code block, sourced from the same
+      fixture the README uses, with the same numbers tagged
+      by the `<!-- distill-ai-stats:gotest-fail -->` marker
+      M16.2 introduces.
+    - Three install commands (Homebrew, `go install`, direct
+      download), copy-pasted from README's install section by
+      the build script — not hand-maintained.
+    - Links: GitHub repo, latest release, `docs/`, CHANGELOG.
+    - A short "What it is not" section that names the
+      deliberate non-goals from ARCHITECTURE.md (no
+      networking, no daemon, not a log viewer). This prevents
+      the most common "why doesn't it do X" inbound questions.
+  - Build script: a small `website/build.sh` (POSIX shell) or
+    `Makefile` target `website` that templates the install
+    commands and the stats numbers from the canonical sources
+    so the site cannot drift from the README. Output goes to
+    `website/dist/` which Cloudflare Pages serves.
+  - Open Graph / Twitter card metadata so HN, Twitter, and
+    Mastodon previews render the lede + a static OG image
+    (PNG, generated once, checked in — not server-rendered).
+  - `robots.txt` and a `sitemap.xml` for the site so Google
+    can index it.
+  - Privacy: no analytics by default. If analytics are ever
+    added it must be Cloudflare Web Analytics or equivalent
+    cookie-less, IP-anonymising; documented on the site
+    itself.
+- **DoD (GitHub repo presence):**
+  - Repo description set to a single sentence matching the
+    README lede.
+  - Repo "Website" field set to `https://distill-ai.vailgold.com`.
+  - Topic labels added: `cli`, `golang`, `unix-filter`,
+    `llm`, `developer-tools`, `logging`, `testing`,
+    `ai-tools`, `claude-code`, `opencode`. Topics drive
+    GitHub's own discovery surface; pick from the topics
+    GitHub already auto-suggests rather than inventing new
+    ones.
+  - Pinned issue: a "What's next after v1.0?" issue
+    summarising the v1.1 / v1.3 / v1.5 / v1.6 themes from
+    [ADR-0002](./docs/decisions/0002-v1.0-scope-and-post-v1.0-roadmap.md)
+    so visitors landing from HN see the roadmap without
+    reading TODO.md.
+  - Repo `README.md` adds a small badge row at the top: build
+    status, latest release, license, Go report card,
+    `go install` line. Standard repo presentation; absence
+    of badges reads as abandonment to a first-time visitor.
+  - `.github/FUNDING.yml` — only added if there's a funding
+    target to point at; otherwise deliberately omitted. Don't
+    ship a placeholder.
+  - GitHub Release page (the M17.5 deliverable) gets its
+    description rewritten from goreleaser's default to the
+    same lede + before/after the website uses. The Release
+    page is often the first thing a new visitor sees.
+- **DoD (outreach):**
+  - Launch post drafted for Hacker News: 60–90 character
+    title (canonical pattern: `Show HN: distill-ai – <lede
+    fragment>`). Body comment ready to paste as the first
+    reply: who built it, why, the v1.0 scope, the explicit
+    non-goals, link to the website and the GitHub repo.
+    Submitted Tuesday–Thursday 8–11am US Eastern (the
+    empirically best HN window for dev-tools).
+  - Launch post drafted for `r/golang` and `r/commandline`.
+    Same content, reformatted; reddit moderators dislike
+    cross-posting without adaptation.
+  - Mastodon and Bluesky posts drafted. Twitter is optional
+    given the platform's current state — owner's call at
+    launch time.
+  - Lobste.rs submission ready if a tag invite is available.
+  - Outreach calendar: GitHub release publish (T+0) →
+    website live (T+0, must be live *before* HN post) → HN
+    submission (T+0, within 1h of website live) → reddit /
+    Mastodon / Bluesky (T+1h after HN to avoid splitting
+    attention) → follow-up blog post on
+    `distill-ai.vailgold.com/blog/launch.html` (T+1 day,
+    reflecting on HN feedback if useful, otherwise skip).
+  - Owner is on the HN thread for the first 4 hours after
+    submission to reply to questions; HN's algorithm
+    rewards engaged authors and a launch post with no
+    author replies usually dies on the front page.
+  - **Do not** post to LinkedIn, Indie Hackers, Product
+    Hunt, or any "submit to 200 directories" service. The
+    audience is developers; those venues actively dilute
+    signal. Listed here so the decision is explicit, not
+    relitigated at launch.
+- **Tests:**
+  - `TestWebsite_LinksResolve` (new, `test/integration/`,
+    skipped under `-short`): walks the website's HTML, asserts
+    every internal link resolves to a real file and every
+    GitHub link resolves to a real path in the repo at HEAD.
+    External-link reachability is *not* checked (would gate
+    CI on third-party uptime).
+  - `TestWebsite_StatsMarkersResolve` (new): mirrors
+    M16.2's README stats-marker test against the rendered
+    HTML — the same `<!-- distill-ai-stats:NAME -->` comments
+    must yield the same numbers on the site as in the README.
+    Drift guard.
+  - `TestWebsite_InstallCommandsMatchReadme` (new): extracts
+    the install command lines from the rendered site and
+    asserts each one matches the corresponding line in
+    `README.md`'s install section. Catches the case where
+    Homebrew tap URL changes in the README but not on the
+    site (or vice versa).
+  - `TestWebsite_NoExternalAnalytics` (new): asserts the
+    rendered HTML contains no script tags pointing at
+    third-party analytics domains. Pinning the privacy
+    posture as a hard guard, not a soft norm.
+  - The outreach drafts are reviewed by a second pair of
+    eyes (manual gate, not a test); the review checklist
+    lives in the M17.6 commit body so it's discoverable from
+    `git log`.
+- **Docs:**
+  - New `docs/launch.md`: the outreach calendar, the HN /
+    reddit / Mastodon drafts, the OG image source, the
+    review checklist, and the post-launch retrospective
+    template. Lives in the repo so future projects in
+    `vailgold.com`-land can re-use the playbook.
+  - README.md gains a "Project" section near the bottom
+    linking to `https://distill-ai.vailgold.com`. The
+    section is small (two lines); the README's primary
+    job is still onboarding new users to the tool, not
+    selling the project.
+  - CHANGELOG.md `[1.0.0]` section gains a one-line entry
+    referencing M17.6 ("Public launch: project website at
+    distill-ai.vailgold.com, GitHub topics, HN submission").
+  - ARCHITECTURE.md unchanged — the launch surface is not
+    part of the technical architecture.
+  - AGENTS.md unchanged — agents work the same way
+    pre- and post-launch.
+
 ### M17 exit criteria
 
-- All five sub-items ticked.
+- All six sub-items ticked.
 - `v1.0.0` tag exists on `origin` and the GitHub Release page
   shows the published artefacts.
 - The Homebrew tap installs the binary cleanly on a fresh
@@ -4918,6 +5097,19 @@ project from "v1.0 in flight" to "v1.0 shipped."
 - The project's documentation surface is now versioned: any
   post-v1.0 doc change carries a CHANGELOG entry under the
   next version's heading.
+- `https://distill-ai.vailgold.com` is live, serves over HTTPS,
+  links resolve, install commands match the README, and the
+  drift-guard tests (`TestWebsite_*`) are green.
+- GitHub repo metadata reflects the launch: description set,
+  Website field points at the subdomain, topic labels applied,
+  v1.0 release page description rewritten, pinned "What's next"
+  issue exists.
+- HN / reddit / Mastodon / Bluesky posts submitted within the
+  documented launch window, with the owner monitoring the HN
+  thread for the first 4 hours.
+- `docs/launch.md` contains the post-launch retrospective
+  (engagement numbers, top inbound questions, feedback that
+  changed the v1.1 plan) within 7 days of the launch.
 
 ---
 
