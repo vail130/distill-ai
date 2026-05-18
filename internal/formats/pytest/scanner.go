@@ -22,6 +22,7 @@ const (
 	stateSession    state = iota // initial: before the first section banner
 	stateBlockEntry              // matched a section banner, awaiting `___ id ___`
 	stateBlockBody               // accumulating a block's body
+	stateWarnings                // inside `=== warnings summary ===`, awaiting warning entries
 	stateSummary                 // post-summary banner; everything discarded
 )
 
@@ -87,6 +88,49 @@ var (
 	// `host:port` references don't false-positive. Captured
 	// groups are: path, line, message (optional).
 	locationLinePattern = regexp.MustCompile(`^(\S+\.py|\S+[/\\]\S+):(\d+):\s*(.*)$`)
+
+	// pythonTracebackFramePattern matches the canonical Python
+	// traceback frame shape pytest emits under `--tb=long` and
+	// `--tb=native`:
+	//
+	//   File "<path>", line <N>, in <func>
+	//
+	// Captures path, line, and function. Anchored so it works
+	// against trimmed and indented forms (pytest indents
+	// traceback frames by four spaces under --tb=long, while
+	// --tb=native emits them flush-left).
+	pythonTracebackFramePattern = regexp.MustCompile(`(?:^|\s)File "([^"]+)", line (\d+), in (\S+)`)
+
+	// shortTracebackFramePattern matches the compact frame shape
+	// pytest emits under `--tb=short`:
+	//
+	//   <path>:<line>: in <func>
+	//
+	// Captures path, line, function. Distinct from the trailing
+	// `<path>:<line>: <message>` summary because of the `in `
+	// prefix on the third field.
+	shortTracebackFramePattern = regexp.MustCompile(`^(\S+\.py|\S+[/\\]\S+):(\d+):\s+in\s+(\S+)`)
+
+	// warningsBannerLinePattern matches `=== warnings summary ===`.
+	warningsBannerLinePattern = regexp.MustCompile(`^=+\s+warnings summary\s+=+\s*$`)
+
+	// warningEntryHeaderPattern matches the unindented header
+	// pytest emits per warning entry under the warnings summary
+	// banner. Two shapes:
+	//
+	//   tests/test_a.py:10           (file:line, no trailing :)
+	//   tests/test_a.py::test_foo    (file::test_id form)
+	//
+	// The indented body line that follows carries the warning
+	// class and message. We anchor on an unindented line whose
+	// first token is a `.py`-ending path so we don't confuse
+	// indented continuation lines for new entries.
+	warningEntryHeaderPattern = regexp.MustCompile(`^(\S+\.py)(?::(\d+))?(?:::(\S+))?\s*$`)
+
+	// warningClassLinePattern matches a line whose leading word is
+	// a Python warning class identifier ending in `Warning:`.
+	// Used to derive the warning Title.
+	warningClassLinePattern = regexp.MustCompile(`(\b\w+Warning):\s+(.+?)\s*$`)
 )
 
 // parseStream runs the scanner over r and forwards Events to the
@@ -98,14 +142,20 @@ var (
 // The bufio.Scanner buffer caps at 1 MiB so adversarial
 // assertrewrite output cannot blow the heap.
 //
+// Filtering: parseStream honours opts.MinSeverity and
+// opts.KeepWarnings. The default (zero ParseOpts) drops every
+// `=== warnings summary ===` block but keeps all `=== FAILURES ===`
+// and `=== ERRORS ===` blocks. Setting KeepWarnings=true or
+// MinSeverity=warn|info also emits warning Events.
+//
 // Concurrency: the scanner runs on a single goroutine started by
 // Parse. ctx is checked before each line read and before each send
 // so cancellation propagates promptly.
-func parseStream(ctx context.Context, r io.Reader) <-chan event.Event {
+func parseStream(ctx context.Context, r io.Reader, minSeverity event.Severity) <-chan event.Event {
 	out := make(chan event.Event, 1)
 	go func() {
 		defer close(out)
-		_ = scanLoop(ctx, r, out)
+		_ = scanLoop(ctx, r, out, minSeverity)
 	}()
 	return out
 }
@@ -123,7 +173,7 @@ func parseStream(ctx context.Context, r io.Reader) <-chan event.Event {
 // distinction is also overridden per-block by the `ERROR
 // collecting <path>` underline shape, which always means a
 // collection-phase error regardless of section order.
-func scanLoop(ctx context.Context, r io.Reader, out chan<- event.Event) error {
+func scanLoop(ctx context.Context, r io.Reader, out chan<- event.Event, minSeverity event.Severity) error {
 	sc := bufio.NewScanner(r)
 	sc.Buffer(make([]byte, 0, 64*1024), 1<<20)
 	st := stateSession
@@ -131,6 +181,7 @@ func scanLoop(ctx context.Context, r io.Reader, out chan<- event.Event) error {
 		cur            *pendingBlock
 		currentSection blockKind
 		seenFailures   bool
+		curWarn        *pendingWarning
 	)
 	flush := func() error {
 		if cur == nil {
@@ -138,6 +189,20 @@ func scanLoop(ctx context.Context, r io.Reader, out chan<- event.Event) error {
 		}
 		ev := buildEvent(cur)
 		cur = nil
+		if !severityAtLeast(ev.Severity, minSeverity) {
+			return nil
+		}
+		return sendEvent(ctx, out, ev)
+	}
+	flushWarn := func() error {
+		if curWarn == nil {
+			return nil
+		}
+		ev := buildWarningEvent(curWarn)
+		curWarn = nil
+		if !severityAtLeast(ev.Severity, minSeverity) {
+			return nil
+		}
 		return sendEvent(ctx, out, ev)
 	}
 	for sc.Scan() {
@@ -152,6 +217,9 @@ func scanLoop(ctx context.Context, r io.Reader, out chan<- event.Event) error {
 			if err := flush(); err != nil {
 				return err
 			}
+			if err := flushWarn(); err != nil {
+				return err
+			}
 			st = stateSummary
 			continue
 		}
@@ -160,6 +228,9 @@ func scanLoop(ctx context.Context, r io.Reader, out chan<- event.Event) error {
 		// new section.
 		if failuresBannerLinePattern.MatchString(line) {
 			if err := flush(); err != nil {
+				return err
+			}
+			if err := flushWarn(); err != nil {
 				return err
 			}
 			currentSection = blockFailure
@@ -171,12 +242,22 @@ func scanLoop(ctx context.Context, r io.Reader, out chan<- event.Event) error {
 			if err := flush(); err != nil {
 				return err
 			}
+			if err := flushWarn(); err != nil {
+				return err
+			}
 			if seenFailures {
 				currentSection = blockError
 			} else {
 				currentSection = blockCollectionError
 			}
 			st = stateBlockEntry
+			continue
+		}
+		if warningsBannerLinePattern.MatchString(line) {
+			if err := flush(); err != nil {
+				return err
+			}
+			st = stateWarnings
 			continue
 		}
 		switch st {
@@ -202,8 +283,7 @@ func scanLoop(ctx context.Context, r io.Reader, out chan<- event.Event) error {
 				continue
 			}
 			// Any other `=== ... ===` section banner not handled
-			// above (e.g. `=== warnings summary ===`) terminates
-			// the current section.
+			// above terminates the current section.
 			if isUnknownSectionBanner(line) {
 				if err := flush(); err != nil {
 					return err
@@ -212,6 +292,38 @@ func scanLoop(ctx context.Context, r io.Reader, out chan<- event.Event) error {
 				continue
 			}
 			cur.body = append(cur.body, line)
+		case stateWarnings:
+			// Each warning starts on an unindented header line
+			// (`<path>.py`, `<path>.py:<line>`, or
+			// `<path>.py::test_id`) and ends at the next such
+			// header, the next section banner, or EOF. Indented
+			// continuation lines carry the actual `WarningClass:
+			// message` detail and are folded into the current
+			// entry's body.
+			if !isIndented(line) {
+				if m := warningEntryHeaderPattern.FindStringSubmatch(line); m != nil {
+					if err := flushWarn(); err != nil {
+						return err
+					}
+					ln, _ := strconv.Atoi(m[2])
+					curWarn = &pendingWarning{
+						file: m[1],
+						line: ln,
+						body: []string{line},
+					}
+					continue
+				}
+			}
+			if isUnknownSectionBanner(line) {
+				if err := flushWarn(); err != nil {
+					return err
+				}
+				st = stateSummary
+				continue
+			}
+			if curWarn != nil {
+				curWarn.body = append(curWarn.body, line)
+			}
 		case stateSummary:
 			// Everything past the summary banner is discarded.
 		}
@@ -219,7 +331,10 @@ func scanLoop(ctx context.Context, r io.Reader, out chan<- event.Event) error {
 	if err := sc.Err(); err != nil {
 		return err
 	}
-	return flush()
+	if err := flush(); err != nil {
+		return err
+	}
+	return flushWarn()
 }
 
 // newBlock constructs a pendingBlock from the underline match. If
@@ -242,6 +357,18 @@ func newBlock(headerLn, id string, sectionKind blockKind) *pendingBlock {
 		headerLn:       headerLn,
 		body:           []string{headerLn},
 	}
+}
+
+// isIndented reports whether line starts with whitespace. pytest
+// uses indentation to mark continuation content within a warning
+// entry (the indented `WarningClass: message` line under the
+// unindented `<path>.py:<line>` header).
+func isIndented(line string) bool {
+	if line == "" {
+		return false
+	}
+	c := line[0]
+	return c == ' ' || c == '\t'
 }
 
 // isUnknownSectionBanner reports whether line looks like a
@@ -283,7 +410,7 @@ type pendingBlock struct {
 // buildEvent projects the accumulated state into a final
 // event.Event. Title and Location derivation mirrors the M11.2
 // shape; the Kind dispatch lives here so the state machine itself
-// stays kind-agnostic.
+// stays kind-agnostic. M11.4 adds Frame extraction from the body.
 func buildEvent(p *pendingBlock) event.Event {
 	title := p.id
 	if title == "" {
@@ -312,6 +439,7 @@ func buildEvent(p *pendingBlock) event.Event {
 		loc = &event.Location{File: m[1], Line: ln}
 		break
 	}
+	frames := extractFrames(p.body)
 	meta := map[string]string{}
 	kindStr := "test_failure"
 	switch p.kind {
@@ -344,6 +472,146 @@ func buildEvent(p *pendingBlock) event.Event {
 		Title:    title,
 		Location: loc,
 		Body:     append([]string(nil), p.body...),
+		Frames:   frames,
 		Metadata: meta,
 	}
+}
+
+// extractFrames walks body lines and pulls out structured stack
+// frames in source order. Handles two shapes:
+//
+//   - Long-form / native: `File "<path>", line N, in <func>` — the
+//     canonical Python traceback frame. Pytest's `--tb=long` and
+//     `--tb=native` both emit this form (long indents with four
+//     spaces, native emits flush-left). pythonTracebackFramePattern
+//     accepts both.
+//   - Short: `<path>:<line>: in <func>` — pytest's `--tb=short`
+//     emits frames in this compact form, distinct from the
+//     trailing `<path>:<line>: <message>` summary because of the
+//     literal `in ` prefix on the function field.
+//
+// Frames are emitted only when at least one line matches; otherwise
+// the slice stays nil so the M5 CollapseStage knows the parser had
+// no structured data. Vendor is left false — the CollapseStage
+// re-classifies via its pattern catalogue (site-packages, stdlib
+// path).
+func extractFrames(body []string) []event.StackFrame {
+	var frames []event.StackFrame
+	for _, line := range body {
+		if m := shortTracebackFramePattern.FindStringSubmatch(strings.TrimLeft(line, " \t")); m != nil {
+			ln, err := strconv.Atoi(m[2])
+			if err != nil {
+				continue
+			}
+			frames = append(frames, event.StackFrame{
+				File:     m[1],
+				Line:     ln,
+				Function: m[3],
+			})
+			continue
+		}
+		if m := pythonTracebackFramePattern.FindStringSubmatch(line); m != nil {
+			ln, err := strconv.Atoi(m[2])
+			if err != nil {
+				continue
+			}
+			frames = append(frames, event.StackFrame{
+				File:     m[1],
+				Line:     ln,
+				Function: m[3],
+			})
+		}
+	}
+	if len(frames) == 0 {
+		return nil
+	}
+	return frames
+}
+
+// pendingWarning is the in-flight Event for one entry under the
+// `=== warnings summary ===` section.
+type pendingWarning struct {
+	file string
+	line int
+	body []string
+}
+
+// buildWarningEvent projects a pendingWarning into an event.Event
+// with Severity=warn, Kind=warning. The Title is derived from the
+// first line whose pattern matches a Python `*Warning: <message>`
+// shape; falls back to the first non-header line, then to the
+// header file:line summary.
+func buildWarningEvent(p *pendingWarning) event.Event {
+	var title string
+	for _, line := range p.body {
+		if m := warningClassLinePattern.FindStringSubmatch(line); m != nil {
+			title = m[1] + ": " + m[2]
+			break
+		}
+	}
+	if title == "" && len(p.body) > 1 {
+		title = strings.TrimSpace(p.body[1])
+	}
+	if title == "" {
+		title = strings.TrimSpace(p.body[0])
+	}
+	var loc *event.Location
+	if p.file != "" && p.line > 0 {
+		loc = &event.Location{File: p.file, Line: p.line}
+	}
+	return event.Event{
+		Severity: event.SeverityWarn,
+		Kind:     "warning",
+		Title:    title,
+		Location: loc,
+		Body:     append([]string(nil), p.body...),
+	}
+}
+
+// severityWeight assigns a numeric weight to each severity for
+// MinSeverity comparison. Higher weight = more severe. Mirrors
+// the generic format's helper so the precedence rules match.
+func severityWeight(s event.Severity) int {
+	switch s {
+	case event.SeverityError:
+		return 3
+	case event.SeverityWarn:
+		return 2
+	case event.SeverityInfo:
+		return 1
+	default:
+		return 0
+	}
+}
+
+// severityAtLeast reports whether got is at least as severe as
+// minimum. Total over the documented Severity constants. The
+// zero (empty) Severity is treated as SeverityError because every
+// pytest Event the parser emits is at or above error today — the
+// filter is mainly a kill-switch for the warning population.
+func severityAtLeast(got, minimum event.Severity) bool {
+	if minimum == "" {
+		minimum = event.SeverityError
+	}
+	return severityWeight(got) >= severityWeight(minimum)
+}
+
+// effectiveMinSeverity reads opts and returns the minimum Severity
+// the parser should emit. Mirrors the generic precedence rules:
+//
+//   - Zero-value MinSeverity = SeverityError (format default).
+//   - KeepWarnings=true drops the floor to SeverityWarn unless
+//     MinSeverity is already lower (SeverityInfo).
+//   - An explicit MinSeverity ALWAYS wins over the
+//     KeepWarnings=false default: setting MinSeverity=SeverityInfo
+//     emits warnings even without KeepWarnings.
+func effectiveMinSeverity(minSev event.Severity, keepWarnings bool) event.Severity {
+	floor := minSev
+	if floor == "" {
+		floor = event.SeverityError
+	}
+	if keepWarnings && severityWeight(floor) > severityWeight(event.SeverityWarn) {
+		return event.SeverityWarn
+	}
+	return floor
 }
