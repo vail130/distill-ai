@@ -1,0 +1,41 @@
+[
+  {
+    "severity": "error",
+    "kind": "suite_error",
+    "title": "Test suite failed to run",
+    "location": {
+      "file": "node_modules/jest-resolve/build/index.js",
+      "line": 303,
+      "column": 11
+    },
+    "body": [
+      "  ● Test suite failed to run",
+      "",
+      "    Cannot find module 'missing-pkg' from 'src/import-broken.test.js'",
+      "",
+      "      at Resolver.resolveModule (node_modules/jest-resolve/build/index.js:303:11)",
+      "      at Object.\u003canonymous\u003e (src/import-broken.test.js:1:1)",
+      ""
+    ],
+    "frames": [
+      {
+        "file": "node_modules/jest-resolve/build/index.js",
+        "line": 303,
+        "function": "Resolver.resolveModule",
+        "vendor": false
+      },
+      {
+        "file": "src/import-broken.test.js",
+        "line": 1,
+        "function": "Object.\u003canonymous\u003e",
+        "vendor": false
+      }
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "suite_file": "src/import-broken.test.js"
+    }
+  }
+]

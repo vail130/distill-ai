@@ -1,0 +1,41 @@
+[
+  {
+    "severity": "error",
+    "kind": "snapshot_mismatch",
+    "title": "Snapshot mismatch",
+    "location": {
+      "file": "src/render.test.js",
+      "line": 8,
+      "column": 21
+    },
+    "body": [
+      "  ● Render › renders inline",
+      "",
+      "    expect(received).toMatchInlineSnapshot()",
+      "",
+      "    Expected:",
+      "      \"expected value\"",
+      "    Received:",
+      "      \"actual value\"",
+      "",
+      "      at Object.\u003canonymous\u003e (src/render.test.js:8:21)",
+      ""
+    ],
+    "frames": [
+      {
+        "file": "src/render.test.js",
+        "line": 8,
+        "function": "Object.\u003canonymous\u003e",
+        "vendor": false
+      }
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "snapshot_kind": "inline",
+      "suite_file": "src/render.test.js",
+      "test_id": "Render \u003e renders inline"
+    }
+  }
+]

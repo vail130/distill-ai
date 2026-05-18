@@ -31,11 +31,11 @@ introduced by
 **listed but not yet scoped in detail**; they will be scoped after
 v1.0 ships, in priority order driven by real usage signal. Per the
 working agreement, **at least** the next three open milestones are
-kept fully scoped at all times. As of M11's completion the open
-scoped set is M12 (jest), M13 (envelope), and M14 (config); M15
-(library API) is next in line and needs its sub-items expanded
-before the M12 milestone closes. When the v1.0 release prep (M17)
-lands and the v1.1 branch opens, the next scoped three will be M23
+kept fully scoped at all times. As of M12's completion the open
+scoped set is M13 (envelope) and M14 (config); M15 (library API)
+is next in line and needs its sub-items expanded before the M13
+milestone closes. When the v1.0 release prep (M17) lands and the
+v1.1 branch opens, the next scoped three will be M23
 (golangci-lint), M24 (cargo-json), and M25 (Markdown outline) —
 already scoped below so the v1.1 cut is ready when v1.0 ships.
 M15–M17 (the rest of v1.0) and M18–M22 (v1.3 code distillation)
@@ -2643,7 +2643,7 @@ integration test (mirroring M10.5; addresses
 
 ---
 
-## M12 — jest format
+## M12 — jest format ✅
 
 The third real format parser, modelled on M10 (gotest) and M11
 (pytest). M12 implements `formats.Format` for jest — detect by jest's
@@ -2964,7 +2964,7 @@ imports, `beforeAll` hooks, file-load syntax errors), and handle the
     nil, the `suite_error` example, the explicit out-of-scope
     note for `--json`.
 
-### M12.5 — Fixtures, ARCHITECTURE update, and integration coverage
+### M12.5 — Fixtures, ARCHITECTURE update, and integration coverage ✅
 
 Tie M12 off with the canonical fixture set per
 [CONTRIBUTING.md § Adding a format](./CONTRIBUTING.md#adding-a-format),

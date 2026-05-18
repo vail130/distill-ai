@@ -1,0 +1,35 @@
+[
+  {
+    "severity": "error",
+    "kind": "test_failure",
+    "title": "Error: timeout",
+    "location": {
+      "file": "src/api.test.js",
+      "line": 8,
+      "column": 5
+    },
+    "body": [
+      "  ● Api › fetches user",
+      "",
+      "    Error: timeout",
+      "",
+      "      at Object.\u003canonymous\u003e (src/api.test.js:8:5)",
+      ""
+    ],
+    "frames": [
+      {
+        "file": "src/api.test.js",
+        "line": 8,
+        "function": "Object.\u003canonymous\u003e",
+        "vendor": false
+      }
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "suite_file": "src/api.test.js",
+      "test_id": "Api \u003e fetches user"
+    }
+  }
+]

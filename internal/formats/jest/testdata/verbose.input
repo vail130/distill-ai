@@ -1,0 +1,14 @@
+FAIL src/auth.test.js
+  Auth
+    ✓ logout succeeds (1 ms)
+    ✗ login fails (2 ms)
+    ✓ token rotation works (1 ms)
+
+  ● Auth › login fails
+
+    Error: invalid credentials
+
+      at Object.<anonymous> (src/auth.test.js:7:11)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 2 passed, 3 total

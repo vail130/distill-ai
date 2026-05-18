@@ -123,10 +123,9 @@ fields. As of M9.4:
   `--severity=warn|info` emits one warning Event per entry. The
   precedence rule matches generic: an explicit `--severity` always
   wins over the `--keep-warnings=false` default.
-- **jest** / **gotest**: not yet wired (their milestones haven't
-  shipped). Consumers should not expect a pipeline-wide guarantee
-  — read each format's `docs/formats/<name>.md` to see whether
-  filtering is honoured.
+- **jest** / **gotest**: not yet wired. Consumers should not
+  expect a pipeline-wide guarantee — read each format's
+  `docs/formats/<name>.md` to see whether filtering is honoured.
 
 ### Kind values
 

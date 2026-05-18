@@ -1,0 +1,22 @@
+FAIL src/auth.test.js
+  Auth
+    ✗ login redirects to dashboard (12 ms)
+
+  ● Auth › login redirects to dashboard
+
+    expect(received).toBe(expected) // Object.is equality
+
+    Expected: 302
+    Received: 200
+
+      14 |     const res = await login('user', 'pass');
+    > 15 |     expect(res.status).toBe(302);
+         |                        ^
+      16 |   });
+
+      at Object.<anonymous> (src/auth.test.js:15:24)
+
+Test Suites: 1 failed, 1 total
+Tests:       1 failed, 1 total
+Snapshots:   0 total
+Time:        1.234 s

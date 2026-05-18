@@ -1,0 +1,35 @@
+[
+  {
+    "severity": "error",
+    "kind": "test_failure",
+    "title": "Error: invalid credentials",
+    "location": {
+      "file": "src/auth.test.js",
+      "line": 7,
+      "column": 11
+    },
+    "body": [
+      "  ● Auth › login fails",
+      "",
+      "    Error: invalid credentials",
+      "",
+      "      at Object.\u003canonymous\u003e (src/auth.test.js:7:11)",
+      ""
+    ],
+    "frames": [
+      {
+        "file": "src/auth.test.js",
+        "line": 7,
+        "function": "Object.\u003canonymous\u003e",
+        "vendor": false
+      }
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "suite_file": "src/auth.test.js",
+      "test_id": "Auth \u003e login fails"
+    }
+  }
+]
