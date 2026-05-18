@@ -387,18 +387,27 @@ func TestBinary_DetectPlaintextInput(t *testing.T) {
 	assertContainsGolden(t, "detect-fallback-generic", got.stdout)
 }
 
-// pytest and gotest fixtures exist today but no specific format is
-// registered, so they also fall back to the generic format. The
-// fixtures contain ERROR / panic markers, so generic.Detect returns
-// confidenceFloor — but the detector still treats that as below
-// threshold and routes the input through the fallback path. M10 /
-// M12 will replace this with a positive-match assertion against
-// pytest/gotest.
-func TestBinary_DetectPytestFixtureFallsThrough(t *testing.T) {
+// TestBinary_DetectPytestFixturePositive — after M11.1 the pytest
+// format is registered and Detect raises Confidence to 1.0 on the
+// session-start banner the fixture begins with. Exit code 0
+// (detection succeeded) plus `format: pytest` + `confidence: 1.00`
+// on stdout. Replaces the pre-M11 fall-through assertion that
+// asserted exit 1 / fellback_to_generic=true.
+//
+// The full end-to-end positive test (`run` subcommand emitting
+// distilled Events) lands in M11.5 once the scanner is in place;
+// this M11.1 test only confirms the detector wires up.
+func TestBinary_DetectPytestFixturePositive(t *testing.T) {
 	path := writeTempFixture(t, readFixture(t, "pytest-fail.input"))
 	got := runBinary(t, "", "detect", path)
-	if got.exitCode != 1 {
-		t.Errorf("exit = %d, want 1 (pre-M10 falls back to generic); stdout=%q stderr=%q", got.exitCode, got.stdout, got.stderr)
+	if got.exitCode != 0 {
+		t.Errorf("exit = %d, want 0 (detect succeeded); stdout=%q stderr=%q",
+			got.exitCode, got.stdout, got.stderr)
+	}
+	for _, want := range []string{"format: pytest", "confidence: 1.00", "fellback_to_generic: false"} {
+		if !strings.Contains(got.stdout, want) {
+			t.Errorf("stdout missing %q; got:\n%s", want, got.stdout)
+		}
 	}
 }
 
