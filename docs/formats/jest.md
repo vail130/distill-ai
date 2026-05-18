@@ -70,11 +70,28 @@ Event with:
 Block terminators: the next `●` header, the next `FAIL`/`PASS`
 per-file header, a `Test Suites:` or `Tests:` summary line, or EOF.
 
-M12.3 will distinguish snapshot mismatches (`toMatchSnapshot` /
-`toMatchInlineSnapshot` with `Snapshot:` / `Received:` diffs)
-into a `snapshot_mismatch` kind with the diff captured in Body and
-`Metadata["snapshot_kind"]` distinguishing file-backed from inline
-snapshots.
+M12.3 promotes the Event Kind from `test_failure` to
+`snapshot_mismatch` when a block contains an
+`expect(received).toMatchSnapshot(...)` or
+`expect(received).toMatchInlineSnapshot(...)` call:
+
+- `Title = "Snapshot mismatch: <name>"` when jest printed a
+  `Snapshot name: \`<name>\`` line (file-backed snapshots);
+  the generic `"Snapshot mismatch"` form is used otherwise (the
+  inline variant, which jest does not name per call).
+- `Metadata["snapshot_kind"]` distinguishes `"file"` from
+  `"inline"` snapshots.
+- The diff lines (`- Snapshot`, `+ Received`, the `-`-prefixed
+  and `+`-prefixed body) are preserved verbatim in `Body`. No
+  parsing or normalisation of the diff — encoders can render it
+  as-is or run their own diff alignment.
+- A hard cap of `maxSnapshotLines = 200` keeps memory bounded
+  under adversarial inline-snapshot diffs. When the cap fires,
+  the last Body line is the sentinel
+  `"... [snapshot truncated]"` and
+  `Metadata["snapshot_truncated"] = "true"` flags the case for
+  downstream consumers. The cap parallels the M9.3 / M10.3
+  block-overflow handling.
 
 M12.4 will populate `Event.Frames` from every `at` line in the
 block (not just the first, which M12.2 uses for Location), emit

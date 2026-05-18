@@ -2834,7 +2834,7 @@ per failure with `Severity=SeverityError`, `Kind=test_failure`.
   - No SCHEMA.md change — `test_failure` is already listed under
     jest's kind values.
 
-### M12.3 — Snapshot mismatch handling (snapshot_mismatch)
+### M12.3 — Snapshot mismatch handling (snapshot_mismatch) ✅
 
 Jest's snapshot diffs are multi-line, structured, and high-signal.
 M12.3 detects them, emits a dedicated `snapshot_mismatch` kind so
