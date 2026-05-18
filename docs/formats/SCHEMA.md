@@ -139,6 +139,26 @@ fields. As of M9.4:
 Per-format kind values are documented in each format's
 `docs/formats/<name>.md`.
 
+### Envelope kinds
+
+Envelope strippers (see [docs/envelope.md](../envelope.md)) emit
+Events with these Kinds, in addition to whatever the inner Format
+produces. They are wrapper-level signals (a CI step exiting
+non-zero, a `##[error]` directive outside any group, etc.) and
+participate in the same pipeline as parser Events.
+
+| `kind`                    | `severity`        | Emitted when                                                                                                                  |
+|---------------------------|-------------------|-------------------------------------------------------------------------------------------------------------------------------|
+| `envelope_error`          | `error`           | The wrapper logged a top-level error directive (e.g., GitHub Actions `##[error]`, GitLab CI `section_end` with non-zero exit). |
+| `envelope_warning`        | `warn`            | The wrapper logged a top-level warning directive (e.g., `##[warning]`).                                                       |
+| `envelope_step_failure`   | `error`           | A named job step / section ended with a non-zero exit code. `title` is the step name; `metadata.step` and `metadata.exit_code` are set. |
+
+These Kinds are additive and do not bump `schema_version` per the
+[output-stability rule](../../rules/output-stability.md). Stripper
+implementations use the constants
+`envelope.KindEnvelopeError`, `envelope.KindEnvelopeWarning`, and
+`envelope.KindEnvelopeStepFailure` rather than string literals.
+
 ## Summary object
 
 ```json

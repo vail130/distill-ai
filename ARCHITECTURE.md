@@ -372,10 +372,40 @@ pattern catalogue lives in [docs/formats/vendor-frames.md](./docs/formats/vendor
 so format authors add patterns in one place instead of per-format
 tables.
 
+### Envelope handling
+
+Before autodetection runs, the pipeline asks `envelope.Wrap` whether
+the input is wrapped in a CI or orchestrator envelope (GitHub
+Actions, GitLab CI, …). When a registered `envelope.Stripper`
+claims the sample at or above `envelope.ConfidenceMinDetect` (0.6,
+same threshold as format detection), `Wrap` returns a cleaned
+`io.Reader` that yields the underlying bytes — timestamps, group
+markers, and section directives removed — plus a channel of
+wrapper-level signal Events (`envelope_error`,
+`envelope_warning`, `envelope_step_failure`) that the pipeline
+fans into the parser's Event stream.
+
+Strippers are decorators, not Formats: a GitHub Actions log
+wrapping `go test` still detects as `gotest` with `Confidence=1.0`
+because the cleaned bytes the autodetector sees are exactly what
+`go test` emitted. The envelope layer's only job is to remove
+metadata that doesn't belong to the underlying format.
+
+`--strip-envelope=auto` (the default) runs the above. `--strip-envelope=none`
+forces a Noop stripper that passes bytes through unchanged.
+`--strip-envelope=<name>` picks a specific stripper unconditionally.
+
+See [docs/envelope.md](./docs/envelope.md) for the user-facing
+overview, the Stripper interface, the signal-Event Kind catalogue,
+and the per-stripper docs.
+
 ### Autodetection
 
 1. Read first 4 KiB of input (`detect.SampleSize`); the sample is
-   buffered so no bytes are lost from the original stream.
+   buffered so no bytes are lost from the original stream. The
+   bytes the detector sees are the *cleaned* bytes returned by
+   `envelope.Wrap`, not the raw input — envelopes are stripped
+   first (see [Envelope handling](#envelope-handling)).
 2. Run `Detect(sample)` on every registered format in parallel. The
    generic format is excluded from the candidate set up front so it
    cannot win a tie on confidence alone; it is reserved for the

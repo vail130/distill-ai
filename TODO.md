@@ -3078,7 +3078,7 @@ M13 builds on M1, M3, M5, M7, M9, M10, M11, M12. Each item below
 lists Definition of Done, required tests, and required doc updates
 per the [alignment rule](./rules/alignment.md).
 
-### M13.1 — `internal/envelope/envelope.go`: stripper interface and skeleton
+### M13.1 — `internal/envelope/envelope.go`: stripper interface and skeleton ✅
 
 Define the `Stripper` concept and land an empty default
 implementation. Detection plumbing happens in M13.2; envelope-
