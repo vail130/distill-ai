@@ -19,6 +19,8 @@
 | `ci:`        | `.github/workflows/`, lint config, goreleaser               |
 | `docs:`      | Anything under `docs/`, top-level `*.md`, godoc-only edits  |
 | `envelope:`  | `internal/envelope/` (interface + registry; not stripper impls) |
+| `githubactions:` | `internal/envelope/githubactions/`                      |
+| `gitlabci:`  | `internal/envelope/gitlabci/`                               |
 | `event:`     | `internal/event/`                                           |
 | `formats:`   | `internal/formats/` (interface + registry; not format impls)|
 | `pytest:`    | `internal/formats/pytest/`                                  |
