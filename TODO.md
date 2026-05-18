@@ -2480,7 +2480,7 @@ parser emits one Event per block with `Severity=SeverityError`,
   - No SCHEMA.md change — `test_failure` is already listed under
     pytest's kind values.
 
-### M11.3 — Parse `=== ERRORS ===` and collection errors
+### M11.3 — Parse `=== ERRORS ===` and collection errors ✅
 
 Errors are pytest's term for failures before a test can run: fixture
 errors, import errors, syntax errors in test modules, missing
