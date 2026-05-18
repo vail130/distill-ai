@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- M14.4: CLI wired to read `.distill-ai.toml` defaults. The root
+  command's `PersistentPreRunE` calls `config.LoadAll(os.Getwd(),
+  os.UserHomeDir())` and stashes the merged Config on the
+  command's context; the `run` subcommand pulls it out and
+  applies config values to any flag the user did not explicitly
+  pass (verified via `pflag.Flag.Changed`). The precedence
+  chain ships intact: CLI flag > project config > user config >
+  built-in default. Two new flags: `--config <path>` overrides
+  discovery (loads only the named file, skips both the project
+  walk and the user config — useful for CI shipping a vetted
+  config), and `--print-config` dumps the merged effective
+  configuration as TOML and exits without reading stdin or
+  running the pipeline. Per-format `[formats.<name>]` blocks
+  apply only after the format is resolved (autodetect or
+  explicit FORMAT), so the override targets the right parser
+  even when the user did not commit to a format upfront. A
+  malformed config fails the binary with ExitError before any
+  pipeline work happens; the error message names the offending
+  path. The SKILL.md `cli-surface` manifest gains `--config` and
+  `--print-config` so the integration suite's drift guard tracks
+  them.
 - M14.2 / M14.3: config discovery and merge. `config.Discover(cwd,
   home)` walks from CWD toward the filesystem root looking for
   `.distill-ai.toml`, stopping at the first match, the first git

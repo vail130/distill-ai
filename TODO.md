@@ -3669,7 +3669,7 @@ defaults so the right value wins.
     worked example showing flag + project + user + default
     resolution for a single key.
 
-### M14.4 — Wire `Config` into the CLI
+### M14.4 — Wire `Config` into the CLI ✅
 
 Make every flag's default come from the merged Config and document
 the resolution chain.
