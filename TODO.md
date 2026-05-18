@@ -32,14 +32,15 @@ introduced by
 v1.0 ships, in priority order driven by real usage signal. Per the
 working agreement, **at least** the next three open milestones are
 kept fully scoped at all times. As of M13's completion the open
-scoped set is M14 (config) and M15 (library API); M16
-(documentation) is next in line and needs its sub-items expanded
-before the M14 milestone closes. When the v1.0 release prep (M17)
-lands and the v1.1 branch opens, the next scoped three will be M23
-(golangci-lint), M24 (cargo-json), and M25 (Markdown outline) —
-already scoped below so the v1.1 cut is ready when v1.0 ships.
-M16–M17 (the rest of v1.0) and M18–M22 (v1.3 code distillation)
-remain sketched. M26–M30 remain enumerated only.
+scoped set is M14 (config), M15 (library API), and M16
+(documentation); M17 (v1.0 release prep) is next in line and
+needs its sub-items expanded before the M14 milestone closes. When
+the v1.0 release prep (M17) lands and the v1.1 branch opens, the
+next scoped three will be M23 (golangci-lint), M24 (cargo-json),
+and M25 (Markdown outline) — already scoped below so the v1.1
+cut is ready when v1.0 ships. M17 (the rest of v1.0) and M18–M22
+(v1.3 code distillation) remain sketched. M26–M30 remain
+enumerated only.
 
 ---
 
@@ -4321,13 +4322,347 @@ actually use it."
 
 ## M16 — Documentation
 
-- [ ] `man/distill-ai.1` man page generated from cobra
-- [ ] README usage examples expanded with real fixtures
-- [ ] `docs/formats/` per-format docs: what's detected, what's dropped, example I/O
-- [ ] `docs/integration-claude-code.md`: how to wire into Claude Code
-- [ ] `docs/integration-opencode.md`: how to wire into opencode AGENTS.md
-- [ ] `docs/integration-ci.md`: piping CI output through distill-ai for failure summaries
-- [ ] CHANGELOG.md with semantic versioning
+The polish milestone before v1.0 ships. M0–M15 deliver the binary,
+the library, the formats, the envelope stripper, and the config
+chain — each with godoc and per-feature docs. M16 turns that
+scattered surface into a coherent user-facing documentation set:
+a man page generated from cobra (so `man distill-ai` works on every
+package install), a README that opens with the use cases the v1.0
+formats actually solve (gotest, pytest, jest, generic) rather than
+the abstract pitch the project started with, an integration-recipe
+trio for the three consumers the project optimises for (Claude
+Code, opencode, generic CI pipelines), an audit of the per-format
+docs against the formats themselves so any drift introduced
+between M9 and M15 is caught, and a CHANGELOG.md fully aligned
+with the shipped surface and ready for the `v1.0.0` tag M17 cuts.
+
+M16 is documentation-only by design: no new code, no new flags, no
+new schema fields. Every sub-item is a documentation deliverable
+that lands with its own drift-guard test where one is practical
+(man-page generation, link checking) or with an explicit human-
+review checklist where one is not.
+
+Cross-references
+[alignment rule](./rules/alignment.md) (the rule that already
+forces docs to land with code; M16 is the milestone that *audits*
+the cumulative result), and
+[ARCHITECTURE.md § Out of scope](./ARCHITECTURE.md) (M16 documents
+deliberate non-features as much as features so future contributors
+don't try to add them).
+
+M16 builds on M8 (cobra's `GenManTree` is the man-page source),
+M9–M12 and M13 (each format and the envelope stripper has a
+per-format doc that M16.3 audits), M14 (the config-file docs from
+`docs/config.md` are audited for the same drift), and M15
+(`docs/library-api.md` is audited and the README "Embedding in
+Go" section is finalised). Each item below lists Definition of
+Done, required tests, and required doc updates per the
+[alignment rule](./rules/alignment.md).
+
+### M16.1 — Man page generated from cobra (`man/distill-ai.1`)
+
+Land the build artefact, wire it into the release pipeline, and
+add a drift-guard test that fails if a new subcommand or flag is
+introduced without a regenerated man page.
+
+- **DoD:**
+  - New `cmd/distill-ai/gen-man/main.go` is a thin generator
+    binary using cobra's `doc.GenManTree` to render the root
+    command and every subcommand into `man/man1/*.1`. The
+    generator runs from `go generate ./cmd/distill-ai/...` via
+    a new `//go:generate` directive on `cmd/distill-ai/root.go`.
+  - `make man` is a new top-level target that invokes
+    `go generate ./cmd/distill-ai/...` and verifies the
+    generated files differ from `git`'s record only when the
+    CLI surface has actually changed. The target is added to
+    `make all` so a normal `make` produces the man pages
+    alongside the binary.
+  - The man pages are checked into `man/man1/` so users
+    installing via `go install` get them via the
+    Homebrew formula (M16.1 only generates the files; the
+    formula change lands in M17 release prep).
+  - The generator strips cobra's auto-prepended date / version
+    metadata so a regeneration on the same source SHA produces
+    byte-identical output. (Without this, every CI run would
+    re-touch the files.)
+  - `goreleaser` config gains a `nfpms` entry (or equivalent)
+    that bundles `man/man1/*.1` into the `.deb` / `.rpm`
+    artefacts M17 ships. The change is scoped to M16.1 because
+    it doesn't affect the binary contents.
+- **Tests** (`cmd/distill-ai/gen-man/main_test.go` and
+  `test/integration/manpage_test.go`):
+  - `TestManpageGeneration_Deterministic`: invoke the
+    generator twice into separate tempdirs; assert byte-equal
+    output (proves the date / version strip works).
+  - `TestManpageGeneration_CoversEverySubcommand`: parses the
+    cobra command tree from the binary's `--help` and asserts
+    `man/man1/distill-ai-<verb>.1` exists for every verb.
+  - `TestManpageGeneration_CoversEveryFlag`: parses each
+    generated man page and asserts every flag the SKILL.md
+    `cli-surface` manifest lists is documented. The test
+    fails loudly when a flag is added without a man-page
+    regeneration — the project's existing
+    `TestSkill_DocumentsCurrentCLISurface` drift guard pattern
+    extended to man pages.
+  - `TestManpageGeneration_NoStaleSubcommands`: the reverse
+    direction — every `man/man1/distill-ai-<verb>.1` file
+    corresponds to a registered cobra command. Catches the
+    case where a verb is renamed or removed without
+    regenerating the man pages.
+- **Docs:**
+  - Godoc on `cmd/distill-ai/gen-man/main.go`.
+  - Update [README.md](./README.md) install section: a brief
+    note that `man distill-ai` works after installation.
+  - Update `Makefile` help text (the `make help` target) to
+    list `man`.
+
+### M16.2 — README rewrite around v1.0 use cases
+
+Today's README opens with an abstract pitch ("Turn noisy command
+output into structured Events"). M16.2 rewrites it around the
+four shipped formats and the three integration recipes M16.4
+covers — pivots the README from "what the binary is" to "what
+the user does with it."
+
+- **DoD:**
+  - The README's lede paragraph names the four shipped
+    formats (gotest, pytest, jest, generic) and the envelope
+    stripper (github-actions, gitlab-ci) in one sentence each,
+    with a concrete one-line example for each
+    (`pytest 2>&1 | distill-ai`, `npx jest --json | distill-ai`,
+    `go test ./... 2>&1 | distill-ai`,
+    `tail -f app.log | distill-ai`,
+    `gh run view --log | distill-ai --strip-envelope=github-actions`).
+  - The "Why" section is rewritten with a real before/after
+    line count comparison from a fixture in
+    `test/integration/testdata/fixtures/`. The numbers come
+    from a small `make readme-stats` target that runs the
+    binary on each fixture and prints `lines_in lines_out
+    tokens_in tokens_out` so the README can be regenerated
+    on demand. The README's numeric claims are tagged with a
+    `<!-- distill-ai-stats:gotest-fail -->` comment that
+    `make readme-stats-check` parses and verifies against
+    fresh runs; the verifier fails CI when the README's
+    numbers drift from reality.
+  - The "Usage" section gains worked examples for each
+    shipped format, sourced from
+    `test/integration/testdata/fixtures/` (not hand-written —
+    the integration suite already shipped these in M10–M13).
+    Each example includes the command, abbreviated output, and
+    a one-line takeaway.
+  - The "Installation" section lists Homebrew, `go install`,
+    and direct download from GitHub Releases. The Homebrew
+    tap and Releases artefacts are M17 deliverables; M16.2
+    ships the prose against placeholder URLs that M17 fills.
+  - The existing "Embedding in Go" section M15.5 adds is
+    cross-linked from a new "Library API" subsection of the
+    Usage block.
+  - The "Status" section ("v1.0 release prep") names every
+    deferred feature explicitly (no Markdown output cleanup
+    beyond fences, no MCP server, no editor integrations)
+    with a forward reference to the relevant post-v1.0
+    milestone. Sets the contract for what v1.0 *is* and
+    *is not*.
+- **Tests** (`test/integration/readme_test.go`):
+  - `TestReadme_StatsMarkersResolve`: parse every
+    `<!-- distill-ai-stats:NAME -->` comment, run the binary
+    on the named fixture, assert the comment's adjacent
+    numbers match. Drift guard.
+  - `TestReadme_FormatListMatchesRegistry`: parse the
+    "shipped formats" sentence and assert every name appears
+    in `formats.All()`.
+  - `TestReadme_LinksResolve`: a link-check sub-test that
+    walks every Markdown link in the README and asserts each
+    file path under the repo root exists. External URLs are
+    not checked (would gate CI on third-party uptime); only
+    intra-repo references are validated.
+- **Docs:** the README rewrite is the deliverable.
+
+### M16.3 — Audit existing per-feature docs
+
+Every M9–M15 milestone landed its own doc. M16.3 walks the doc
+set as a whole, catches any drift the per-milestone alignment
+rule missed, and adds a single drift-guard test so cumulative
+drift can't recur.
+
+- **DoD:**
+  - Audit `docs/formats/SCHEMA.md`:
+    - Every `kind` value listed has a producing Format in
+      `formats.All()` and at least one golden fixture.
+      Discrepancies fixed in the same M16.3 commit.
+    - Every Event struct tag has a documented field;
+      pre-existing `TestEvent_JSONSchemaMatchesDoc` extended
+      to also verify the reverse direction (every documented
+      field exists on the struct).
+  - Audit `docs/formats/generic.md`, `docs/formats/gotest.md`,
+    `docs/formats/pytest.md`, `docs/formats/jest.md`:
+    - Each lists the same sections: intro, detection markers,
+      Event kinds emitted, what's dropped, example I/O,
+      fixture filenames. The audit normalises any drift in
+      section ordering or naming.
+    - Each fixture filename mentioned exists under the
+      format's `testdata/` directory.
+    - Each Event kind mentioned matches a kind the format
+      actually emits — verified by extending the format
+      tests to print the unique set of emitted kinds, and a
+      `TestPerFormatDocs_KindsMatch` integration test that
+      cross-references the doc against the emitted set.
+  - Audit `docs/envelope.md`:
+    - Every Stripper in `envelope.All()` has a section.
+    - The signals each Stripper emits are documented and
+      matched against the `EnvelopeSignals` struct.
+  - Audit `docs/explain.md`, `docs/library-api.md`,
+    `docs/config.md`:
+    - Each option / flag / API name mentioned matches the
+      shipped surface (CLI flags from SKILL.md, library
+      fields from `pkg/distill/options.go`, config keys from
+      `internal/config.Config`).
+  - Audit `docs/decisions/`:
+    - The ADR index (`docs/decisions/README.md`) lists every
+      ADR file present.
+    - Each ADR's status (Accepted / Superseded) is correct as
+      of v1.0.
+  - New `docs/index.md` (the docs landing page) links every
+    other `docs/*.md` file. M16.3 generates it from a
+    `go generate` step that scans `docs/**/*.md` headers, so
+    a new doc added without an index update fails the
+    generator's drift check.
+- **Tests** (`test/integration/docs_audit_test.go`):
+  - `TestPerFormatDocs_KindsMatch` (per DoD).
+  - `TestSchemaDoc_EveryKindHasProducer`: cross-references
+    SCHEMA.md kinds against `formats.All()` emitted kinds.
+  - `TestEnvelopeDoc_EveryStripperDocumented`.
+  - `TestDocsIndex_CoversEveryMarkdownFile`: parses
+    `docs/index.md`, walks `docs/**/*.md`, asserts every
+    file is linked.
+  - `TestADRIndex_ListsEveryADR`.
+- **Docs:** the audit + corrections + new `docs/index.md` are
+  the deliverable.
+
+### M16.4 — Integration recipes (`docs/integration-*.md`)
+
+The three deliverables called out in the original sketch:
+`docs/integration-claude-code.md`,
+`docs/integration-opencode.md`,
+`docs/integration-ci.md`. Each one is a recipe document, not a
+reference — it tells the user "do these N things and your agent
+or pipeline picks up distilled output."
+
+- **DoD:**
+  - `docs/integration-claude-code.md`:
+    - Steps a user follows to add distill-ai to Claude Code's
+      `CLAUDE.md`: install the binary, document the pipe
+      pattern, link to the `skills/distill-ai/SKILL.md`
+      consumer skill M15.5 finalised.
+    - A worked example showing Claude Code's Bash tool
+      invocation: `<command> 2>&1 | distill-ai` with a
+      sample input and the resulting distilled output, in
+      code blocks.
+    - The exit-code mapping: which codes Claude Code should
+      treat as "command failed" vs "command succeeded but
+      no events" (1 is the latter; 2 is the former; 3 is
+      "succeeded but truncated").
+    - Common pitfalls (forgetting `2>&1`, piping
+      `--output=json` when the agent expects text, etc.).
+  - `docs/integration-opencode.md`:
+    - Parallel structure to the Claude Code doc. Documents
+      the AGENTS.md instruction snippet that tells opencode
+      to pipe noisy commands through distill-ai by default.
+    - Cross-links to the `skills/distill-ai/SKILL.md` skill
+      and the `skill` tool invocation pattern.
+    - An end-to-end example: an opencode session running
+      `go test ./...`, seeing the distilled output, and
+      acting on the failures.
+  - `docs/integration-ci.md`:
+    - Recipes for the three CI systems M13's envelope
+      stripper supports (GitHub Actions, GitLab CI) plus
+      generic shell-script CI (Jenkins, Buildkite, etc.).
+    - The GitHub Actions recipe shows the workflow YAML:
+      pipe `gh run view --log` (or the in-job `pytest 2>&1`)
+      through `distill-ai --strip-envelope=github-actions`
+      and post the distilled output to the PR via a
+      comment-action.
+    - The GitLab CI recipe shows `script:` block usage with
+      `--strip-envelope=gitlab-ci` and `artifacts: paths:`
+      for the distilled output.
+    - The generic-CI recipe shows the lowest-common-
+      denominator pattern: pipe the build's stdout/stderr
+      through distill-ai and store the JSON output as a
+      build artefact.
+  - Each recipe ends with a "troubleshooting" subsection
+    listing the three most likely failure modes (binary not
+    on PATH, format not detected, exit code interpretation).
+- **Tests** (`test/integration/recipes_test.go`):
+  - `TestIntegrationDocs_ExamplesParse`: every fenced
+    `bash` / `yaml` code block in the three docs is parsed
+    by a basic shell or YAML parser; malformed blocks fail.
+  - `TestIntegrationDocs_ReferenceShippedFormats`: every
+    format name mentioned in an example matches a registered
+    Format.
+  - `TestIntegrationDocs_ReferenceShippedFlags`: every flag
+    mentioned matches the SKILL.md `cli-surface` manifest.
+- **Docs:** the three new files are the deliverable.
+
+### M16.5 — CHANGELOG.md aligned and tagged for v1.0
+
+The CHANGELOG already accumulates `[Unreleased]` entries via the
+per-milestone alignment rule. M16.5 organises them, ensures every
+shipped milestone has an entry, drafts a comprehensive `[1.0.0]`
+release section, and updates the Keep a Changelog metadata.
+
+- **DoD:**
+  - Audit the existing `[Unreleased]` block: every M9–M15
+    feature has an entry. Missing entries (an oversight in a
+    per-milestone commit) are added in the M16.5 commit.
+  - Reorganise `[Unreleased]` into Keep a Changelog
+    subsections (Added / Changed / Deprecated / Removed /
+    Fixed / Security). Today's entries are mostly Added;
+    M16.5 categorises them.
+  - Draft the `[1.0.0]` section header with a placeholder
+    `YYYY-MM-DD` date and a one-paragraph release summary
+    referencing the v1.0 theme (runtime failures: tests,
+    panics, build errors). M17 fills in the date and tags.
+  - Update CHANGELOG.md's preamble: the project's
+    [output-stability rule](./rules/output-stability.md) is
+    referenced; the SemVer commitment is repeated; the
+    "schema versions evolve independently of binary
+    versions" note is added so consumers don't conflate them.
+  - The post-v1.0 lines (v1.1, v1.2 …) are pre-stubbed as
+    empty subsections so the next minor release just adds
+    entries instead of creating the structure.
+  - Tag-format note: M17 will tag `v1.0.0` exactly; pre-1.0
+    tags (none yet) are not back-filled. The convention is
+    documented at the top of CHANGELOG.md.
+- **Tests** (`test/integration/changelog_test.go`):
+  - `TestChangelog_HasUnreleasedAndV1Section`: parses
+    CHANGELOG.md, asserts both sections exist.
+  - `TestChangelog_EveryClosedMilestoneHasEntry`: walks
+    TODO.md, finds every `## M<NUMBER> — TITLE ✅` heading,
+    asserts an `[Unreleased]` or `[1.0.0]` entry mentions
+    each milestone by number.
+  - `TestChangelog_SubsectionHeadersAreSemVer`: every entry
+    falls under Added / Changed / Deprecated / Removed /
+    Fixed / Security (Keep a Changelog grammar).
+- **Docs:** the CHANGELOG rewrite is the deliverable.
+
+### M16 exit criteria
+
+- All five sub-items ticked.
+- `make check` clean; the new drift-guard tests
+  (`TestManpageGeneration_*`, `TestReadme_*`,
+  `TestPerFormatDocs_KindsMatch`, `TestDocsIndex_*`,
+  `TestIntegrationDocs_*`, `TestChangelog_*`) all pass.
+- M16 milestone drift check: `man/man1/*.1` files exist and are
+  consistent with the binary's `--help`; README's "shipped
+  formats" list matches `formats.All()`; every `docs/*.md` file
+  is linked from `docs/index.md`; the three integration recipes
+  exist and reference only shipped flags / formats; CHANGELOG
+  has both `[Unreleased]` and `[1.0.0]` sections with every
+  M9–M15 milestone represented.
+- After M16 ships, the project's documentation surface is
+  audited, drift-guarded, and ready for the public v1.0
+  audience. M17 only needs to add the date, run goreleaser, and
+  publish.
 
 ---
 
