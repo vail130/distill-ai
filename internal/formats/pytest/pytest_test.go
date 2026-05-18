@@ -103,15 +103,18 @@ func TestPytest_RegisteredAtInit(t *testing.T) {
 	}
 }
 
-// TestPytest_ParseEmptyStub — M11.1 ships an empty Parse that
-// returns an immediately-closed channel. Lets M3 detection and the
-// rest of the pipeline exercise the new format end-to-end before
-// M11.2 lands the real scanner.
-func TestPytest_ParseEmptyStub(t *testing.T) {
+// TestPytest_ParseNonFailureEmitsNothing — input that contains no
+// `=== FAILURES ===` banner produces zero Events even when the
+// detector would have raised confidence on a session-start
+// banner. The scanner drops everything in stateSession until the
+// FAILURES section opens.
+func TestPytest_ParseNonFailureEmitsNothing(t *testing.T) {
 	f, _ := formats.Get("pytest")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	input := strings.NewReader("any bytes; the stub ignores them\n")
+	input := strings.NewReader("============================= test session starts ==============================\n" +
+		"collected 0 items\n" +
+		"========================== no tests ran in 0.01s ==========================\n")
 	ch, err := f.Parse(ctx, input, formats.ParseOpts{})
 	if err != nil {
 		t.Fatalf("Parse err = %v, want nil", err)
@@ -121,6 +124,6 @@ func TestPytest_ParseEmptyStub(t *testing.T) {
 		count++
 	}
 	if count != 0 {
-		t.Errorf("stub Parse emitted %d events; want 0", count)
+		t.Errorf("Parse emitted %d events; want 0", count)
 	}
 }
