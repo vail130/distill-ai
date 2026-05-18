@@ -17,6 +17,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   README install section documents the targets so users adopting
   the consumer skill in opencode sessions outside this repo have
   a one-command path to wiring it up.
+- TODO.md M17.6: public launch milestone scoped under M17 (v1.0
+  release prep). Three threads — owned web presence
+  (`distill-ai.vailgold.com` via Cloudflare Pages, static
+  single-page site templated from the README so it can't drift),
+  GitHub repo presence (description, Website field, topic labels,
+  pinned "what's next" issue, rewritten Release page
+  description), and outreach (HN, r/golang, r/commandline,
+  Mastodon, Bluesky, drafts and launch-window calendar). Drift
+  guards (`TestWebsite_*`) pin install commands and stats numbers
+  against the README's single sources of truth. M17 exit criteria
+  extended to gate on the launch deliverables.
 - M15.5: library API consumer documentation. New
   `docs/library-api.md` is the full reference for the `pkg/distill`
   surface: when to use the library vs the binary (decision
