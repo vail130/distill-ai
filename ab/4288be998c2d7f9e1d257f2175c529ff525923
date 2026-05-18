@@ -1,0 +1,31 @@
+internal/formats/pytest/scanner.go
+  6cfb2d3f3c1d75c5 22-25,28-41,48-55,58,63,66-71,73-76,80-81,92-93,96-99,116-125,130-134,139,148-149,158-179,184-186,189-191,193,195-197,201,204-207,225-236,238-243,245-252,254-259,272-280,283-288,299-302,316-336,343
+internal/formats/pytest/errors_test.go
+  6cfb2d3f3c1d75c5 1-166
+internal/formats/pytest/pytest.go
+  6cfb2d3f3c1d75c5 109-113
+docs/formats/pytest.md
+  6cfb2d3f3c1d75c5 35-41,92-119
+TODO.md
+  6cfb2d3f3c1d75c5 2483
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "ab4288be998c2d7f9e1d257f2175c529ff525923",
+  "prompts": {
+    "6cfb2d3f3c1d75c5": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c76cf0e5ffedPsfnuh9wgnU3a",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 385,
+      "total_deletions": 94,
+      "accepted_lines": 385,
+      "overriden_lines": 0
+    }
+  }
+}
