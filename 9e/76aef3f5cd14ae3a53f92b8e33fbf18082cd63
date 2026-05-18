@@ -1,0 +1,46 @@
+internal/envelope/githubactions/githubactions_test.go
+  709d66f50632ee9b 1-376
+docs/envelope.md
+  709d66f50632ee9b 208,211-286
+TODO.md
+  709d66f50632ee9b 3222
+rules/commits.md
+  709d66f50632ee9b 22-23
+internal/envelope/githubactions/githubactions.go
+  709d66f50632ee9b 1-430
+cmd/distill-ai/register.go
+  709d66f50632ee9b 3-6,12-17,37-41
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "9e76aef3f5cd14ae3a53f92b8e33fbf18082cd63",
+  "prompts": {
+    "709d66f50632ee9b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c52c6883ffeErEJcX0fZf4jGx",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 936,
+      "total_deletions": 41,
+      "accepted_lines": 903,
+      "overriden_lines": 0
+    },
+    "9a8cd5e73ec6569c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c73acb8cffeiaC8BALcgVDfNQ",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 299,
+      "overriden_lines": 0
+    }
+  }
+}
