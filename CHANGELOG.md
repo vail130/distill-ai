@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- M15.3: `pkg/distill.ExitCodeFromSummary` helper and runnable
+  godoc examples. The helper maps a `*Summary` onto the CLI's
+  exit-code contract (0/1/2/3) so library callers can replicate
+  the binary's behaviour without re-implementing the mapping. The
+  four constants `ExitOK`, `ExitNoEvents`, `ExitError`,
+  `ExitPartial` are exported with stable numeric values pinned by
+  TestExitCodeConstants_StableValues so a downstream bash
+  consumer's `if [[ $? -eq 3 ]]` checks survive future
+  refactoring. Six unit tests cover the nil-receiver arm
+  (returns ExitNoEvents per the documented contract), the empty
+  pipeline (ExitNoEvents), the happy path (ExitOK), the
+  ExitPartial > ExitNoEvents precedence rule (a budget that drops
+  every event still produces ExitPartial), the EventsTruncated
+  arm of ExitPartial, and the constant-value pin.
+  Five runnable godoc examples in pkg/distill/example_test.go
+  demonstrate the canonical Distill invocation: text output (the
+  minimum case), JSON batch (with a parse-and-cross-check
+  against the Summary), JSON streaming (channel-driven event
+  counting), explicit format (bypass autodetect), and context
+  cancellation. Each example has a documented `// Output:` block
+  the test runner asserts against, so the examples double as
+  integration tests for the documented patterns. A future
+  refactor that breaks the documented shape fails the build.
 - M15.2: `pkg/distill.Distill` streaming entry point. Takes
   `(ctx, io.Reader, Options)` and returns `(<-chan Event,
   *Summary, error)`. Setup errors (ErrNilWriter,
