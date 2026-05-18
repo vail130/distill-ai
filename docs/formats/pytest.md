@@ -30,19 +30,61 @@ arbitrary content.
 
 ## What gets extracted
 
-M11.1 ships only detect + an empty-`Parse` skeleton. The real
-scanner lands across M11.2-M11.4:
+M11.2 ships the `=== FAILURES ===` block scanner. One Event per
+failure block, with `Severity=error` and `Kind=test_failure`. M11.3
+will add `test_error` and `collection_error`; M11.4 will add stack
+frame extraction, `--tb` shape handling (`long`, `short`, `line`,
+`native`), and warning Events. The four pytest kinds are documented
+in [SCHEMA.md § Kind values](./SCHEMA.md#kind-values).
 
-- **M11.2** — the `=== FAILURES ===` block scanner that emits one
-  Event per failure with `Severity=error` and `Kind=test_failure`.
-- **M11.3** — `=== ERRORS ===` and collection-error handling
-  (kinds `test_error` and `collection_error`).
-- **M11.4** — stack-frame extraction from tracebacks, `--tb` shape
-  handling (`long`, `short`, `line`, `native`), and warning Events
-  (kind `warning` with `Severity=warn`).
+### `test_failure` Event shape
 
-The four pytest kinds are documented in
-[SCHEMA.md § Kind values](./SCHEMA.md#kind-values).
+The scanner advances through a four-state machine — session,
+failure-header, failure-body, summary — over a `bufio.Scanner`. It
+drops every line until it sees the `=== FAILURES ===` banner, then
+anchors a block at each `___ test_id ___` underlined header, then
+gathers body lines until the next underlined header, the
+`=== short test summary info ===` banner, or any other `=== ... ===`
+section divider.
+
+| Field                  | Source                                                                                                                  |
+|------------------------|-------------------------------------------------------------------------------------------------------------------------|
+| `severity`             | `error`.                                                                                                                |
+| `kind`                 | `test_failure`.                                                                                                         |
+| `title`                | The first `E   <message>` line in the body — pytest's convention for the assertion / exception detail. Falls back to the trimmed test ID when no `E   ` line is present (e.g. a bare `raise` with `--tb=line`). |
+| `location`             | The last `path:line:` line in the body (pytest prints this at the bottom of each failure summary). The path must contain `/` or end in `.py` so unrelated `host:port` shapes don't match. `nil` when no path-shaped line is present. |
+| `body`                 | The verbatim block lines from the `___ test_id ___` header onward.                                                      |
+| `metadata.test_id`     | The test name parsed from the `___ test_id ___` header. Captures the full bracketed form for parametrised tests (e.g. `test_login[case_a-302]`). |
+
+### Example
+
+Input — a single failure block from a pytest run:
+
+```
+=================================== FAILURES ===================================
+_______________________________ test_login_redirect _______________________________
+
+    def test_login_redirect():
+        creds = {"u": "alice", "p": "secret"}
+        response = client.post("/login", data=creds)
+        assert response.status_code == 302
+>       assert response.headers["location"] == "/dashboard"
+E       AssertionError: expected '/dashboard', got '/login?next=/'
+
+tests/test_auth.py:47: AssertionError
+=========================== short test summary info ============================
+FAILED tests/test_auth.py::test_login_redirect - AssertionError
+```
+
+Distilled Event:
+
+- **severity:** `error`
+- **kind:** `test_failure`
+- **title:** `AssertionError: expected '/dashboard', got '/login?next=/'`
+- **location:** `tests/test_auth.py:47`
+- **metadata.test_id:** `test_login_redirect`
+- **body:** the block lines from `___ test_login_redirect ___` to the
+  `tests/test_auth.py:47: AssertionError` summary.
 
 ## What gets dropped
 

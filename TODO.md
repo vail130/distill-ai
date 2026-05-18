@@ -2421,7 +2421,7 @@ exercises the new format end-to-end before the heavy parser arrives.
     `pytest` as "detect-only, parser lands in M11.2" for M11.1;
     M11.5 promotes it to "shipped".
 
-### M11.2 — Parse `=== FAILURES ===` blocks (long-form traceback)
+### M11.2 — Parse `=== FAILURES ===` blocks (long-form traceback) ✅
 
 The common case: `pytest --tb=long` (the default). Each FAILURE block
 runs from the underlined test name to the next block delimiter; the
