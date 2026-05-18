@@ -130,9 +130,39 @@ time and uniformly thereafter:
   lines that the parser drops. The Events emitted are identical to
   the default reporter for the same logical failures.
 - **`-json` reporter** (`go test -json`) — structured one-JSON-per-line
-  output. M10.4 maps each `Action` to the right kind:
-  `fail` → `test_failure`, `output` → buffered into in-progress
-  failure body, others → dropped.
+  output. The scanner detects `{"Time":` on the first non-blank input
+  line and dispatches to the JSON parser. Per-test `output` actions
+  accumulate body lines (with `=== RUN` / `--- PASS` / `--- FAIL`
+  framing filtered out); `fail` actions emit one `test_failure`;
+  `pass` / `skip` discard the buffer; per-package `fail` actions are
+  swallowed. Build errors (Output with `Test == ""`) map to
+  `build_failure` directly.
 
 `-bench` output is out of scope for v1; it lands in v1.1 if demand
 surfaces.
+
+## Fixtures
+
+The v1 fixture set lives under
+[`internal/formats/gotest/testdata/`](../../internal/formats/gotest/testdata/).
+Eight fixtures, pinned by `TestGotest_FixtureCount`:
+
+| Fixture                  | Exercises                                                                  |
+|--------------------------|----------------------------------------------------------------------------|
+| `clean.input`            | All-green default-reporter output — scanner emits zero Events.             |
+| `single-fail.input`      | One `--- FAIL:` block with a `file:line: msg` assertion.                   |
+| `multi-fail.input`       | Two failures across one package; per-package buffering attribution.        |
+| `subtests.input`         | Table-driven subtest failures with the slash-separated subtest path.       |
+| `panic.input`            | A `panic:` block with goroutine dump, `[recovered]`, and `created by`.     |
+| `race.input`             | A `==================`-framed race-detector report.                        |
+| `build-failure.input`    | `path/to/file.go:line:col: message` errors before tests run.               |
+| `json.input`             | `go test -json` reporter — JSON-per-line mode.                             |
+
+Regenerate goldens after a deliberate parser change:
+
+```sh
+DISTILL_AI_UPDATE_GOLDENS=1 go test ./internal/formats/gotest/
+```
+
+The harness lives at `internal/formats.RunGoldens` so future
+formats (pytest, jest) share the same fixture mechanics.

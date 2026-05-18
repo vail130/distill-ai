@@ -1,0 +1,24 @@
+=== RUN   TestRace
+==================
+WARNING: DATA RACE
+Write at 0x00c0000a0008 by goroutine 7:
+  example.com/proj.set(...)
+      /home/u/proj/race.go:10 +0x1a
+
+Previous read at 0x00c0000a0008 by goroutine 8:
+  example.com/proj.get(...)
+      /home/u/proj/race.go:15 +0x2b
+
+Goroutine 7 (running) created at:
+  example.com/proj.run(...)
+      /home/u/proj/run.go:7 +0x0c
+
+Goroutine 8 (finished) created at:
+  example.com/proj.run(...)
+      /home/u/proj/run.go:8 +0x1d
+==================
+    testing.go:1234: race detected during execution of test
+--- FAIL: TestRace (0.01s)
+FAIL
+exit status 66
+FAIL	example.com/proj	0.123s

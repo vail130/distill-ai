@@ -1,0 +1,83 @@
+[
+  {
+    "severity": "error",
+    "kind": "panic",
+    "title": "panic: runtime error: invalid memory address or nil pointer dereference [recovered]",
+    "location": {
+      "file": "/home/u/proj/run.go",
+      "line": 21,
+      "column": null
+    },
+    "body": [
+      "panic: runtime error: invalid memory address or nil pointer dereference [recovered]",
+      "\tpanic: runtime error: invalid memory address or nil pointer dereference",
+      "[signal SIGSEGV: segmentation violation code=0x1 addr=0x0 pc=0x12345]",
+      "",
+      "goroutine 7 [running]:",
+      "testing.tRunner.func1.2({0x1, 0x2})",
+      "\t/usr/local/go/src/testing/testing.go:1545 +0x238",
+      "testing.tRunner.func1()",
+      "\t/usr/local/go/src/testing/testing.go:1548 +0x397",
+      "panic({0x100, 0x200})",
+      "\t/usr/local/go/src/runtime/panic.go:884 +0x213",
+      "example.com/proj.run(...)",
+      "\t/home/u/proj/run.go:21",
+      "example.com/proj.TestPanicky(0xc0001234)",
+      "\t/home/u/proj/proj_test.go:42 +0x12",
+      "testing.tRunner(0xc0001234, 0x100)",
+      "\t/usr/local/go/src/testing/testing.go:1689 +0xfe",
+      "created by testing.(*T).Run in goroutine 1",
+      "\t/usr/local/go/src/testing/testing.go:1742 +0x390"
+    ],
+    "frames": [
+      {
+        "file": "/usr/local/go/src/testing/testing.go",
+        "line": 1545,
+        "function": "testing.tRunner.func1.2",
+        "vendor": false
+      },
+      {
+        "file": "/usr/local/go/src/testing/testing.go",
+        "line": 1548,
+        "function": "testing.tRunner.func1",
+        "vendor": false
+      },
+      {
+        "file": "/usr/local/go/src/runtime/panic.go",
+        "line": 884,
+        "function": "panic",
+        "vendor": false
+      },
+      {
+        "file": "/home/u/proj/run.go",
+        "line": 21,
+        "function": "example.com/proj.run",
+        "vendor": false
+      },
+      {
+        "file": "/home/u/proj/proj_test.go",
+        "line": 42,
+        "function": "example.com/proj.TestPanicky",
+        "vendor": false
+      },
+      {
+        "file": "/usr/local/go/src/testing/testing.go",
+        "line": 1689,
+        "function": "testing.tRunner",
+        "vendor": false
+      },
+      {
+        "file": "/usr/local/go/src/testing/testing.go",
+        "line": 1742,
+        "function": "testing.",
+        "vendor": false
+      }
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "test_id": "TestPanicky"
+    }
+  }
+]

@@ -1,0 +1,47 @@
+[
+  {
+    "severity": "error",
+    "kind": "test_failure",
+    "title": "a failed",
+    "location": {
+      "file": "a_test.go",
+      "line": 10,
+      "column": null
+    },
+    "body": [
+      "    a_test.go:10: a failed",
+      "--- FAIL: TestA (0.01s)"
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "duration": "0.01s",
+      "package": "example.com/multi",
+      "test_id": "TestA"
+    }
+  },
+  {
+    "severity": "error",
+    "kind": "test_failure",
+    "title": "c failed: want 1, got 2",
+    "location": {
+      "file": "c_test.go",
+      "line": 25,
+      "column": null
+    },
+    "body": [
+      "    c_test.go:25: c failed: want 1, got 2",
+      "--- FAIL: TestC (0.05s)",
+      "FAIL"
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "duration": "0.05s",
+      "package": "example.com/multi",
+      "test_id": "TestC"
+    }
+  }
+]

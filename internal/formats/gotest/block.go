@@ -31,19 +31,21 @@ var (
 	// an in-flight panic block. The shapes covered:
 	//
 	//   - `^\s` — indented stack tail lines (`\tpath:line +0xNN`),
-	//     "created by" lines, function-arg lines.
+	//     function-arg lines.
 	//   - `^$` — blank lines inside the dump.
 	//   - `^goroutine \d+ ` — goroutine headers.
 	//   - `^panic: ` — chained panics from goroutines.
 	//   - `^\[` — signal subheaders like `[signal SIGSEGV: ...]`,
 	//     `[recovered]`.
+	//   - `^created by ` — the per-goroutine creator line that
+	//     follows the last frame in each goroutine.
 	//   - `^[\w./*()]+\(.*\)$` — Go function-call lines. The args
 	//     after the open paren accept any character: real panic
 	//     output uses pointers, hex literals, struct literals
 	//     (`{0x1, 0x2}`), interface types, etc. Anything between
 	//     the matching outermost parens belongs to the call.
 	panicContinuationPattern = regexp.MustCompile(
-		`^(?:\s|$|goroutine \d+ |panic: |\[|[\w./*()]+\(.*\)$)`,
+		`^(?:\s|$|goroutine \d+ |panic: |\[|created by |[\w./*()]+\(.*\)$)`,
 	)
 
 	// buildErrorLinePattern matches a Go compiler / vet error line:

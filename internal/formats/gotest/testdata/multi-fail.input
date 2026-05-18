@@ -1,0 +1,11 @@
+=== RUN   TestA
+    a_test.go:10: a failed
+--- FAIL: TestA (0.01s)
+=== RUN   TestB
+--- PASS: TestB (0.00s)
+=== RUN   TestC
+    c_test.go:25: c failed: want 1, got 2
+--- FAIL: TestC (0.05s)
+FAIL
+exit status 1
+FAIL	example.com/multi	0.234s

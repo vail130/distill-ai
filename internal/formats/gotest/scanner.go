@@ -332,6 +332,12 @@ func scanTextLoop(ctx context.Context, sc *bufio.Scanner, firstLine []byte, out 
 				cur = nil
 			}
 			curRace = &pendingRace{body: []string{line}, testID: curTest}
+			// Mark the test as panicked-equivalent so the
+			// trailing `--- FAIL: TestName` doesn't double up
+			// the diagnostic with a redundant test_failure.
+			if curTest != "" {
+				panickedTests[curTest] = true
+			}
 			st = stateRaceBody
 			continue
 		}
