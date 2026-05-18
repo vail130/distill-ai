@@ -32,10 +32,13 @@ arbitrary content.
 
 M11.2 ships the `=== FAILURES ===` block scanner. One Event per
 failure block, with `Severity=error` and `Kind=test_failure`. M11.3
-will add `test_error` and `collection_error`; M11.4 will add stack
-frame extraction, `--tb` shape handling (`long`, `short`, `line`,
-`native`), and warning Events. The four pytest kinds are documented
-in [SCHEMA.md § Kind values](./SCHEMA.md#kind-values).
+adds the `=== ERRORS ===` section with two kinds: `test_error` for
+per-test fixture / setup failures, and `collection_error` for
+import-time / conftest failures that prevented tests from running.
+M11.4 will add stack frame extraction, `--tb` shape handling
+(`long`, `short`, `line`, `native`), and warning Events. The four
+pytest kinds are documented in
+[SCHEMA.md § Kind values](./SCHEMA.md#kind-values).
 
 ### `test_failure` Event shape
 
@@ -85,6 +88,34 @@ Distilled Event:
 - **metadata.test_id:** `test_login_redirect`
 - **body:** the block lines from `___ test_login_redirect ___` to the
   `tests/test_auth.py:47: AssertionError` summary.
+
+### `test_error` and `collection_error` Event shapes
+
+The `=== ERRORS ===` banner opens a section that hosts two
+distinct event populations. The classification rule is:
+
+| Trigger                                                       | Kind               |
+|---------------------------------------------------------------|--------------------|
+| `=== ERRORS ===` appears *before* any `=== FAILURES ===`      | `collection_error` |
+| `=== ERRORS ===` appears *after* `=== FAILURES ===`           | `test_error`       |
+| Underline of the form `___ ERROR collecting <path> ___`       | `collection_error` (overrides the section-order rule) |
+
+The reasoning: pytest emits ERRORS-before-FAILURES when tests
+never ran (collection phase failed); it emits ERRORS-after-FAILURES
+when fixture setup failed mid-run. The per-block underline always
+wins because pytest occasionally interleaves collection errors
+mid-run when `--continue-on-collection-errors` is set.
+
+The Event shape is otherwise identical to `test_failure`. Two
+differences:
+
+- `metadata.test_id` is **absent** on `collection_error` Events
+  (there is no individual test in scope). It is present on
+  `test_error` Events.
+- When a `collection_error` block has no `path:line:` summary
+  line (a truncated import-time error), `Location.File` is
+  populated from the `ERROR collecting <path>` underline so
+  consumers can still link to the offending file.
 
 ## What gets dropped
 

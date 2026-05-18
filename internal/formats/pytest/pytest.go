@@ -106,9 +106,11 @@ func (Format) Detect(sample []byte) event.Confidence {
 //
 // M11.2 ships the `=== FAILURES ===` block scanner that emits one
 // Event per failure with `Severity=error` and `Kind=test_failure`.
-// M11.3 will add `=== ERRORS ===` and collection-error handling;
-// M11.4 will add stack frame extraction and `--tb` shape
-// detection.
+// M11.3 adds the `=== ERRORS ===` section with two kinds:
+// `test_error` for per-test fixture / setup failures, and
+// `collection_error` for import-time / conftest failures that
+// prevented tests from running. M11.4 will add stack frame
+// extraction and `--tb` shape detection.
 func (Format) Parse(ctx context.Context, r io.Reader, _ formats.ParseOpts) (<-chan event.Event, error) {
 	return parseStream(ctx, r), nil
 }
