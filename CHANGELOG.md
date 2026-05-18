@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- M14.2 / M14.3: config discovery and merge. `config.Discover(cwd,
+  home)` walks from CWD toward the filesystem root looking for
+  `.distill-ai.toml`, stopping at the first match, the first git
+  root, the filesystem root, or a 32-directory depth cap.
+  Honours `$XDG_CONFIG_HOME/distill-ai/config.toml` falling back
+  to `~/.config/distill-ai/config.toml` for the user config.
+  `config.LoadAll(cwd, home)` is the convenience wrapper:
+  Discover + Load each present file + Merge in precedence order.
+  `config.Merge(user, project)` produces a single Config with
+  project overrides on top of user; nil-safe on both sides;
+  per-format `[formats.NAME]` blocks merge field-by-field via the
+  nullable-pointer rule, while `[[formats.custom.NAME]]` blocks
+  replace whole. `Config.ApplyToOptions(opts, parseOpts,
+  formatName)` writes the merged values onto `pipeline.Options`
+  and `formats.ParseOpts`, honouring the
+  per-format > top-level > caller-default chain and treating a
+  caller's non-zero value as an "already-set explicit flag" that
+  wins over config. The CLI integration in M14.4 reads
+  ApplyToOptions's output as flag defaults.
 - M14.1: `internal/config` package decodes the TOML configuration
   schema documented in `docs/config.md` (and sketched in
   ARCHITECTURE.md § Config file). `Config.Load(path)` and

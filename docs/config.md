@@ -18,8 +18,8 @@ both. See [Precedence](#precedence) for the full chain.
 | Capability | Milestone | Status |
 |------------|-----------|--------|
 | Decode a TOML file into `Config` | M14.1 | shipped |
-| Discover project + user configs | M14.2 | scoped |
-| Merge precedence chain | M14.3 | scoped |
+| Discover project + user configs | M14.2 | shipped |
+| Merge precedence chain | M14.3 | shipped |
 | Wire into CLI flag defaults | M14.4 | scoped |
 | Custom-format registration | M14.5 | scoped |
 | `--max-events`, `--passthrough` plumbing | M14.6 | scoped |
@@ -122,8 +122,6 @@ user never opts into that format.
 
 ## Precedence
 
-> Scoped: M14.3.
-
 The resolution chain for any flag whose default is config-driven:
 
 1. **CLI flag** if explicitly passed.
@@ -145,8 +143,6 @@ the pipeline. Use it to verify "which config is winning?" without
 reverse-engineering the precedence chain.
 
 ## Discovery
-
-> Scoped: M14.2.
 
 `Discover(cwd, home)` returns absolute paths to the project and user
 config files, or empty strings when a file does not exist:

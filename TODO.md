@@ -3552,7 +3552,7 @@ discovery and no merge yet — those are M14.2 and M14.3.
     example; M14.2 adds discovery; M14.3 adds precedence;
     M14.5 adds custom-format docs.
 
-### M14.2 — Discovery: walk CWD upward and read `~/.config/...`
+### M14.2 — Discovery: walk CWD upward and read `~/.config/...` ✅
 
 Find the config files the user actually has, in the documented order.
 
@@ -3611,7 +3611,7 @@ Find the config files the user actually has, in the documented order.
   - Extend `docs/config.md` with the discovery section: where the
     binary looks, in what order, when it stops walking.
 
-### M14.3 — Merge: precedence chain and per-format overrides
+### M14.3 — Merge: precedence chain and per-format overrides ✅
 
 Combine CLI flags, project config, user config, and built-in
 defaults so the right value wins.
