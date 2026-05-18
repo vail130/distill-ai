@@ -31,16 +31,15 @@ introduced by
 **listed but not yet scoped in detail**; they will be scoped after
 v1.0 ships, in priority order driven by real usage signal. Per the
 working agreement, **at least** the next three open milestones are
-kept fully scoped at all times. As of M13's completion the open
-scoped set is M14 (config), M15 (library API), and M16
-(documentation); M17 (v1.0 release prep) is next in line and
-needs its sub-items expanded before the M14 milestone closes. When
-the v1.0 release prep (M17) lands and the v1.1 branch opens, the
-next scoped three will be M23 (golangci-lint), M24 (cargo-json),
-and M25 (Markdown outline) — already scoped below so the v1.1
-cut is ready when v1.0 ships. M17 (the rest of v1.0) and M18–M22
-(v1.3 code distillation) remain sketched. M26–M30 remain
-enumerated only.
+kept fully scoped at all times. As of M14's completion the open
+scoped set is M15 (library API) and M16 (documentation); M17
+(v1.0 release prep) is next in line and needs its sub-items
+expanded before the M15 milestone closes. When the v1.0 release
+prep (M17) lands and the v1.1 branch opens, the next scoped three
+will be M23 (golangci-lint), M24 (cargo-json), and M25 (Markdown
+outline) — already scoped below so the v1.1 cut is ready when
+v1.0 ships. M17 (the rest of v1.0) and M18–M22 (v1.3 code
+distillation) remain sketched. M26–M30 remain enumerated only.
 
 ---
 
@@ -3410,7 +3409,7 @@ recipe.
 
 ---
 
-## M14 — Config file support
+## M14 — Config file support ✅
 
 Read an optional `.distill-ai.toml` from the project (CWD upward to
 git root) and a `~/.config/distill-ai/config.toml` from the user's
@@ -3849,7 +3848,7 @@ perspective.
     list because custom formats are user-configured, not
     project-shipped.
 
-### M14.6 — Resolve KNOWN_ISSUES.md § 1 (`--max-events`, `--passthrough`)
+### M14.6 — Resolve KNOWN_ISSUES.md § 1 (`--max-events`, `--passthrough`) ✅
 
 Tie off the two inert flags carried forward from M8. M14 owns the
 fix per

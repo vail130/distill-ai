@@ -22,7 +22,7 @@ both. See [Precedence](#precedence) for the full chain.
 | Merge precedence chain | M14.3 | shipped |
 | Wire into CLI flag defaults | M14.4 | shipped |
 | Custom-format registration | M14.5 | shipped |
-| `--max-events`, `--passthrough` plumbing | M14.6 | scoped |
+| `--max-events`, `--passthrough` plumbing | M14.6 | shipped |
 
 This page describes the **shipped surface**. Sections that document a
 future milestone are tagged as such.

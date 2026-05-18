@@ -9,36 +9,7 @@ Format: one issue per heading, with **Observed**, **Why it matters**,
 **Owning milestone**, and **Recommendation**. Tick the issue off by
 deleting it once the recommendation lands.
 
-## 1. `--max-events` and `--passthrough` have no owning milestone
-
-**Observed.** Today the binary accepts `--max-events=N` and
-`--passthrough` with help text saying "Plumbing lands in M8.2.x".
-No scoped milestone (M9, M10, M11) has a DoD bullet that plumbs
-either flag.
-
-**Why it matters.** A flag is a one-way door
-([`flag-policy.md`](./rules/flag-policy.md)). Once shipped
-in `--help`, removing it is a breaking change. Carrying an inert
-flag indefinitely is the exact failure mode the policy exists to
-prevent.
-
-**Owning milestone.** Decide. Most natural fit:
-
-- `--max-events`: M9 (generic produces enough events to need a cap).
-  Implement as a pipeline `Stage` that counts emitted events and
-  closes its output channel after N. Pipeline shape stays the same.
-- `--passthrough`: M9 too — `--passthrough` is "if no events found,
-  emit input unchanged", which only makes sense once a real parser
-  could find zero events. Pre-M9 every invocation errors before
-  any parser sees the input.
-
-**Recommendation.** Either pick M9 (with a sub-item M9.6 covering
-both flags + their tests + a SCHEMA.md note for `--passthrough`
-behaviour), or remove the flags from help text and the SKILL.md
-manifest until they have a real plan. Don't carry them forward
-silently.
-
-## 2. `Source` interface mid-stream error contract is broken
+## 1. `Source` interface mid-stream error contract is broken
 
 **Observed.**
 [`Source.Source(ctx)`](./internal/pipeline/pipeline.go) returns

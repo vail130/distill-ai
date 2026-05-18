@@ -45,6 +45,14 @@ type Options struct {
 	// DefaultBufferSize.
 	BufferSize int
 
+	// MaxEvents caps the number of Events that may pass through to
+	// the Sink. Zero (the default) disables the cap. When set,
+	// Build appends a MaxEventsStage at the end of the chain so
+	// the budget enforcer's truncation / drop decisions run
+	// against the full stream before the cap is applied. CLI flag:
+	// --max-events=N (M14.6).
+	MaxEvents int
+
 	// EnvelopeSignals, when non-nil, is a channel of envelope-level
 	// signal Events (envelope_error, envelope_warning,
 	// envelope_step_failure) produced by an envelope.Stripper. Build
@@ -108,6 +116,13 @@ func Build(src Source, sink Sink, opts Options) (*Pipeline, error) {
 			Estimator: est,
 			Counters:  counters,
 		})
+	}
+	if opts.MaxEvents > 0 {
+		// MaxEvents runs after BudgetStage so the budget's
+		// severity-priority truncation operates on the full
+		// stream; the cap then trims the top N highest-severity
+		// Events.
+		p.Stages = append(p.Stages, MaxEventsStage{Limit: opts.MaxEvents})
 	}
 	return p, nil
 }

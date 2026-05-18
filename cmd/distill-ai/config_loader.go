@@ -158,6 +158,9 @@ func applyConfigToFlags(
 	if flagChanged(flags, "budget") {
 		opts.Budget = snapshot.opts.Budget
 	}
+	if flagChanged(flags, "max-events") {
+		opts.MaxEvents = snapshot.opts.MaxEvents
+	}
 	if flagChanged(flags, "tokenizer") {
 		opts.Tokenizer = snapshot.opts.Tokenizer
 	}
@@ -219,6 +222,22 @@ func applyStripEnvelopeConfig(cmd *cobra.Command, value *string) {
 		return
 	}
 	*value = cfg.DefaultStripEnvelope
+}
+
+// applyPassthroughConfig applies the config's passthrough flag
+// to a bool when --passthrough was not explicitly set. The
+// Config field is *bool so an explicit false in the config
+// overrides a true default; the CLI's pflag default is false,
+// so an absent config field leaves the CLI default in place.
+func applyPassthroughConfig(cmd *cobra.Command, value *bool) {
+	cfg := configFromContext(cmd.Context())
+	if cfg == nil || cfg.Passthrough == nil {
+		return
+	}
+	if flagChanged(cmd.Flags(), "passthrough") {
+		return
+	}
+	*value = *cfg.Passthrough
 }
 
 // printConfigTOML renders the merged Config as TOML to w. Used

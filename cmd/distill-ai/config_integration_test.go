@@ -306,6 +306,138 @@ func TestRun_PerFormatOverrideApplied(t *testing.T) {
 	}
 }
 
+// TestRun_MaxEventsCapsOutput: --max-events=3 against a format
+// that produces 10 events emits exactly 3, exits ExitOK.
+func TestRun_MaxEventsCapsOutput(t *testing.T) {
+	formats.ResetForTest()
+	t.Cleanup(formats.ResetForTest)
+	formats.Register(&emittingFormat{
+		name:   "fake-pytest",
+		score:  0.95,
+		events: makeManyEvents(10),
+	})
+	withXDGCleared(t)
+	withHome(t, t.TempDir())
+	withCwd(t, t.TempDir())
+	var stdout, stderr bytes.Buffer
+	code := run([]string{"--output=json", "--max-events=3", "fake-pytest"},
+		strings.NewReader("x"), &stdout, &stderr)
+	if code != ExitOK {
+		t.Fatalf("exit = %d; stderr=%q", code, stderr.String())
+	}
+	var parsed map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v\n%q", err, stdout.String())
+	}
+	events, _ := parsed["events"].([]any)
+	if len(events) != 3 {
+		t.Errorf("events = %d, want 3 (--max-events cap)", len(events))
+	}
+}
+
+// TestRun_MaxEventsFromConfig: a project config sets
+// max_events=2 and no CLI flag overrides it; the cap applies.
+func TestRun_MaxEventsFromConfig(t *testing.T) {
+	formats.ResetForTest()
+	t.Cleanup(formats.ResetForTest)
+	formats.Register(&emittingFormat{
+		name:   "fake-pytest",
+		score:  0.95,
+		events: makeManyEvents(5),
+	})
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, ".distill-ai.toml"),
+		"max_events = 2\n")
+	withCwd(t, dir)
+	withXDGCleared(t)
+	withHome(t, t.TempDir())
+	var stdout, stderr bytes.Buffer
+	code := run([]string{"--output=json", "fake-pytest"},
+		strings.NewReader("x"), &stdout, &stderr)
+	if code != ExitOK {
+		t.Fatalf("exit = %d; stderr=%q", code, stderr.String())
+	}
+	var parsed map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v\n%q", err, stdout.String())
+	}
+	events, _ := parsed["events"].([]any)
+	if len(events) != 2 {
+		t.Errorf("events = %d, want 2 (config cap)", len(events))
+	}
+}
+
+// TestRun_PassthroughCopiesInputOnZeroEvents: a format that
+// produces zero events plus --passthrough means stdout receives
+// the raw input and exit is 0 (not 1).
+func TestRun_PassthroughCopiesInputOnZeroEvents(t *testing.T) {
+	formats.ResetForTest()
+	t.Cleanup(formats.ResetForTest)
+	makeRunFixtureFormat(t, "fake-pytest", 0)
+	withXDGCleared(t)
+	withHome(t, t.TempDir())
+	withCwd(t, t.TempDir())
+	input := "the raw input line 1\nthe raw input line 2\n"
+	var stdout, stderr bytes.Buffer
+	code := run([]string{"--passthrough", "fake-pytest"},
+		strings.NewReader(input), &stdout, &stderr)
+	if code != ExitOK {
+		t.Fatalf("exit = %d, want ExitOK; stderr=%q", code, stderr.String())
+	}
+	if stdout.String() != input {
+		t.Errorf("stdout = %q, want raw input %q", stdout.String(), input)
+	}
+}
+
+// TestRun_PassthroughSuppressedWhenEventsFound: with events,
+// --passthrough is a no-op (distilled output flows through;
+// raw input is not copied).
+func TestRun_PassthroughSuppressedWhenEventsFound(t *testing.T) {
+	formats.ResetForTest()
+	t.Cleanup(formats.ResetForTest)
+	makeRunFixtureFormat(t, "fake-pytest", 1)
+	withXDGCleared(t)
+	withHome(t, t.TempDir())
+	withCwd(t, t.TempDir())
+	input := "some raw input\n"
+	var stdout, stderr bytes.Buffer
+	code := run([]string{"--passthrough", "fake-pytest"},
+		strings.NewReader(input), &stdout, &stderr)
+	if code != ExitOK {
+		t.Fatalf("exit = %d; stderr=%q", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "synthetic failure") {
+		t.Errorf("stdout missing distilled events; got %q", stdout.String())
+	}
+	if strings.Contains(stdout.String(), "some raw input") {
+		t.Errorf("stdout contains raw input (passthrough fired despite events); got %q",
+			stdout.String())
+	}
+}
+
+// TestRun_PassthroughFromConfig: a config-driven passthrough = true
+// applies when the CLI doesn't pass --passthrough.
+func TestRun_PassthroughFromConfig(t *testing.T) {
+	formats.ResetForTest()
+	t.Cleanup(formats.ResetForTest)
+	makeRunFixtureFormat(t, "fake-pytest", 0)
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, ".distill-ai.toml"),
+		"passthrough = true\n")
+	withCwd(t, dir)
+	withXDGCleared(t)
+	withHome(t, t.TempDir())
+	input := "line 1\nline 2\n"
+	var stdout, stderr bytes.Buffer
+	code := run([]string{"fake-pytest"}, strings.NewReader(input), &stdout, &stderr)
+	if code != ExitOK {
+		t.Fatalf("exit = %d; stderr=%q", code, stderr.String())
+	}
+	if stdout.String() != input {
+		t.Errorf("stdout = %q, want raw input %q", stdout.String(), input)
+	}
+}
+
 // TestRun_CustomFormatFromConfig: a [[formats.custom.NAME]]
 // block in the project config registers a Format that the user
 // can invoke by name and that participates in autodetection.

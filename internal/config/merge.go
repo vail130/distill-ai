@@ -160,6 +160,9 @@ func (c *Config) ApplyToOptions(opts *pipeline.Options, parseOpts *formats.Parse
 	if c.DefaultTokenizer != "" && opts.Tokenizer == "" {
 		opts.Tokenizer = c.DefaultTokenizer
 	}
+	if c.MaxEvents != 0 && opts.MaxEvents == 0 {
+		opts.MaxEvents = c.MaxEvents
+	}
 	if c.ContextLines != 0 && parseOpts.ContextLines == 0 {
 		parseOpts.ContextLines = c.ContextLines
 	}

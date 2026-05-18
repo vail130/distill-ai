@@ -346,9 +346,11 @@ Implementation in `internal/pipeline/`:
 - **`Stage`** transforms an Event stream. The shipped stages are
   `CollapseStage` (M5, drops vendor-frame runs and counts them in
   `FramesCollapsed`), `DedupeStage` (M5, bounded-LRU collapse of
-  identical Events into a single `Count > 1` entry), and
+  identical Events into a single `Count > 1` entry),
   `BudgetStage` (M6, caps the estimated token cost of the stream
-  and records per-run stats on a shared `BudgetCounters`).
+  and records per-run stats on a shared `BudgetCounters`), and
+  `MaxEventsStage` (M14.6, caps the number of emitted Events at
+  `Options.MaxEvents` after BudgetStage has ranked them).
   `PassthroughStage` is the no-op identity, used in tests.
 - **`Sink`** consumes the tail of the stream. Encoders (M7) are Sinks.
 - **`Pipeline`** wires one Source, an ordered list of Stages, and one
@@ -361,11 +363,13 @@ Implementation in `internal/pipeline/`:
   the documented order (collapse before dedupe so dedupe signatures
   key on the post-collapse frame layout). When `Options.Budget > 0`,
   `BudgetStage` is appended to the chain and `Pipeline.BudgetCounters`
-  is populated; otherwise the field is nil. Build returns
-  `(*Pipeline, error)` because the `Tokenizer` option can fail to
-  resolve, and a misconfigured run must surface that before any
-  goroutine starts. Field-level Pipeline construction is reserved
-  for tests substituting custom Stages.
+  is populated; otherwise the field is nil. When `Options.MaxEvents > 0`,
+  `MaxEventsStage` is appended after `BudgetStage` so the budget
+  enforcer's severity-priority truncation operates on the full stream
+  before the cap trims. Build returns `(*Pipeline, error)` because the
+  `Tokenizer` option can fail to resolve, and a misconfigured run must
+  surface that before any goroutine starts. Field-level Pipeline
+  construction is reserved for tests substituting custom Stages.
 - A single `BufferSize` (default 16) sizes the relay channel from the
   Source and propagates down the chain via `cap(in)` so every
   inter-stage channel is equally bounded.
