@@ -1,0 +1,76 @@
+test/integration/testdata/fixtures/gitlab-gotest-fail.input
+  709d66f50632ee9b 1-12
+internal/envelope/testdata/gitlab-job-failure.expected
+  709d66f50632ee9b 1-22
+TODO.md
+  709d66f50632ee9b 34-42,3046,3342
+internal/envelope/testdata/gha-gotest-fail.expected
+  709d66f50632ee9b 1-46
+internal/envelope/testdata/gha-step-failure.expected
+  709d66f50632ee9b 1-23
+test/integration/integration_test.go
+  709d66f50632ee9b 549-607
+skills/distill-ai-dev/SKILL.md
+  709d66f50632ee9b 247-295
+README.md
+  709d66f50632ee9b 112-136
+internal/envelope/goldens_test.go
+  709d66f50632ee9b 1-54
+internal/envelope/goldens.go
+  709d66f50632ee9b 1-253
+internal/envelope/testdata/gha-pytest-fail.input
+  709d66f50632ee9b 1-17
+internal/envelope/testdata/gitlab-gotest-fail.expected
+  709d66f50632ee9b 1-46
+ARCHITECTURE.md
+  709d66f50632ee9b 586-591
+internal/envelope/testdata/gha-gotest-fail.input
+  709d66f50632ee9b 1-8
+internal/envelope/testdata/gitlab-gotest-fail.input
+  709d66f50632ee9b 1-9
+internal/envelope/testdata/gitlab-pytest-fail.input
+  709d66f50632ee9b 1-4,6,8-9,11-13,15-18
+internal/envelope/testdata/gha-pytest-fail.expected
+  709d66f50632ee9b 1-48
+internal/envelope/testdata/gitlab-job-failure.input
+  709d66f50632ee9b 1-7
+test/integration/testdata/fixtures/gha-gotest-fail.input
+  709d66f50632ee9b 1-11
+internal/envelope/testdata/gitlab-pytest-fail.expected
+  709d66f50632ee9b 1-48
+internal/envelope/testdata/gha-step-failure.input
+  709d66f50632ee9b 1-5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "20e5644e24011f6e11a6109724b67ff433567c43",
+  "prompts": {
+    "709d66f50632ee9b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c52c6883ffeErEJcX0fZf4jGx",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 846,
+      "total_deletions": 81,
+      "accepted_lines": 773,
+      "overriden_lines": 0
+    },
+    "9a8cd5e73ec6569c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c73acb8cffeiaC8BALcgVDfNQ",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 299,
+      "overriden_lines": 0
+    }
+  }
+}
