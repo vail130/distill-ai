@@ -1,0 +1,5 @@
+2024-01-15T10:23:45.1234567Z ##[group]Run deployment
+2024-01-15T10:23:46.1234567Z Deploying release v1.2.3
+2024-01-15T10:23:47.1234567Z Uploading artifacts
+2024-01-15T10:23:48.1234567Z Connection refused to deploy.example.com
+2024-01-15T10:23:49.1234567Z ##[error]Process completed with exit code 17.

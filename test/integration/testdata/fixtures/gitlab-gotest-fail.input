@@ -1,0 +1,12 @@
+Running with gitlab-runner 16.0.0 (abcdef12)
+section_start:1700000000:run_go_test
+=== RUN   TestThing
+    thing_test.go:42: expected 200, got 500
+--- FAIL: TestThing (0.01s)
+=== RUN   TestOtherThing
+--- PASS: TestOtherThing (0.00s)
+FAIL
+exit status 1
+FAIL	github.com/example/project/thing	0.123s
+section_end:1700000000:run_go_test
+ERROR: Job failed: exit code 1

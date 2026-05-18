@@ -583,6 +583,12 @@ v1.2 = MCP, v1.3 = code distillation, v1.4 = documentation formats,
 v1.5 = more log/test formats) is recorded in
 [ADR-0002](./docs/decisions/0002-v1.0-scope-and-post-v1.0-roadmap.md).
 
+**Envelope strippers shipped:** `github-actions`, `gitlab-ci`. Both
+strip wrapper metadata from CI logs so the inner format (gotest,
+pytest, jest, generic) detects unchanged from a bare-stdout run.
+See [Envelope handling](#envelope-handling) and
+[docs/envelope.md](./docs/envelope.md).
+
 **Token estimator:** heuristic default + tiktoken opt-in.
 
 **Output formats:** text, json, markdown.
