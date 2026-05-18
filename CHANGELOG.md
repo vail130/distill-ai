@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- M15.5: library API consumer documentation. New
+  `docs/library-api.md` is the full reference for the `pkg/distill`
+  surface: when to use the library vs the binary (decision
+  table), a hello-world example, the streaming consumption
+  patterns (Writer-only, channel-only, both), the Summary
+  timing contract (Wait / Done synchronisation, race-free), the
+  error model (sentinel errors via errors.Is; mid-stream parser
+  problems degrade to best-effort Events), the exit-code mapping
+  helper, a config-files non-feature explanation, the `os/exec`
+  migration guide for downstream Go programs, the SemVer pinning
+  recommendation, and the format/envelope registration model
+  (full set by default; stripped-down via direct internal/formats
+  imports for callers willing to manage their own set).
+  README.md "Library use" subsection rewritten as "Embedding in
+  Go" with a six-line worked example and a cross-link to
+  docs/library-api.md.
+  skills/distill-ai/SKILL.md gains a new "Embedding in Go
+  (library use)" section paralleling the existing shell-pipe
+  recipes; agents that produce Go code see when to import the
+  library vs invoke the binary.
+  Together M15.5 closes the M15 milestone: the library surface
+  is shipped, the consumer-facing docs are in place, and a
+  downstream Go program can embed distill-ai by reading one
+  page and copying ten lines.
 - M15.3: `pkg/distill.ExitCodeFromSummary` helper and runnable
   godoc examples. The helper maps a `*Summary` onto the CLI's
   exit-code contract (0/1/2/3) so library callers can replicate

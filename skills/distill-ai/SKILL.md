@@ -96,6 +96,51 @@ Treat exit code `1` as **good news**: the command succeeded *and*
 nothing worth distilling came back. It is not a failure of
 `distill-ai`.
 
+## Embedding in Go (library use)
+
+If the calling agent is writing a Go program, prefer importing the
+library directly over shelling out to the binary. The library is
+at [`pkg/distill`](https://pkg.go.dev/github.com/vail130/distill-ai/pkg/distill):
+
+```go
+import "github.com/vail130/distill-ai/pkg/distill"
+
+events, summary, err := distill.Distill(ctx, r,
+    distill.Options{Writer: os.Stdout},
+)
+if err != nil {
+    return err
+}
+for ev := range events {
+    // optional: programmatic access to individual Events
+}
+summary.Wait()
+os.Exit(distill.ExitCodeFromSummary(summary))
+```
+
+- The Event channel publishes structured Events; the Writer
+  receives encoded output in parallel.
+- Setup errors (nil Writer, unknown format, unknown tokenizer)
+  surface synchronously via the returned `error`.
+- `summary.Wait()` blocks until the Summary's fields are
+  populated. Reading fields before Wait returns is a race.
+- `distill.ExitCodeFromSummary(summary)` reproduces the CLI's
+  exit-code semantics for binaries that want to replicate them.
+
+Use the library when:
+
+- The wrapping program is already in Go.
+- You need typed errors (rather than parsing stderr).
+- You want programmatic access to individual Events for routing
+  or alerting.
+- You care about fork+exec cost (e.g., distilling many short
+  streams in a long-running process).
+
+See [docs/library-api.md](../../docs/library-api.md) in the source
+tree for the full reference: consumption patterns, Summary
+timing, the `os/exec` migration guide, and format-set
+customisation.
+
 ## What to do if the distilled output looks wrong
 
 1. **Re-run with `--output=json`** and inspect the raw Event stream.

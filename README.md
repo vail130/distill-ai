@@ -240,14 +240,35 @@ integration recipes for Claude Code, Cursor, Copilot, Codex, Gemini,
 Windsurf, and Cline are planned for v1.6 (see
 [TODO.md § M29](./TODO.md#m29--per-agent-integration-recipes-documentation)).
 
-### Library use
+### Embedding in Go
 
-`distill-ai` also exposes a stable Go API at `pkg/distill/` for tools
-that want to consume Events programmatically rather than via the CLI.
-The library API is intentionally minimal; see
-[ARCHITECTURE.md § Package layout](./ARCHITECTURE.md#package-layout)
-for the M14 / M15 milestones that promote it from type aliases to a
-streaming entry point.
+`distill-ai` ships a stable Go library at
+[`pkg/distill`](./pkg/distill) for code that wants to embed the
+distillation pipeline without shelling out to the binary. The full
+surface is one function and four types:
+
+```go
+import "github.com/vail130/distill-ai/pkg/distill"
+
+events, summary, err := distill.Distill(ctx, os.Stdin,
+    distill.Options{Writer: os.Stdout},
+)
+if err != nil {
+    log.Fatal(err)
+}
+for range events { /* or consume Events for routing */ }
+summary.Wait()
+os.Exit(distill.ExitCodeFromSummary(summary))
+```
+
+The Event channel publishes structured Events as the pipeline emits
+them; the Writer receives the encoded output in parallel. Setup
+errors (nil Writer, unknown format, unknown tokenizer) surface
+synchronously via `error`; mid-stream parser problems degrade to
+best-effort Events. See [docs/library-api.md](./docs/library-api.md)
+for the full reference: consumption patterns, Summary timing,
+exit-code mapping, the `os/exec` migration guide, and version-
+pinning advice.
 
 ## Design principles
 
