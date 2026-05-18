@@ -1,0 +1,42 @@
+TODO.md
+  3b8c2e4b73db0a3b 2899
+internal/formats/jest/scanner.go
+  3b8c2e4b73db0a3b 63-66,73,278-286,289,291,294-295,316,321-336,338,427-428,432-433,447-486
+internal/formats/jest/frames_test.go
+  3b8c2e4b73db0a3b 1-239
+docs/formats/jest.md
+  3b8c2e4b73db0a3b 96-131
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "c8845af3dd7370a35e2f8d8965294374c8043ff6",
+  "prompts": {
+    "3b8c2e4b73db0a3b": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c7271656ffe6fJvm9W6BkEkGM",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 361,
+      "total_deletions": 16,
+      "accepted_lines": 361,
+      "overriden_lines": 0
+    },
+    "9a8cd5e73ec6569c": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c73acb8cffeiaC8BALcgVDfNQ",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 638,
+      "overriden_lines": 0
+    }
+  }
+}
