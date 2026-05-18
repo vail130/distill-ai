@@ -101,7 +101,35 @@ var (
 	// indicator lines `--verbose` reporters insert before the
 	// failure summary. Dropped uniformly.
 	verboseIndicatorPattern = regexp.MustCompile(`^\s*[✓✗]\s+`)
+
+	// snapshotFilePattern matches the `expect(...).toMatchSnapshot(...)`
+	// assertion call. The opening `expect(...)` argument list is
+	// captured as one group so the precedence over the more
+	// generic expectAssertionPattern is unambiguous; only the
+	// `.toMatchSnapshot` suffix is used in the dispatch decision.
+	snapshotFilePattern = regexp.MustCompile(`expect\([^)]*\)\.toMatchSnapshot\(`)
+
+	// snapshotInlinePattern matches the inline variant. Mirrors
+	// snapshotFilePattern but the suffix differs.
+	snapshotInlinePattern = regexp.MustCompile(`expect\([^)]*\)\.toMatchInlineSnapshot\(`)
+
+	// snapshotNamePattern matches the `Snapshot name: \`<name>\`` line
+	// jest emits beneath a file-backed snapshot assertion. The
+	// captured group is the trimmed name text, used as the
+	// per-Event Title when the snapshot is file-backed.
+	snapshotNamePattern = regexp.MustCompile("^\\s*Snapshot name:\\s+`(.+?)`\\s*$")
 )
+
+// maxSnapshotLines caps how many lines a snapshot-block Event's
+// Body retains before truncation. Snapshot diffs can run to
+// hundreds of lines for large fixtures; the cap mirrors M9.3 /
+// M10.3's similar caps on traceback and panic blocks.
+const maxSnapshotLines = 200
+
+// snapshotTruncatedSentinel replaces the last accepted Body entry
+// when the maxSnapshotLines cap fires. Surfaces in the rendered
+// Event so the user knows the diff was cut.
+const snapshotTruncatedSentinel = "... [snapshot truncated]"
 
 // unicodeChevron is jest's per-suite path separator (U+203A SINGLE
 // RIGHT-POINTING ANGLE QUOTATION MARK). M12.2 normalises it to a
@@ -235,13 +263,19 @@ type pendingFailure struct {
 }
 
 // buildFailureEvent projects the accumulated state into a final
-// event.Event. Title is derived from the first body line that
-// looks like an `expect(...)` call, falling back to an `Expected:`
-// line, then to an `Error:` / `AssertionError:` line, and finally
-// to the trimmed `●` header. Location comes from the first stack
-// frame in the block.
+// event.Event. The default Kind is `test_failure`; the function
+// promotes the Kind to `snapshot_mismatch` when the body contains
+// a `toMatchSnapshot` or `toMatchInlineSnapshot` assertion, and
+// applies the maxSnapshotLines cap to Body in that case.
 func buildFailureEvent(p *pendingFailure) event.Event {
-	title := titleFromBody(p.body, p.testPath)
+	kind, snapKind, snapName := classifySnapshot(p.body)
+	body := append([]string(nil), p.body...)
+	truncated := false
+	if kind == "snapshot_mismatch" && len(body) > maxSnapshotLines {
+		body = append(body[:maxSnapshotLines-1], snapshotTruncatedSentinel)
+		truncated = true
+	}
+	title := snapshotTitle(kind, snapName, p.body, p.testPath)
 	loc := locationFromBody(p.body)
 	meta := map[string]string{}
 	if p.testPath != "" {
@@ -253,17 +287,70 @@ func buildFailureEvent(p *pendingFailure) event.Event {
 	if p.suiteFile != "" {
 		meta["suite_file"] = p.suiteFile
 	}
+	if snapKind != "" {
+		meta["snapshot_kind"] = snapKind
+	}
+	if truncated {
+		meta["snapshot_truncated"] = "true"
+	}
 	if len(meta) == 0 {
 		meta = nil
 	}
 	return event.Event{
 		Severity: event.SeverityError,
-		Kind:     "test_failure",
+		Kind:     kind,
 		Title:    title,
 		Location: loc,
-		Body:     append([]string(nil), p.body...),
+		Body:     body,
 		Metadata: meta,
 	}
+}
+
+// classifySnapshot inspects body for a `toMatchSnapshot` or
+// `toMatchInlineSnapshot` assertion call. Returns the Event Kind
+// to use (`test_failure` or `snapshot_mismatch`), the snapshot
+// variant (`"file"`, `"inline"`, or `""` for non-snapshot), and
+// the file-backed snapshot name when present. ANSI escapes are
+// stripped before pattern matching.
+func classifySnapshot(body []string) (kind, snapKind, snapName string) {
+	for _, line := range body {
+		stripped := stripANSI(line)
+		switch {
+		case snapshotFilePattern.MatchString(stripped):
+			return "snapshot_mismatch", "file", findSnapshotName(body)
+		case snapshotInlinePattern.MatchString(stripped):
+			return "snapshot_mismatch", "inline", ""
+		}
+	}
+	return "test_failure", "", ""
+}
+
+// findSnapshotName returns the trimmed name from the first
+// `Snapshot name: \`<name>\“ line in body, or "" if absent.
+// ANSI escapes are stripped before matching.
+func findSnapshotName(body []string) string {
+	for _, line := range body {
+		if m := snapshotNamePattern.FindStringSubmatch(stripANSI(line)); m != nil {
+			return strings.TrimSpace(m[1])
+		}
+	}
+	return ""
+}
+
+// snapshotTitle derives the Title for a classified Event. For
+// non-snapshot failures it falls back to titleFromBody; for
+// file-backed snapshots it uses the snapshot name when one was
+// found, falling back to the generic form; for inline snapshots
+// the generic form is the only option because jest does not
+// print a name.
+func snapshotTitle(kind, snapName string, body []string, fallback string) string {
+	if kind != "snapshot_mismatch" {
+		return titleFromBody(body, fallback)
+	}
+	if snapName != "" {
+		return "Snapshot mismatch: " + snapName
+	}
+	return "Snapshot mismatch"
 }
 
 // titleFromBody derives an Event Title by walking the captured
