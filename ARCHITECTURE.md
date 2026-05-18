@@ -648,6 +648,16 @@ Lean by design.
 - **JSON:** stdlib `encoding/json`.
 - **Testing:** stdlib + golden files under `testdata/`. Every format
   ships 5-10 fixture inputs with expected outputs.
+- **Man-page generation (dev-only):** `spf13/cobra/doc`, a subpackage
+  of cobra used by `cmd/distill-ai/gen-man/` to render man pages
+  from the cobra command tree. Pulls in `cpuguy83/go-md2man` (the
+  markdown → roff renderer) and `go.yaml.in/yaml/v3` (for the
+  side-by-side YAML doc emitter cobra/doc carries; unused here but
+  imported transitively). All pure Go, MIT/Apache, no CGo. The
+  dependency is **not** linked into the production `distill-ai`
+  binary — gen-man is a separate `main` package compiled only when
+  `make man` (or `go generate ./internal/cli/`) is invoked. The
+  production binary stays inside its 6 MB budget.
 
 Avoid: heavy logging libraries, ORM-style stream processors, anything
 that buffers, anything that pulls in CGo.

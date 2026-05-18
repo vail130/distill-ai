@@ -313,6 +313,20 @@ see [TODO.md](./TODO.md) for the milestone status. See
 [ARCHITECTURE.md](./ARCHITECTURE.md) for the design and
 [AGENTS.md](./AGENTS.md) for contribution guidance.
 
+### Documentation
+
+Man pages live under [`man/man1/`](./man/man1/) and are bundled into
+the `.deb` / `.rpm` artefacts goreleaser produces. After installing
+via one of those packages — or copying the pages to
+`/usr/local/share/man/man1/` manually after a `go install` — `man
+distill-ai` and the per-subcommand pages (`man distill-ai-run`,
+`man distill-ai-detect`, etc.) work.
+
+The pages are generated from the cobra command tree by `go run
+./cmd/distill-ai/gen-man` (also available as `make man`); they are
+checked into the repo so distributions install them without
+re-running the generator on the host.
+
 ## Inspiration and prior art
 
 distill-ai is shaped by — and explicitly differentiates from — two

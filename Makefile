@@ -29,7 +29,7 @@ GOFLAGS    ?=
 TESTFLAGS  ?= -race -timeout=60s
 
 .PHONY: all
-all: build
+all: build man
 
 .PHONY: build
 build: ## Build the binary into ./bin/
@@ -39,6 +39,10 @@ build: ## Build the binary into ./bin/
 .PHONY: install
 install: ## Install into $GOBIN / $GOPATH/bin
 	$(GO) install $(GOFLAGS) -ldflags '$(LDFLAGS)' $(CMD)
+
+.PHONY: man
+man: ## Regenerate man pages into man/man1/
+	$(GO) run ./cmd/distill-ai/gen-man -o man
 
 .PHONY: install-skill
 install-skill: ## Symlink the consumer skill into $$HOME/.config/opencode/skills/

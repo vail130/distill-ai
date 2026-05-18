@@ -1,5 +1,7 @@
 package cli
 
+//go:generate go run ../../cmd/distill-ai/gen-man -o ../../man
+
 import (
 	"errors"
 	"fmt"

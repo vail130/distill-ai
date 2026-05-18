@@ -54,6 +54,31 @@ archives:
       - LICENSE
       - README.md
       - CHANGELOG.md
+      - src: man/man1/*.1
+        dst: man/man1
+
+# nfpms generates .deb and .rpm packages on linux. Bundles the man
+# pages from man/man1/ alongside the binary so a package install
+# wires `man distill-ai` automatically.
+nfpms:
+  - id: distill-ai
+    package_name: distill-ai
+    vendor: vail130
+    homepage: https://github.com/vail130/distill-ai
+    maintainer: vail130 <vail130@users.noreply.github.com>
+    description: |-
+      distill-ai compresses noisy command output (test runs, application
+      logs, stack traces) into a compact, structured form for LLM
+      consumption or human triage.
+    license: MIT
+    formats:
+      - deb
+      - rpm
+    contents:
+      - src: man/man1/*.1
+        dst: /usr/share/man/man1/
+        file_info:
+          mode: 0644
 
 checksum:
   name_template: checksums.txt
