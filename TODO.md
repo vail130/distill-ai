@@ -22,7 +22,7 @@ Each milestone ends with **exit criteria** — a milestone-level drift
 check before the milestone is marked complete (see
 [alignment.md § Enforcement](./rules/alignment.md#enforcement)).
 
-Milestones M1–M14 are scoped this way today, along with the three
+Milestones M1–M15 are scoped this way today, along with the three
 post-v1.0 milestones M23, M24, and M25 that
 [ADR-0002](./docs/decisions/0002-v1.0-scope-and-post-v1.0-roadmap.md)
 introduces. The five v1.6 filter-engine-parity milestones (M26–M30)
@@ -32,14 +32,15 @@ introduced by
 v1.0 ships, in priority order driven by real usage signal. Per the
 working agreement, **at least** the next three open milestones are
 kept fully scoped at all times. As of M12's completion the open
-scoped set is M13 (envelope) and M14 (config); M15 (library API)
-is next in line and needs its sub-items expanded before the M13
-milestone closes. When the v1.0 release prep (M17) lands and the
-v1.1 branch opens, the next scoped three will be M23
-(golangci-lint), M24 (cargo-json), and M25 (Markdown outline) —
-already scoped below so the v1.1 cut is ready when v1.0 ships.
-M15–M17 (the rest of v1.0) and M18–M22 (v1.3 code distillation)
-remain sketched. M26–M30 remain enumerated only.
+scoped set is M13 (envelope), M14 (config), and M15 (library API).
+When M13 lands, M16 (documentation) is next in line and needs its
+sub-items expanded before the M13 milestone closes. When the v1.0
+release prep (M17) lands and the v1.1 branch opens, the next
+scoped three will be M23 (golangci-lint), M24 (cargo-json), and
+M25 (Markdown outline) — already scoped below so the v1.1 cut is
+ready when v1.0 ships. M16–M17 (the rest of v1.0) and M18–M22
+(v1.3 code distillation) remain sketched. M26–M30 remain
+enumerated only.
 
 ---
 
@@ -3939,10 +3940,383 @@ common case.
 
 ## M15 — Library API
 
-- [ ] `pkg/distill/distill.go`: exported `Distill(ctx, r, opts) (<-chan Event, error)`
-- [ ] Stable public API; document in package godoc
-- [ ] Examples in `pkg/distill/example_test.go`
-- [ ] Mark internal packages as such; nothing leaks except `pkg/distill`
+Promote `pkg/distill` from a type-alias stub (M1.4) to the stable
+public library API. Today's `pkg/distill/distill.go` re-exports
+`Event`, `Severity`, `Format`, `ParseOpts`, etc. but offers no
+constructive entry point — a downstream binary that wants to embed
+the distillation pipeline has to reach into `internal/pipeline`,
+`internal/detect`, `internal/output`, and `internal/tokens`
+directly, which is exactly what `internal/` means it must not do.
+M15 closes that gap: `pkg/distill` becomes the one and only import
+path a library consumer needs.
+
+The shape was sketched in M1.4 and `pkg/distill/distill.go`'s godoc:
+the streaming entry point is
+`Distill(ctx context.Context, r io.Reader, opts Options) (<-chan Event, *Summary, error)`.
+The `<-chan Event` matches the format-plugin contract; the
+`*Summary` is filled in **after** the channel closes, mirroring the
+`BudgetCounters.ForcedDrops()` pattern from M6.3 and the
+JSON-summary trailer from M7.2. The error channel is reserved for
+setup errors (unknown tokenizer, no detection, strict-mode
+fallthrough); mid-stream parser errors degrade to best-effort
+Events per the resolution recorded in
+[KNOWN_ISSUES.md § 2](./KNOWN_ISSUES.md), option 1.
+
+Cross-references
+[ARCHITECTURE.md § Library API](./ARCHITECTURE.md#package-layout)
+(the existing "until M14 / M15 lands the streaming entry point"
+note becomes stale the moment M15.1 ships; M15.1 fixes both the
+note and the package godoc in `pkg/distill/distill.go` that
+currently reads "M14"),
+[output-stability rule](./rules/output-stability.md) (the library
+API is as much a public surface as the JSON output; breaking
+changes need the same care).
+
+M15 builds on M3 (`detect.Detect`), M4 (`tokens.ByName`), M5
+(`Options.DedupeWindow`, `Options.KeepVendor`), M6 (`Options.Budget`,
+`Options.Tokenizer`, `BudgetCounters.ForcedDrops`), M7 (`TextSink`,
+`JSONSink`, `MarkdownSink` and their counter contracts), M8 (the
+flag → Options translation pattern is the spec for how a library
+caller fills `distill.Options`), M13 (envelope is exposed via the
+same `Options` surface so consumers can opt in or out), and M14
+(config loading is **not** part of the library API — that's a CLI
+concern, documented in M15.1's godoc as a deliberate non-feature).
+Each item below lists Definition of Done, required tests, and
+required doc updates per the
+[alignment rule](./rules/alignment.md).
+
+### M15.1 — `pkg/distill/options.go`: the public Options struct
+
+Define the one struct a library caller passes. M15.1 lands the type
+plus its godoc; the `Distill` function itself lands in M15.2.
+
+- **DoD:**
+  - New file `pkg/distill/options.go` exporting:
+    - `Options` struct mirroring `pipeline.Options` semantically
+      but **not** type-aliased — `pipeline.Options` is internal
+      and exposes implementation detail (the stage chain). The
+      library `Options` is a stable, documented surface that
+      M15.2 translates into `pipeline.Options` internally.
+    - Public fields:
+      - `Format string` — explicit format name, or empty for
+        autodetect. Same semantics as the CLI's positional
+        FORMAT argument.
+      - `Strict bool` — fail on low-confidence detection rather
+        than falling back to `generic`. Same as `--strict`.
+      - `Output OutputFormat` — `OutputText` (default),
+        `OutputJSON`, `OutputJSONStreaming`, `OutputMarkdown`.
+        Distinct from the M7 Sink type so library callers don't
+        depend on `internal/output`. M15.2 constructs the Sink
+        internally.
+      - `Budget int` — token cap. 0 = no cap.
+      - `Tokenizer string` — `"heuristic"` (default) or
+        `"tiktoken"`. Validated at Distill call time.
+      - `DedupeWindow int` — 0 = off.
+      - `KeepVendor bool` — preserve vendor frames.
+      - `KeepWarnings bool` — emit warnings as well as errors.
+      - `MinSeverity Severity` — drop Events below this severity.
+        Default `SeverityError`.
+      - `MaxEvents int` — hard cap on Events emitted. 0 = no cap.
+        Lands together with the M14.6 plumbing of `MaxEventsStage`.
+      - `ContextLines int` — generic-format context window. 0 =
+        format default (3 lines).
+      - `StripEnvelope string` — `"auto"` (default), `"none"`, or
+        the name of a registered envelope stripper (`"github-actions"`,
+        `"gitlab-ci"`). Lands after M13 ships.
+      - `Writer io.Writer` — the destination for the chosen Sink's
+        output. Required; nil returns an error from `Distill`.
+      - `NoFooter bool` — suppress the text/markdown footer block
+        (no-op for JSON, where the summary is schema).
+      - `FenceLang string` — passed to `MarkdownSink.FenceLang`
+        when `Output == OutputMarkdown`; ignored otherwise.
+    - `OutputFormat` is a typed string alias with the four
+      constants above; an `OutputFormat.String()` method returns
+      the constant name for diagnostics.
+    - `Summary` struct re-exporting the JSON-schema summary
+      fields documented in
+      [SCHEMA.md § Summary object](./docs/formats/SCHEMA.md#summary-object).
+      Populated by `Distill` after the channel closes. Library
+      callers consult `Summary` for the same signals the CLI's
+      exit-code mapping uses (see M15.3).
+  - **No config-file loading.** Library callers compose their
+    own configuration; `internal/config` is not exposed and the
+    `pkg/distill` godoc documents this as a deliberate
+    non-feature (config is a CLI concern; libraries that want
+    config-file support import `internal/config` via an
+    intermediate package they write themselves, or wait for a
+    v1.x decision to expose it).
+  - Package godoc updated to remove the existing "M14" note and
+    describe the public API timeline accurately. The reference
+    to ARCHITECTURE.md § Library API is updated so it points at
+    a section that documents the shipped surface.
+- **Tests** (`pkg/distill/options_test.go`):
+  - `TestOptions_OutputFormatStringers`: every `OutputFormat`
+    constant has a documented `String()` value.
+  - `TestOptions_DefaultsAreSafe`: a zero-value `Options` is
+    documented to mean "autodetect format, text output to nil
+    Writer (error), no budget, heuristic tokenizer, dedupe off,
+    SeverityError filter, no envelope strip". The test asserts
+    each documented default explicitly so future drift is caught.
+  - `TestOptions_SummaryFieldsMatchSchema`: parse SCHEMA.md's
+    summary table and assert every documented field has a
+    corresponding field on `Summary` — drift guard parallel to
+    `TestJSONSink_SummarySchemaMatchesDoc` from M7.
+- **Docs:**
+  - Godoc on every field and constant, with a concrete one-line
+    example for each non-trivial field.
+  - Update `pkg/distill/distill.go`'s package godoc: remove the
+    "M14" stub note; describe the M15 surface; cross-link to
+    ARCHITECTURE.md § Library API and to SCHEMA.md.
+  - Update [ARCHITECTURE.md § Library API](./ARCHITECTURE.md#package-layout)
+    to describe the shipped `Distill` / `Options` / `Summary`
+    surface instead of the "type aliases only" sketch. Replace
+    the "Until M14 lands the streaming entry point" sentence
+    with "M15 ships the streaming entry point as described
+    above."
+  - The CHANGELOG.md `[Unreleased]` section gains a "Library API
+    promoted from type aliases to shipped streaming entry
+    point" bullet.
+
+### M15.2 — `pkg/distill/distill.go`: the `Distill` entry point
+
+Implement the actual function. M15.2 is the bulk of the milestone:
+input handling, format resolution, envelope wiring, Sink
+construction, pipeline assembly, summary materialisation.
+
+- **DoD:**
+  - New function
+    `func Distill(ctx context.Context, r io.Reader, opts Options) (<-chan Event, *Summary, error)`.
+  - **Behaviour:**
+    1. Validate `opts.Writer != nil`; return error otherwise.
+    2. Validate `opts.Tokenizer` resolves via `tokens.ByName`;
+       return error otherwise.
+    3. If `opts.StripEnvelope != "none"`, call `envelope.Wrap`
+       with the user's choice and feed the cleaned Reader plus
+       envelope signals downstream. (Sub-bullet only meaningful
+       after M13 ships; before M13 the field is documented but
+       silently no-op.)
+    4. If `opts.Format` is empty, call `detect.Detect` with
+       `Strict: opts.Strict`. Otherwise look up the format by
+       name; unknown name returns an error.
+    5. Construct the chosen Sink from `opts.Output`, `opts.Writer`,
+       `opts.NoFooter`, `opts.FenceLang`. The Sink's
+       `FormatName` field is the resolved format name.
+    6. Construct `pipeline.Options` from the public `Options`:
+       map every public field to the corresponding internal
+       option. The `Tokenizer` string flows through verbatim.
+    7. Call `pipeline.Build(src, sink, pipelineOpts)`. Setup
+       errors propagate up.
+    8. Spawn a goroutine that calls `Pipeline.Run`; the
+       function returns the Event channel from `src` **before**
+       `Run` completes so the caller streams.
+    9. When `Run` completes, populate the `*Summary` from the
+       pipeline's `BudgetCounters`, the Sink's `EventsEmitted()`,
+       and the envelope wrapper's signal counts. The Summary
+       value is exposed to the caller via a sync mechanism:
+       option A — block in `Distill` and return only after `Run`
+       completes (simpler, breaks streaming for the caller);
+       option B — return `*Summary` immediately, populate it via
+       a goroutine, and document that fields are valid only
+       after the Event channel closes (chosen at M15.2
+       implementation time; the godoc documents whichever
+       mechanism lands).
+  - **Streaming guarantee.** The Event channel returned by
+    `Distill` is the same channel the pipeline drives — Events
+    flow to the caller as the parser emits them. The Summary
+    populates on EOF / ctx-cancel.
+  - **Error semantics.** Setup errors return immediately with
+    nil channel and nil Summary. Mid-stream parser errors do not
+    surface to the library caller (per the M10.4 resolution in
+    KNOWN_ISSUES.md § 2); they degrade to best-effort Events.
+  - **No CLI concerns.** `Distill` does not consult flags, env
+    vars, or config files. The library caller is responsible
+    for composing its own `Options`.
+  - **Cancellation.** A cancelled `ctx` propagates to every
+    pipeline stage; the Event channel closes; the Summary
+    becomes available; no goroutines leak.
+- **Tests** (`pkg/distill/distill_test.go`):
+  - `TestDistill_PipeToText`: feed a gotest fixture, set
+    `Output=OutputText`, assert the writer receives distilled
+    output equivalent to `distill-ai run` on the same input.
+  - `TestDistill_PipeToJSON`: same input, `Output=OutputJSON`;
+    assert the writer receives valid JSON matching SCHEMA.md.
+  - `TestDistill_PipeToJSONStreaming`: assert ndjson lines emit
+    incrementally before EOF (uses `testutil.SlowReader`).
+  - `TestDistill_ExplicitFormatBeatsAutodetect`: explicit
+    `opts.Format = "gotest"` skips detection.
+  - `TestDistill_AutodetectFallsBackToGeneric`: low-confidence
+    input falls back to `generic` (depends on M9 fully shipped).
+  - `TestDistill_StrictReturnsErrorOnLowConfidence`:
+    `opts.Strict = true` + low-confidence input → non-nil error.
+  - `TestDistill_NilWriterErrors`: `opts.Writer == nil` →
+    non-nil error, nil channel.
+  - `TestDistill_UnknownTokenizerErrors`.
+  - `TestDistill_UnknownFormatErrors`: `opts.Format = "ggml"`
+    → non-nil error.
+  - `TestDistill_SummaryReflectsCounters`: assert the returned
+    `*Summary` has the same field values as the JSON sink's
+    trailer for the same input.
+  - `TestDistill_StreamingBeforeEOF`: use `testutil.SlowReader`
+    and a channel-reader that records timestamps; assert the
+    first Event arrives before the source closes.
+  - `TestDistill_ContextCancellationClosesChannel`: cancel
+    mid-stream; assert the channel closes within a bounded
+    interval and `Summary` is non-nil.
+  - `TestDistill_NoGoroutineLeak`: 100 cancelled invocations →
+    `runtime.NumGoroutine` returns to baseline.
+  - `TestDistill_DeterministicForFixedInput`: same input twice
+    → byte-equal writer contents.
+- **Docs:**
+  - Godoc on `Distill` and `Summary`. The Distill godoc
+    documents the streaming-vs-summary timing choice from
+    M15.2's implementation arm.
+  - Update [ARCHITECTURE.md § Library API](./ARCHITECTURE.md#package-layout)
+    with the documented surface.
+  - New `docs/library-api.md` with three worked examples: a
+    library wrapper that distils a tempfile, an integration
+    test harness that captures Events into a slice for
+    assertions, and an MCP server stub (the M15 milestone is
+    the dependency under which v1.2's MCP work becomes
+    practical — see TODO.md § v1.2).
+
+### M15.3 — `pkg/distill/example_test.go`: runnable examples and exit-code mapping
+
+Provide godoc examples (`func ExampleDistill_*`) that double as
+integration tests and surface the CLI's exit-code mapping for
+library callers who want to replicate it.
+
+- **DoD:**
+  - `ExampleDistill_text`: minimal "distill stdin to stdout"
+    invocation.
+  - `ExampleDistill_jsonBatch`: distil a fixture to a
+    `bytes.Buffer`, parse the resulting JSON, print the
+    summary's exit code. Demonstrates the
+    `Distill → Summary → exit_code` chain.
+  - `ExampleDistill_jsonStreaming`: same but streaming, showing
+    the consumer reading events as they arrive.
+  - `ExampleDistill_explicitFormat`: bypassing autodetect.
+  - `ExampleDistill_contextCancellation`: cancel after N events
+    received.
+  - `ExitCodeFromSummary(s *Summary) int` helper function
+    exported from `pkg/distill` that mirrors the CLI's
+    M8.3 mapping:
+    - 0 on clean run.
+    - 1 on `s.EventsEmitted == 0`.
+    - 2 reserved for setup errors (callers translate from the
+      `error` return; the helper does not own this case).
+    - 3 on `s.ForcedDrops()`.
+    - The helper exists so a library caller using `Distill` can
+      exit with the same semantics as the CLI without
+      re-implementing the mapping. Documented in godoc as the
+      reference implementation.
+- **Tests:**
+  - `TestExitCodeFromSummary_NoEvents`,
+    `TestExitCodeFromSummary_BudgetForcedDrops`,
+    `TestExitCodeFromSummary_CleanRun`.
+  - The five `Example*` functions double as tests: `go test`
+    runs them and compares against the documented `// Output:`
+    block.
+- **Docs:**
+  - Godoc on `ExitCodeFromSummary`.
+  - Extend `docs/library-api.md` with the exit-code mapping
+    section.
+
+### M15.4 — Internal-package compliance audit
+
+Verify `internal/` actually means internal — no exported symbol
+outside `pkg/distill` is reachable by an external import.
+
+- **DoD:**
+  - Run a directory-structure audit: every Go file under
+    `internal/` has its package documented in a comment;
+    `cmd/distill-ai/` and `pkg/distill/` are the only callers.
+  - Add a `TestPublicAPI_NoLeakedInternalImports` integration
+    test under `test/integration/`: parses
+    `pkg/distill/*.go`'s import graph and asserts every
+    import is either stdlib or another `pkg/...` (today there
+    are none) or `internal/event` / `internal/formats` (the
+    type-alias targets M1.4 established). Any other
+    `internal/...` import in `pkg/distill/` fails the test.
+    Pre-existing imports of `internal/pipeline`,
+    `internal/output`, `internal/detect`, `internal/tokens`
+    that M15.2 adds are NOT permitted at the `pkg/distill`
+    layer; M15.2 must structure `Distill` so that those
+    packages are touched only via a private helper file under
+    `pkg/distill/internal/` (Go's special-name rule). The
+    helper imports `internal/...`; the publicly-importable
+    surface does not.
+  - **`pkg/distill/internal/orchestrator/` package.** M15.4
+    creates this private subpackage to host the
+    `pipeline.Build` plumbing. `pkg/distill/distill.go` imports
+    only `pkg/distill/internal/orchestrator` (which Go
+    enforces as not-reachable from anywhere except `pkg/distill`
+    and its subpackages). `orchestrator` imports
+    `internal/pipeline`, `internal/output`, `internal/detect`,
+    `internal/tokens`, and `internal/envelope`. This layering
+    is the formal expression of "internal/ is for distill-ai;
+    pkg/distill is for libraries; orchestrator is the bridge."
+  - The package boundary is enforced by `go build`'s standard
+    visibility rules; no extra tooling is needed. The
+    integration test exists as a drift guard against an
+    accidental hoisting of an internal import to the public
+    layer.
+- **Tests:**
+  - `TestPublicAPI_NoLeakedInternalImports` (per DoD).
+  - `TestPublicAPI_OrchestratorIsPrivate`: asserts that
+    `pkg/distill/internal/orchestrator` cannot be imported by
+    any package outside the `pkg/distill` subtree (verified by
+    a build-time test that attempts an out-of-tree import in a
+    `tests/` sub-fixture and confirms the compiler rejects it).
+- **Docs:**
+  - Update [ARCHITECTURE.md § Package layout](./ARCHITECTURE.md#package-layout)
+    with the new `pkg/distill/internal/orchestrator` entry.
+  - Document the layering rule in the package godoc on
+    `pkg/distill/internal/orchestrator/orchestrator.go`.
+
+### M15.5 — `Distill` consumer recipes and downstream migration notes
+
+Tie M15 off with documentation aimed at library consumers. M15.5 is
+where M15 stops being "we built a library" and becomes "people can
+actually use it."
+
+- **DoD:**
+  - `docs/library-api.md` finalised with:
+    - Three end-to-end worked examples (M15.2 placeholder
+      content expanded).
+    - The exit-code mapping helper recipe (M15.3).
+    - A "Migrating from `os/exec` of the binary to in-process
+      Distill" section for downstream Go programs that today
+      shell out.
+    - A pinning recommendation: callers should pin to a major
+      version (`v1`) and review the CHANGELOG before bumping.
+  - The README.md gets a new "Embedding in Go" section with a
+    six-line minimal example linking to `docs/library-api.md`.
+  - The `skills/distill-ai/SKILL.md` (the consumer-facing skill,
+    distinct from `skills/distill-ai-dev/SKILL.md`) gains an
+    "Embedding distill-ai in a Go program" recipe paralleling
+    the existing Bash recipes.
+  - The CHANGELOG.md `[Unreleased]` bullet from M15.1 is expanded
+    to a full feature entry under the v1.0 release section
+    (M15 lands as part of the v1.0 line per the existing
+    milestone numbering).
+- **Tests:** no new test code; the existing M15.1–M15.4 tests
+  cover the behaviour. M15.5 is documentation-only by design.
+- **Docs:** per the DoD.
+
+### M15 exit criteria
+
+- All five sub-items ticked.
+- `make check` clean; no race hits; no goroutine leaks.
+- M15 milestone drift check: `pkg/distill` exports a working
+  `Distill` function; `docs/library-api.md` exists and documents
+  every public field; ARCHITECTURE.md § Library API matches the
+  shipped surface; the `TestPublicAPI_NoLeakedInternalImports`
+  test passes; the README.md "Embedding in Go" section exists;
+  the consumer SKILL.md has a Go recipe.
+- After M15 ships, `pkg/distill` is the one and only import path
+  a library consumer needs. The `internal/` packages are exactly
+  that — internal. The v1.0 release line can claim a stable
+  library surface alongside the stable CLI.
 
 ---
 
