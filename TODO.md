@@ -2896,7 +2896,7 @@ diff in `Body` while extracting a short Title.
   - No SCHEMA.md change — `snapshot_mismatch` is already listed
     under jest's kinds. M12.3 ensures the parser emits it.
 
-### M12.4 — Stack frame extraction, suite_error, and reporter modes
+### M12.4 — Stack frame extraction, suite_error, and reporter modes ✅
 
 Populate `Event.Frames` from the trailing stack-frame block, emit
 `suite_error` for failures that occur outside any test (top-level

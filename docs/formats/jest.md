@@ -93,11 +93,42 @@ M12.3 promotes the Event Kind from `test_failure` to
   downstream consumers. The cap parallels the M9.3 / M10.3
   block-overflow handling.
 
-M12.4 will populate `Event.Frames` from every `at` line in the
-block (not just the first, which M12.2 uses for Location), emit
-`suite_error` for the `● Test suite failed to run` and bare-file
-`●` shapes, and lock down the `--verbose` and CI reporter mode
-goldens.
+M12.4 populates `Event.Frames` from every indented `at` line in
+the captured block — both the `at <fn> (<path>:<line>:<col>)`
+and the bare `at <path>:<line>:<col>` shape — in source order.
+Each `StackFrame` has `File`, `Line`, and (when present)
+`Function` populated; the parser leaves `Vendor` false so the M5
+CollapseStage's `node_modules/` pattern catalogue is the single
+source of truth for vendor classification. Frames is `nil`
+(not an empty slice) when no `at` line appears so encoders see
+a consistent "no frames" signal.
+
+M12.4 also promotes the Event Kind to `suite_error` when the
+`●` header is jest's canonical `Test suite failed to run`
+phrasing, or when the header text is exactly the suite file path
+(the bare-file `●` form a test file's top-level `require` /
+`import` failure emits). Suite errors carry `suite_file` but
+not `test_id` because there is no individual test to attribute
+the failure to.
+
+The reporter modes are unified by content-anchored detection:
+
+- **Default reporter** — the canonical shape M12.2 / M12.3
+  target.
+- **`--verbose` reporter** — adds `✓` / `✗` per-test indicator
+  lines that the scanner drops before any failure block opens.
+  Verified by `TestJest_ParseVerboseSameAsTerse`: the verbose
+  and terse forms of the same logical failure produce Events
+  with identical Title, Kind, and `test_id` (the only Body
+  difference is the extra indicator lines, which the scanner
+  drops).
+- **`--ci` / no-ANSI reporter** — the ANSI strip is a no-op;
+  line wrapping is handled because the state machine keys off
+  content markers (`●`, `FAIL`, `Snapshot:`) and not column
+  positions. Verified by `TestJest_ParseCIReporterModeNoANSI`.
+
+The JSON reporter (`--json` / `--reporters=jest-json`) remains
+out of scope for v1.
 
 The set is finalised in M12.5 with the canonical fixture set.
 

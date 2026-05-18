@@ -60,17 +60,17 @@ var (
 	//
 	//   at functionName (path/to/file.js:line:col)
 	//
-	// Captures function, path, line, col. Used by M12.4 to
-	// populate Event.Frames; M12.2 uses it only to derive
-	// Location from the first frame.
-	stackFrameWithFnPattern = regexp.MustCompile(`^\s+at\s+\S+\s+\((\S+?):(\d+):(\d+)\)\s*$`)
+	// Captures function (1), path (2), line (3), col (4). Used
+	// by M12.4 to populate Event.Frames and by locationFromBody
+	// to derive Location from the first frame.
+	stackFrameWithFnPattern = regexp.MustCompile(`^\s+at\s+(\S+(?:\s\S+)*)\s+\((\S+?):(\d+):(\d+)\)\s*$`)
 
 	// stackFrameNoFnPattern matches the no-function-name frame
 	// shape common in async / bundled output:
 	//
 	//   at path/to/file.js:line:col
 	//
-	// Captures path, line, col.
+	// Captures path (1), line (2), col (3).
 	stackFrameNoFnPattern = regexp.MustCompile(`^\s+at\s+(\S+?):(\d+):(\d+)\s*$`)
 
 	// expectAssertionPattern matches an `expect(...).toBe(...)`-
@@ -275,13 +275,24 @@ func buildFailureEvent(p *pendingFailure) event.Event {
 		body = append(body[:maxSnapshotLines-1], snapshotTruncatedSentinel)
 		truncated = true
 	}
+	// suite_error promotion: a `●` header whose path is the
+	// suite file itself (with no test-name continuation) or the
+	// special heading "Test suite failed to run" identifies a
+	// failure outside any individual test. Suite errors don't
+	// have a per-test identity, so test_id is not emitted.
+	suiteError := isSuiteErrorHeader(p.testPath, p.suiteFile)
+	if suiteError {
+		kind = "suite_error"
+	}
 	title := snapshotTitle(kind, snapName, p.body, p.testPath)
 	loc := locationFromBody(p.body)
+	frames := framesFromBody(p.body)
 	meta := map[string]string{}
-	if p.testPath != "" {
+	if !suiteError && p.testPath != "" {
 		// Normalise the Unicode chevron jest renders between
 		// suite and test names to ASCII `>`. The result is
-		// grep-able from any terminal / editor.
+		// grep-able from any terminal / editor. Suppressed for
+		// suite errors because they have no test_id.
 		meta["test_id"] = strings.ReplaceAll(p.testPath, unicodeChevron, asciiChevron)
 	}
 	if p.suiteFile != "" {
@@ -302,8 +313,29 @@ func buildFailureEvent(p *pendingFailure) event.Event {
 		Title:    title,
 		Location: loc,
 		Body:     body,
+		Frames:   frames,
 		Metadata: meta,
 	}
+}
+
+// isSuiteErrorHeader reports whether a `●` block header identifies
+// a suite-level failure rather than a per-test failure. Two
+// signals are checked:
+//
+//   - The header text exactly matches `Test suite failed to run`
+//     (jest's canonical phrasing).
+//   - The header text exactly matches the per-file suite path
+//     (no `›`-separated test-name continuation). When suiteFile
+//     is set and the header text equals it, the failure ran
+//     before any individual test could be selected.
+func isSuiteErrorHeader(testPath, suiteFile string) bool {
+	if testPath == "Test suite failed to run" {
+		return true
+	}
+	if suiteFile != "" && testPath == suiteFile {
+		return true
+	}
+	return false
 }
 
 // classifySnapshot inspects body for a `toMatchSnapshot` or
@@ -392,12 +424,13 @@ func titleFromBody(body []string, fallback string) string {
 func locationFromBody(body []string) *event.Location {
 	for _, line := range body {
 		if m := stackFrameWithFnPattern.FindStringSubmatch(line); m != nil {
-			ln, err := strconv.Atoi(m[2])
+			// Captures: 1=function, 2=path, 3=line, 4=col.
+			ln, err := strconv.Atoi(m[3])
 			if err != nil {
 				continue
 			}
-			col, _ := strconv.Atoi(m[3])
-			return &event.Location{File: m[1], Line: ln, Column: &col}
+			col, _ := strconv.Atoi(m[4])
+			return &event.Location{File: m[2], Line: ln, Column: &col}
 		}
 		if m := stackFrameNoFnPattern.FindStringSubmatch(line); m != nil {
 			ln, err := strconv.Atoi(m[2])
@@ -409,6 +442,48 @@ func locationFromBody(body []string) *event.Location {
 		}
 	}
 	return nil
+}
+
+// framesFromBody returns all stack frames extracted from body, in
+// source order. Each match against stackFrameWithFnPattern produces
+// a frame with Function set; stackFrameNoFnPattern produces a frame
+// without. Vendor is left false — the M5 CollapseStage's
+// ClassifyFrames re-populates it via the `node_modules/` pattern
+// catalogue.
+//
+// Returns nil when no frames match so encoders see a consistent
+// "no frames" signal rather than an empty slice. Matches the
+// M10 / M11 convention.
+func framesFromBody(body []string) []event.StackFrame {
+	var out []event.StackFrame
+	for _, line := range body {
+		if m := stackFrameWithFnPattern.FindStringSubmatch(line); m != nil {
+			ln, err := strconv.Atoi(m[3])
+			if err != nil {
+				continue
+			}
+			out = append(out, event.StackFrame{
+				Function: m[1],
+				File:     m[2],
+				Line:     ln,
+			})
+			continue
+		}
+		if m := stackFrameNoFnPattern.FindStringSubmatch(line); m != nil {
+			ln, err := strconv.Atoi(m[2])
+			if err != nil {
+				continue
+			}
+			out = append(out, event.StackFrame{
+				File: m[1],
+				Line: ln,
+			})
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 // stripANSI removes ANSI colour / format escape sequences from s.
