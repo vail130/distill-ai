@@ -1,4 +1,4 @@
-package main
+package cli
 
 // Exit codes. The values match
 // [ARCHITECTURE.md § Exit codes](../../ARCHITECTURE.md#exit-codes)
