@@ -1,0 +1,32 @@
+[
+  {
+    "severity": "error",
+    "kind": "tick_failure",
+    "title": "[ticker] FAIL tick 2 timed out",
+    "location": null,
+    "body": [
+      "[ticker] FAIL tick 2 timed out"
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "custom_format": "ticker"
+    }
+  },
+  {
+    "severity": "error",
+    "kind": "tick_failure",
+    "title": "[ticker] FAIL tick 4 connection reset",
+    "location": null,
+    "body": [
+      "[ticker] FAIL tick 4 connection reset"
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "custom_format": "ticker"
+    }
+  }
+]

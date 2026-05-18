@@ -3731,7 +3731,7 @@ the resolution chain.
   - Extend `docs/config.md` with a "Debugging effective
     configuration" section that demonstrates `--print-config`.
 
-### M14.5 — Custom-format registration via `[[formats.custom.NAME]]`
+### M14.5 — Custom-format registration via `[[formats.custom.NAME]]` ✅
 
 Land the regex-driven extension hook. Each `[[formats.custom.NAME]]`
 block becomes a Format registered in `formats.All()` at process

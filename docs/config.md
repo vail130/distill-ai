@@ -21,7 +21,7 @@ both. See [Precedence](#precedence) for the full chain.
 | Discover project + user configs | M14.2 | shipped |
 | Merge precedence chain | M14.3 | shipped |
 | Wire into CLI flag defaults | M14.4 | shipped |
-| Custom-format registration | M14.5 | scoped |
+| Custom-format registration | M14.5 | shipped |
 | `--max-events`, `--passthrough` plumbing | M14.6 | scoped |
 
 This page describes the **shipped surface**. Sections that document a
@@ -63,7 +63,7 @@ reports (`pytest`, `gotest`, `jest`, `generic`).
 Per-format values are pointers internally so an explicit zero
 overrides the top-level value, while an absent key falls through.
 
-### Custom-format blocks (scoped: M14.5)
+### Custom-format blocks
 
 A `[[formats.custom.<name>]]` array table registers a regex-driven
 Format at process start. The registered format's `Name()` returns
@@ -77,9 +77,20 @@ Format at process start. The registered format's `Name()` returns
 | `severity` | string | no | Defaults to `error`. |
 | `kind` | string | no | Defaults to `match`. |
 
-M14.5 compiles these regexes at startup; compilation failures fail
-the binary before any input is read so misconfigured regexes are
-surfaced immediately.
+Regexes compile at startup; compilation failures fail the binary
+before any input is read so misconfigured regexes are surfaced
+immediately. A bad regex aborts the whole registration before any
+custom block is registered — the binary either runs with every
+custom format active, or with none.
+
+The detector ranks a custom format with `Confidence` 1.0 when its
+`detect_regex` matches a line of the sample, and 0.0 otherwise.
+Ties with built-in formats are broken by alphabetical name order
+(`custom:myapp` sorts at "c"), so custom formats win ties against
+"generic", "gotest", "jest", and "pytest" only when those score
+strictly below 1.0. Pass the explicit positional `FORMAT` (e.g.
+`distill-ai run custom:myapp ...`) to force a specific custom
+format regardless of detection.
 
 ## Example
 

@@ -1,0 +1,32 @@
+[
+  {
+    "severity": "error",
+    "kind": "audit_violation",
+    "title": "AUDIT VIOLATION unauthorized access by user bob",
+    "location": null,
+    "body": [
+      "AUDIT VIOLATION unauthorized access by user bob"
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "custom_format": "audit"
+    }
+  },
+  {
+    "severity": "error",
+    "kind": "audit_violation",
+    "title": "AUDIT VIOLATION privilege escalation attempt by bob",
+    "location": null,
+    "body": [
+      "AUDIT VIOLATION privilege escalation attempt by bob"
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "custom_format": "audit"
+    }
+  }
+]

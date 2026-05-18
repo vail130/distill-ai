@@ -1,0 +1,4 @@
+AUDIT OK user login alice
+AUDIT VIOLATION unauthorized access by user bob
+AUDIT OK user logout alice
+AUDIT VIOLATION privilege escalation attempt by bob

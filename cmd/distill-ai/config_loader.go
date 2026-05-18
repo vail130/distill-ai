@@ -12,6 +12,7 @@ import (
 
 	"github.com/vail130/distill-ai/internal/config"
 	"github.com/vail130/distill-ai/internal/formats"
+	"github.com/vail130/distill-ai/internal/formats/custom"
 	"github.com/vail130/distill-ai/internal/pipeline"
 )
 
@@ -43,12 +44,38 @@ func loadConfigForRoot(cmd *cobra.Command, configPath string) error {
 	if err != nil {
 		return &exitCodeError{code: ExitError, message: err.Error(), cause: err}
 	}
+	if err := registerCustomFormats(cfg); err != nil {
+		return &exitCodeError{code: ExitError, message: err.Error(), cause: err}
+	}
 	ctx := cmd.Context()
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	cmd.SetContext(context.WithValue(ctx, configContextKey{}, cfg))
 	return nil
+}
+
+// registerCustomFormats translates the config's CustomFormats map
+// into the internal/formats/custom package's input shape and
+// registers each block with the global formats registry. Empty /
+// nil input is a no-op. A bad regex aborts the whole registration
+// before any block is registered, so the binary either runs with
+// every custom format active or with none.
+func registerCustomFormats(cfg *config.Config) error {
+	if cfg == nil || len(cfg.CustomFormats) == 0 {
+		return nil
+	}
+	blocks := make(map[string]custom.Config, len(cfg.CustomFormats))
+	for name, c := range cfg.CustomFormats {
+		blocks[name] = custom.Config{
+			DetectRegex: c.DetectRegex,
+			EventStart:  c.EventStart,
+			EventEnd:    c.EventEnd,
+			Severity:    c.Severity,
+			Kind:        c.Kind,
+		}
+	}
+	return custom.RegisterFromConfig(blocks)
 }
 
 // configFromContext retrieves the merged *config.Config stored

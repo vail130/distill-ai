@@ -1,0 +1,32 @@
+[
+  {
+    "severity": "warn",
+    "kind": "warning_line",
+    "title": "WARN deprecated config key found: legacy_mode",
+    "location": null,
+    "body": [
+      "WARN deprecated config key found: legacy_mode"
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "custom_format": "warn-only"
+    }
+  },
+  {
+    "severity": "warn",
+    "kind": "warning_line",
+    "title": "WARN connection slow: 5.2s",
+    "location": null,
+    "body": [
+      "WARN connection slow: 5.2s"
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "custom_format": "warn-only"
+    }
+  }
+]
