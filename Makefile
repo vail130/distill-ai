@@ -9,6 +9,11 @@ CMD         := ./cmd/$(BINARY)
 BIN_DIR     := ./bin
 OUT         := $(BIN_DIR)/$(BINARY)
 
+# Skill install location for opencode. Override on the command line to
+# install elsewhere: `make install-skill SKILL_DEST=/path/to/skill`.
+SKILL_SRC   := $(CURDIR)/skills/distill-ai
+SKILL_DEST  ?= $(HOME)/.config/opencode/skills/distill-ai
+
 # Version metadata: prefer git tag, fall back to short SHA + dev marker.
 VERSION    := $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 COMMIT     := $(shell git rev-parse --short HEAD 2>/dev/null || echo none)
@@ -34,6 +39,38 @@ build: ## Build the binary into ./bin/
 .PHONY: install
 install: ## Install into $GOBIN / $GOPATH/bin
 	$(GO) install $(GOFLAGS) -ldflags '$(LDFLAGS)' $(CMD)
+
+.PHONY: install-skill
+install-skill: ## Symlink the consumer skill into $$HOME/.config/opencode/skills/
+	@if [ ! -d "$(SKILL_SRC)" ]; then \
+		echo "error: source skill not found at $(SKILL_SRC)" >&2; exit 1; \
+	fi
+	@mkdir -p "$$(dirname "$(SKILL_DEST)")"
+	@if [ -L "$(SKILL_DEST)" ]; then \
+		existing=$$(readlink "$(SKILL_DEST)"); \
+		if [ "$$existing" = "$(SKILL_SRC)" ]; then \
+			echo "skill already linked: $(SKILL_DEST) -> $(SKILL_SRC)"; \
+		else \
+			echo "replacing symlink: $(SKILL_DEST) (was -> $$existing)"; \
+			rm "$(SKILL_DEST)" && ln -s "$(SKILL_SRC)" "$(SKILL_DEST)"; \
+			echo "linked: $(SKILL_DEST) -> $(SKILL_SRC)"; \
+		fi; \
+	elif [ -e "$(SKILL_DEST)" ]; then \
+		echo "error: $(SKILL_DEST) exists and is not a symlink; refusing to overwrite" >&2; exit 1; \
+	else \
+		ln -s "$(SKILL_SRC)" "$(SKILL_DEST)"; \
+		echo "linked: $(SKILL_DEST) -> $(SKILL_SRC)"; \
+	fi
+
+.PHONY: uninstall-skill
+uninstall-skill: ## Remove the symlink installed by install-skill
+	@if [ -L "$(SKILL_DEST)" ]; then \
+		rm "$(SKILL_DEST)" && echo "removed: $(SKILL_DEST)"; \
+	elif [ -e "$(SKILL_DEST)" ]; then \
+		echo "error: $(SKILL_DEST) is not a symlink; refusing to remove" >&2; exit 1; \
+	else \
+		echo "nothing to remove at $(SKILL_DEST)"; \
+	fi
 
 .PHONY: test
 test: ## Run all tests with race detector
