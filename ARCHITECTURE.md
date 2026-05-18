@@ -91,6 +91,9 @@ Total ~15. Resist adding more without strong justification.
 
 - `--explain` — dry-run; annotate decisions
 - `--strict` — exit 2 if format detection is uncertain
+- `--strip-envelope=auto|none|<name>` (default: auto) — strip CI /
+  orchestrator envelope before format detection. See
+  [Envelope handling](#envelope-handling).
 - `--passthrough` — if no events found, emit input unchanged
 - `--tokenizer=heuristic|tiktoken` (default: heuristic)
 

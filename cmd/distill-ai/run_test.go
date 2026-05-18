@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/vail130/distill-ai/internal/envelope"
 	"github.com/vail130/distill-ai/internal/event"
 	"github.com/vail130/distill-ai/internal/formats"
 )
@@ -380,4 +381,174 @@ func writeNamedTempFile(t *testing.T, name, content string) string {
 		t.Fatalf("WriteFile: %v", err)
 	}
 	return path
+}
+
+// stubEnvelopeStripper is a test fixture envelope.Stripper. Detect
+// matches when the sample contains the configured marker; Strip
+// passes bytes through unchanged but emits one signal Event so the
+// CLI tests can detect that the stripper ran.
+type stubEnvelopeStripper struct {
+	name        string
+	marker      string
+	confidence  event.Confidence
+	signalTitle string
+}
+
+func (s *stubEnvelopeStripper) Name() string { return s.name }
+
+func (s *stubEnvelopeStripper) Detect(sample []byte) event.Confidence {
+	if s.marker != "" && bytes.Contains(sample, []byte(s.marker)) {
+		return s.confidence
+	}
+	return 0
+}
+
+func (s *stubEnvelopeStripper) Strip(ctx context.Context, r io.Reader) (io.Reader, <-chan event.Event, error) {
+	ch := make(chan event.Event, 1)
+	ch <- event.Event{
+		Severity: event.SeverityError,
+		Kind:     "envelope_error",
+		Title:    s.signalTitle,
+		Body:     []string{},
+	}
+	close(ch)
+	return r, ch, nil
+}
+
+// TestRun_StripEnvelopeAutoNoStrippers covers the M13.2 DoD: with no
+// registered Strippers, --strip-envelope=auto behaves identically to
+// "no envelope handling" — same exit code, same stdout content as
+// today.
+func TestRun_StripEnvelopeAutoNoStrippers(t *testing.T) {
+	formats.ResetForTest()
+	t.Cleanup(formats.ResetForTest)
+	envelopeResetForTest(t)
+	makeRunFixtureFormat(t, "fake-pytest", 1)
+	var stdout, stderr bytes.Buffer
+	code := run([]string{"fake-pytest", "--strip-envelope=auto"}, strings.NewReader("any input"), &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0; stderr=%q", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "synthetic failure") {
+		t.Errorf("output missing parser event title; got %q", stdout.String())
+	}
+	// No registered Strippers → no envelope_error in output.
+	if strings.Contains(stdout.String(), "envelope_error") {
+		t.Errorf("output contains envelope signal despite empty registry: %q", stdout.String())
+	}
+}
+
+// TestRun_StripEnvelopeNoneSkipsLookup asserts that an explicit
+// --strip-envelope=none short-circuits the auto-detection path even
+// when a registered Stripper would claim the sample.
+func TestRun_StripEnvelopeNoneSkipsLookup(t *testing.T) {
+	formats.ResetForTest()
+	t.Cleanup(formats.ResetForTest)
+	envelopeResetForTest(t)
+	makeRunFixtureFormat(t, "fake-pytest", 1)
+	envelope.Register(&stubEnvelopeStripper{
+		name:        "claims-all",
+		marker:      "x", // any input contains this; the stripper always claims
+		confidence:  1.0,
+		signalTitle: "ENVELOPE-SIGNAL-FIRED",
+	})
+	var stdout, stderr bytes.Buffer
+	code := run(
+		[]string{"fake-pytest", "--strip-envelope=none"},
+		strings.NewReader("x marks the spot"),
+		&stdout, &stderr,
+	)
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0; stderr=%q", code, stderr.String())
+	}
+	if strings.Contains(stdout.String(), "ENVELOPE-SIGNAL-FIRED") {
+		t.Errorf("--strip-envelope=none allowed the registered Stripper to run; output=%q", stdout.String())
+	}
+}
+
+// TestRun_StripEnvelopeNameSelectsExplicit asserts that an explicit
+// stripper name bypasses detection and forces the named stripper to
+// run, even when its Detect would have returned 0.
+func TestRun_StripEnvelopeNameSelectsExplicit(t *testing.T) {
+	formats.ResetForTest()
+	t.Cleanup(formats.ResetForTest)
+	envelopeResetForTest(t)
+	makeRunFixtureFormat(t, "fake-pytest", 1)
+	envelope.Register(&stubEnvelopeStripper{
+		name:        "explicit",
+		marker:      "never-matches-this-sample",
+		confidence:  1.0,
+		signalTitle: "EXPLICIT-RAN",
+	})
+	var stdout, stderr bytes.Buffer
+	code := run(
+		[]string{"fake-pytest", "--strip-envelope=explicit"},
+		strings.NewReader("anything here"),
+		&stdout, &stderr,
+	)
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0; stderr=%q", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "EXPLICIT-RAN") {
+		t.Errorf("explicit stripper did not fire its signal; stdout=%q", stdout.String())
+	}
+}
+
+// TestRun_StripEnvelopeUnknownNameExitsTwo covers the error path: an
+// unknown stripper name should fail loudly at exit code 2, not
+// silently fall through.
+func TestRun_StripEnvelopeUnknownNameExitsTwo(t *testing.T) {
+	formats.ResetForTest()
+	t.Cleanup(formats.ResetForTest)
+	envelopeResetForTest(t)
+	makeRunFixtureFormat(t, "fake-pytest", 1)
+	var stdout, stderr bytes.Buffer
+	code := run(
+		[]string{"fake-pytest", "--strip-envelope=does-not-exist"},
+		strings.NewReader("input"),
+		&stdout, &stderr,
+	)
+	if code != ExitError {
+		t.Fatalf("exit code = %d, want %d (ExitError); stderr=%q", code, ExitError, stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "does-not-exist") {
+		t.Errorf("stderr should mention the unknown name; got %q", stderr.String())
+	}
+}
+
+// TestRun_StripEnvelopeAutoDetectsStripper completes the
+// auto/none/explicit-name matrix: with a registered stripper whose
+// Detect matches the sample, auto picks it and the signal Event
+// reaches the Sink.
+func TestRun_StripEnvelopeAutoDetectsStripper(t *testing.T) {
+	formats.ResetForTest()
+	t.Cleanup(formats.ResetForTest)
+	envelopeResetForTest(t)
+	makeRunFixtureFormat(t, "fake-pytest", 1)
+	envelope.Register(&stubEnvelopeStripper{
+		name:        "marker-stripper",
+		marker:      "ENVELOPE-MARKER",
+		confidence:  1.0,
+		signalTitle: "AUTO-DETECT-RAN",
+	})
+	var stdout, stderr bytes.Buffer
+	code := run(
+		[]string{"fake-pytest", "--strip-envelope=auto"},
+		strings.NewReader("prelude ENVELOPE-MARKER followed by body"),
+		&stdout, &stderr,
+	)
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0; stderr=%q", code, stderr.String())
+	}
+	if !strings.Contains(stdout.String(), "AUTO-DETECT-RAN") {
+		t.Errorf("auto-detected stripper did not fire; stdout=%q", stdout.String())
+	}
+}
+
+// envelopeResetForTest clears the envelope registry around the test
+// body so each case starts from a known-empty state.
+func envelopeResetForTest(t *testing.T) {
+	t.Helper()
+	envelope.ResetForTest()
+	t.Cleanup(envelope.ResetForTest)
 }

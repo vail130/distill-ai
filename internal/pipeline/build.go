@@ -1,8 +1,11 @@
 package pipeline
 
 import (
+	"context"
+	"errors"
 	"fmt"
 
+	"github.com/vail130/distill-ai/internal/event"
 	"github.com/vail130/distill-ai/internal/tokens"
 )
 
@@ -41,6 +44,22 @@ type Options struct {
 	// BufferSize sizes the inter-stage channels. Zero maps to
 	// DefaultBufferSize.
 	BufferSize int
+
+	// EnvelopeSignals, when non-nil, is a channel of envelope-level
+	// signal Events (envelope_error, envelope_warning,
+	// envelope_step_failure) produced by an envelope.Stripper. Build
+	// wraps the supplied Source in a fan-in Source that merges
+	// signals with the format parser's Event stream before either
+	// reaches Stages. The fan-in preserves arrival order across the
+	// two channels (whichever has data ready next wins, per Go
+	// select semantics).
+	//
+	// The channel is consumed exactly once by the wrapper; the
+	// caller may not read from it after passing it here. When
+	// either channel closes the wrapper continues draining the
+	// other until both are done, then closes its own output. CLI
+	// wiring lives in cmd/distill-ai/run.go (M13.2).
+	EnvelopeSignals <-chan event.Event
 }
 
 // Build returns a Pipeline wired with the standard stage chain. The
@@ -52,6 +71,13 @@ type Options struct {
 // chain and the returned Pipeline's BudgetCounters field is
 // populated so the Sink (M7) and library callers (M14) can read
 // budget statistics after Run returns.
+//
+// When Options.EnvelopeSignals is non-nil, Build wraps src in a
+// fan-in Source that merges the envelope-level signal stream with
+// the parser's Event stream upstream of any Stage. The signals are
+// indistinguishable from parser Events to the rest of the pipeline:
+// they participate in Collapse, Dedupe, and Budget exactly the same
+// way and reach the Sink with their envelope_* Kinds intact.
 //
 // Build is the supported constructor; field-level Pipeline
 // construction is reserved for tests that substitute custom Stages.
@@ -65,7 +91,7 @@ func Build(src Source, sink Sink, opts Options) (*Pipeline, error) {
 		DedupeStage{Window: opts.DedupeWindow},
 	}
 	p := &Pipeline{
-		Source:     src,
+		Source:     wrapWithEnvelopeSignals(src, opts.EnvelopeSignals),
 		Stages:     stages,
 		Sink:       sink,
 		BufferSize: opts.BufferSize,
@@ -84,4 +110,104 @@ func Build(src Source, sink Sink, opts Options) (*Pipeline, error) {
 		})
 	}
 	return p, nil
+}
+
+// wrapWithEnvelopeSignals returns src unchanged when signals is nil;
+// otherwise it returns a Source that merges signals into src's Event
+// channel. The wrapper preserves src's Source() error path.
+func wrapWithEnvelopeSignals(src Source, signals <-chan event.Event) Source {
+	if signals == nil {
+		return src
+	}
+	return &mergedSource{primary: src, signals: signals}
+}
+
+// mergedSource fans a primary Source's Event channel together with
+// an envelope.Stripper's signals channel into one stream. The
+// merging goroutine reads from whichever channel has data ready and
+// forwards the Event downstream; arrival order across the two
+// inputs is preserved by Go's select semantics.
+//
+// Lifecycle:
+//
+//   - Source(ctx) starts both the primary Source and the merger
+//     goroutine. If the primary Source returns an error, mergedSource
+//     propagates it unchanged so callers see the same error path as
+//     a bare Source.
+//   - The merger drains both channels until both close, then closes
+//     its output channel. A cancelled ctx returns promptly and both
+//     channels are drained-and-discarded so no goroutine leaks.
+type mergedSource struct {
+	primary Source
+	signals <-chan event.Event
+}
+
+// Source implements Source. The error return path mirrors the
+// primary Source's: if it errors before producing a channel, we
+// surface that error and the signals channel is not consumed.
+func (m *mergedSource) Source(ctx context.Context) (<-chan event.Event, error) {
+	if m.primary == nil {
+		return nil, errors.New("mergedSource: primary Source is nil")
+	}
+	primaryCh, err := m.primary.Source(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make(chan event.Event, DefaultBufferSize)
+	go func() {
+		defer close(out)
+		primary := primaryCh
+		signals := m.signals
+		for primary != nil || signals != nil {
+			select {
+			case <-ctx.Done():
+				// Drain both channels in the background so the
+				// upstream producers don't block; we never read
+				// the values. They exit once their producers
+				// notice ctx.
+				if primary != nil {
+					go drain(primary)
+				}
+				if signals != nil {
+					go drain(signals)
+				}
+				return
+			case ev, ok := <-primary:
+				if !ok {
+					primary = nil
+					continue
+				}
+				if !forward(ctx, out, ev) {
+					return
+				}
+			case ev, ok := <-signals:
+				if !ok {
+					signals = nil
+					continue
+				}
+				if !forward(ctx, out, ev) {
+					return
+				}
+			}
+		}
+	}()
+	return out, nil
+}
+
+// forward sends ev on out, honouring ctx cancellation. Returns false
+// if ctx fired before the send completed; the caller should exit.
+func forward(ctx context.Context, out chan<- event.Event, ev event.Event) bool {
+	select {
+	case <-ctx.Done():
+		return false
+	case out <- ev:
+		return true
+	}
+}
+
+// drain reads from ch until close, discarding values. Used by
+// mergedSource to keep its inputs from blocking after a ctx cancel.
+func drain(ch <-chan event.Event) {
+	for range ch { //nolint:revive // empty block is intentional: discard until close.
+	}
 }

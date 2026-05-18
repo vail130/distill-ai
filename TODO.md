@@ -3164,7 +3164,7 @@ specific implementations in M13.3 / M13.4.
     `envelope_warning`, `envelope_step_failure` as additive
     kinds (no schema_version bump per the additive-change rule).
 
-### M13.2 — `--strip-envelope` CLI flag and pipeline wiring
+### M13.2 — `--strip-envelope` CLI flag and pipeline wiring ✅
 
 Expose envelope handling on the CLI and wire it into the pipeline
 between input and detection. M13.2 lands the flag plus the no-op

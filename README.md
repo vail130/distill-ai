@@ -125,6 +125,13 @@ distill-ai run failure.log         # autodetect
 # Streaming
 kubectl logs -f my-pod | distill-ai
 
+# Strip a CI / orchestrator envelope before format detection
+# (auto is the default; opt out with --strip-envelope=none or pick
+# a specific stripper like github-actions / gitlab-ci once those
+# ship in M13.3 / M13.4)
+gh run view --log | distill-ai
+glab ci trace | distill-ai
+
 # Fit output to a token budget
 pytest 2>&1 | distill-ai --budget=2000
 

@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/vail130/distill-ai/internal/detect"
+	"github.com/vail130/distill-ai/internal/envelope"
 	"github.com/vail130/distill-ai/internal/event"
 	"github.com/vail130/distill-ai/internal/formats"
 	"github.com/vail130/distill-ai/internal/output"
@@ -57,6 +58,9 @@ type runFlags struct {
 	strict      bool
 	passthrough bool // deferred plumbing
 	tokenizer   string
+
+	// Envelope. Maps onto envelope.Options.Choice.
+	stripEnvelope string
 
 	// Standard.
 	verbose bool
@@ -144,6 +148,9 @@ func registerRunFlags(cmd *cobra.Command, fl *runFlags) {
 		"If no events were found, emit the input unchanged instead of an empty stream. (Plumbing lands in M8.2.x.)")
 	cmd.Flags().StringVar(&fl.tokenizer, "tokenizer", "heuristic",
 		"Token estimator used by --budget: heuristic | tiktoken. heuristic is fast and zero-dep; tiktoken is exact for OpenAI / Claude models.")
+	// Envelope.
+	cmd.Flags().StringVar(&fl.stripEnvelope, "strip-envelope", envelope.ChoiceAuto,
+		"Strip CI / orchestrator envelope before format detection: auto (detect a registered stripper; default), none (pass bytes through unchanged), or the name of a specific stripper (e.g. github-actions, gitlab-ci once those land in M13.3 / M13.4).")
 	// Standard.
 	cmd.Flags().BoolVarP(&fl.verbose, "verbose", "v", false,
 		"Write pipeline diagnostics to stderr (chosen format, sample bytes consumed, per-stage event counts).")
@@ -183,7 +190,18 @@ func runRun(cmd *cobra.Command, args []string, fl *runFlags) error {
 	// Install a LineCounter around the input so the Sink footer can
 	// report the input-line count.
 	lc := &output.LineCounter{Reader: input}
-	chosen, stream, sample, err := resolveFormat(cmd.Context(), formatName, lc, fl.strict)
+	// Envelope handling sits between the LineCounter and format
+	// detection: cleaned bytes flow into the detector, signal Events
+	// fan into the pipeline alongside the parser's Events.
+	cleaned, signals, stripper, err := envelope.Wrap(cmd.Context(), lc, envelope.Options{Choice: fl.stripEnvelope})
+	if err != nil {
+		fmt.Fprintf(stderr, "distill-ai run: %v\n", err)
+		return &exitCodeError{code: ExitError}
+	}
+	if fl.verbose && stripper != nil && stripper.Name() != envelope.ChoiceNone {
+		fmt.Fprintf(stderr, "distill-ai: envelope=%s\n", stripper.Name())
+	}
+	chosen, stream, sample, err := resolveFormat(cmd.Context(), formatName, cleaned, fl.strict)
 	if err != nil {
 		if errors.Is(err, detect.ErrNoFormat) {
 			fmt.Fprintf(stderr, "distill-ai run: no format matched %s\n", sourceLabel)
@@ -198,6 +216,7 @@ func runRun(cmd *cobra.Command, args []string, fl *runFlags) error {
 			chosen.Name(), sourceLabel, len(sample))
 	}
 	opts := buildPipelineOptions(fl)
+	opts.EnvelopeSignals = signals
 	parseOpts, err := buildParseOpts(fl)
 	if err != nil {
 		fmt.Fprintf(stderr, "distill-ai run: %v\n", err)
