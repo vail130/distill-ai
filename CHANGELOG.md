@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- M14.5: regex-driven custom formats. A `[[formats.custom.NAME]]`
+  block in a `.distill-ai.toml` registers a Format that
+  participates in autodetection and is invokable by the
+  namespaced identifier `custom:NAME`. `internal/formats/custom`
+  exports `New(name, detectRegex, eventStart, eventEnd, severity,
+  kind)` which compiles each regex once and returns an error
+  naming the offending field on failure, plus
+  `RegisterFromConfig(blocks)` which the CLI's pre-run hook
+  calls atomically after `config.LoadAll`: every block validates
+  before any registers, so a single bad regex aborts the lot
+  rather than leaving the binary in a half-registered state.
+  Parse is a line-by-line scanner; `event_start` opens an Event,
+  `event_end` closes it (with the terminator line included in
+  Body). An empty `event_end` yields one-line Events. A new
+  `event_start` always opens a fresh Event, closing any in-flight
+  one — start wins over end on a line that matches both, which
+  is the only behaviour that makes the
+  "ERROR…INFO…ERROR…INFO" pattern produce two Events instead of
+  one. Title is ANSI-stripped; Body keeps the original bytes so
+  consumers see what arrived. `Metadata["custom_format"]`
+  carries the user's NAME (without the `custom:` prefix) so
+  downstream routing can match on it. Five canonical fixtures
+  under `internal/formats/custom/testdata/` cover the
+  start-and-end pair, the one-line variant, multiple matches,
+  custom severity, and custom kind; each carries a
+  `<name>.config` sibling because custom formats are runtime-
+  configured. Two CLI integration tests prove the
+  registered-via-config end-to-end path and the
+  bad-regex-fails-at-startup case.
 - M14.4: CLI wired to read `.distill-ai.toml` defaults. The root
   command's `PersistentPreRunE` calls `config.LoadAll(os.Getwd(),
   os.UserHomeDir())` and stashes the merged Config on the

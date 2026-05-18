@@ -1,0 +1,4 @@
+[ticker] OK tick 1
+[ticker] FAIL tick 2 timed out
+[ticker] OK tick 3
+[ticker] FAIL tick 4 connection reset

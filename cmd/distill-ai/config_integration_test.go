@@ -306,6 +306,69 @@ func TestRun_PerFormatOverrideApplied(t *testing.T) {
 	}
 }
 
+// TestRun_CustomFormatFromConfig: a [[formats.custom.NAME]]
+// block in the project config registers a Format that the user
+// can invoke by name and that participates in autodetection.
+func TestRun_CustomFormatFromConfig(t *testing.T) {
+	formats.ResetForTest()
+	t.Cleanup(formats.ResetForTest)
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, ".distill-ai.toml"), `
+[[formats.custom.myapp]]
+detect_regex = '^\[myapp\]'
+event_start = '^\[myapp\] ERROR'
+event_end = '^\[myapp\] (INFO|DEBUG|ERROR)'
+severity = "error"
+kind = "myapp_error"
+`)
+	withCwd(t, dir)
+	withXDGCleared(t)
+	withHome(t, t.TempDir())
+	input := "[myapp] INFO ok\n[myapp] ERROR boom\n  detail\n[myapp] INFO recovered\n"
+	var stdout, stderr bytes.Buffer
+	code := run([]string{"--output=json", "custom:myapp"},
+		strings.NewReader(input), &stdout, &stderr)
+	if code != ExitOK {
+		t.Fatalf("exit = %d; stderr=%q", code, stderr.String())
+	}
+	var parsed map[string]any
+	if err := json.Unmarshal(stdout.Bytes(), &parsed); err != nil {
+		t.Fatalf("invalid JSON: %v\n%q", err, stdout.String())
+	}
+	if parsed["format"] != "custom:myapp" {
+		t.Errorf("format = %v, want custom:myapp", parsed["format"])
+	}
+	events, _ := parsed["events"].([]any)
+	if len(events) != 1 {
+		t.Fatalf("len(events) = %d, want 1", len(events))
+	}
+}
+
+// TestRun_BadCustomRegexFailsLoudly: a custom-format block with
+// an unparseable regex fails the binary at startup with the
+// offending field named in stderr.
+func TestRun_BadCustomRegexFailsLoudly(t *testing.T) {
+	formats.ResetForTest()
+	t.Cleanup(formats.ResetForTest)
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, ".distill-ai.toml"), `
+[[formats.custom.bad]]
+detect_regex = '('
+event_start = '^X'
+`)
+	withCwd(t, dir)
+	withXDGCleared(t)
+	withHome(t, t.TempDir())
+	var stdout, stderr bytes.Buffer
+	code := run([]string{}, strings.NewReader(""), &stdout, &stderr)
+	if code != ExitError {
+		t.Errorf("exit = %d, want ExitError; stderr=%q", code, stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "formats.custom.bad") {
+		t.Errorf("stderr does not name the bad block; got %q", stderr.String())
+	}
+}
+
 // makeManyEvents synthesises N error Events with distinct
 // titles so a tight budget actually forces drops.
 func makeManyEvents(n int) []event.Event {

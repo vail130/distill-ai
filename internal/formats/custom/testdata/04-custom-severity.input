@@ -1,0 +1,5 @@
+INFO booting
+WARN deprecated config key found: legacy_mode
+INFO booting still
+WARN connection slow: 5.2s
+INFO done

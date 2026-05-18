@@ -135,6 +135,10 @@ fields. As of M9.4:
 **jest**: `test_failure`, `snapshot_mismatch`, `suite_error`
 **gotest**: `test_failure`, `panic`, `build_failure`, `race_condition`
 **generic**: `error_line`, `warning_line`, `traceback`, `panic`, `exception`
+**custom:&lt;name&gt;**: open-set — the user picks the string via the
+`kind` field of `[[formats.custom.<name>]]`. SCHEMA.md does not
+enumerate; consumers routing on `kind` should treat unknown
+values as opaque.
 
 Per-format kind values are documented in each format's
 `docs/formats/<name>.md`.

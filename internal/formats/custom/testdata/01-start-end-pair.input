@@ -1,0 +1,6 @@
+[myapp] INFO booting
+[myapp] ERROR something broke
+  stack: at main.go:42
+  stack: at handler.go:18
+[myapp] INFO recovered
+[myapp] DEBUG cleanup complete

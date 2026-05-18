@@ -1,0 +1,9 @@
+svc INFO ready
+svc ERROR connection refused
+  retry 1
+  retry 2
+svc DEBUG recovered
+svc INFO accepting traffic
+svc ERROR disk full
+  attempting cleanup
+svc INFO cleanup done

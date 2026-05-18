@@ -1,0 +1,37 @@
+[
+  {
+    "severity": "error",
+    "kind": "svc_error",
+    "title": "svc ERROR connection refused",
+    "location": null,
+    "body": [
+      "svc ERROR connection refused",
+      "  retry 1",
+      "  retry 2",
+      "svc DEBUG recovered"
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "custom_format": "svc"
+    }
+  },
+  {
+    "severity": "error",
+    "kind": "svc_error",
+    "title": "svc ERROR disk full",
+    "location": null,
+    "body": [
+      "svc ERROR disk full",
+      "  attempting cleanup",
+      "svc INFO cleanup done"
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "custom_format": "svc"
+    }
+  }
+]

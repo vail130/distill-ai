@@ -1,0 +1,20 @@
+[
+  {
+    "severity": "error",
+    "kind": "myapp_error",
+    "title": "[myapp] ERROR something broke",
+    "location": null,
+    "body": [
+      "[myapp] ERROR something broke",
+      "  stack: at main.go:42",
+      "  stack: at handler.go:18",
+      "[myapp] INFO recovered"
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "custom_format": "myapp"
+    }
+  }
+]
