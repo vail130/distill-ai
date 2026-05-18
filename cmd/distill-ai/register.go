@@ -20,4 +20,8 @@ import (
 	// gotest parses `go test` output. Detect anchors on
 	// `--- FAIL:`, `FAIL\t<pkg>`, and `=== RUN`.
 	_ "github.com/vail130/distill-ai/internal/formats/gotest"
+
+	// pytest parses pytest output. Detect anchors on the
+	// `=== test session starts ===` and `=== FAILURES ===` banners.
+	_ "github.com/vail130/distill-ai/internal/formats/pytest"
 )

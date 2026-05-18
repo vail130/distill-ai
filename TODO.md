@@ -2371,7 +2371,7 @@ recipe pattern, the integration-suite end-to-end pattern from
 Definition of Done, required tests, and required doc updates per the
 [alignment rule](./.opencode/rules/alignment.md).
 
-### M11.1 — `internal/formats/pytest/pytest.go`: skeleton + Detect
+### M11.1 — `internal/formats/pytest/pytest.go`: skeleton + Detect ✅
 
 Land the package, register it, and implement `Format.Detect`. No
 parsing yet — `Parse` returns an empty channel — so M3 autodetection
