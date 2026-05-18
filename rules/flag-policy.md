@@ -10,7 +10,7 @@ Before adding a flag, answer:
 4. **Does it interact safely with `--budget` and streaming?**
 
 The current flag set is intentionally small (~15, see
-[ARCHITECTURE.md](../../ARCHITECTURE.md) for the canonical list). Each
+[ARCHITECTURE.md](../ARCHITECTURE.md) for the canonical list). Each
 addition is a maintenance burden: documentation, help text, conflict
 matrices with other flags, golden output tests that exercise the new
 combination, and downstream agents that have to learn about it.

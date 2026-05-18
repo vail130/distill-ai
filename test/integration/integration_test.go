@@ -580,7 +580,7 @@ func TestBinary_LargeStdinDoesNotHang(t *testing.T) {
 // -----------------------------------------------------------------
 
 // TestSkill_DocumentsCurrentCLISurface enforces the rule that the
-// .opencode/skills/distill-output/SKILL.md skill always names every
+// skills/distill-ai-dev/SKILL.md skill always names every
 // subcommand and top-level flag the compiled binary actually
 // supports.
 //
@@ -665,13 +665,13 @@ func TestSkill_DocumentsCurrentCLISurface(t *testing.T) {
 			}
 			t.Errorf("--help mentions %q as a subcommand but the skill manifest does not. "+
 				"Add it to the cli-surface or cli-surface-future block in "+
-				".opencode/skills/distill-output/SKILL.md.", word)
+				"skills/distill-ai-dev/SKILL.md.", word)
 		}
 	})
 }
 
 // skillManifest is the parsed form of the cli-surface blocks in
-// .opencode/skills/distill-output/SKILL.md.
+// skills/distill-ai-dev/SKILL.md.
 type skillManifest struct {
 	subcommands []string
 	flags       []string
@@ -688,7 +688,7 @@ func readSkillManifest(t *testing.T) skillManifest {
 	if err != nil {
 		t.Fatalf("repo root: %v", err)
 	}
-	path := filepath.Join(root, ".opencode", "skills", "distill-output", "SKILL.md")
+	path := filepath.Join(root, "skills", "distill-ai-dev", "SKILL.md")
 	raw, err := os.ReadFile(path) //nolint:gosec // path is repo-local
 	if err != nil {
 		t.Fatalf("read skill: %v", err)

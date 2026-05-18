@@ -21,7 +21,7 @@ import (
 // iterates a map, or a budget enforcer that consults a clock).
 //
 // Promoted to property-test status by the alignment rule; see
-// .opencode/rules/testing.md.
+// rules/testing.md.
 func TestPipeline_Determinism(t *testing.T) {
 	input := "alpha\nbeta\ngamma\ndelta\nepsilon\n"
 	run := func() []event.Event {

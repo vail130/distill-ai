@@ -2,7 +2,7 @@
 
 This page documents the schema emitted by `distill-ai --output=json`.
 This schema is a public API. Breaking changes follow the rules in
-[output-stability rule](../../.opencode/rules/output-stability.md).
+[output-stability rule](../../rules/output-stability.md).
 
 **Current schema version: `1`**
 

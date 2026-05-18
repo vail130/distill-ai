@@ -12,7 +12,7 @@ import (
 // so per-call latency matters more than raw throughput, but a
 // throughput number is the easier comparison point across machines.
 //
-// Target per .opencode/rules/performance.md: ≥ 100 MB/sec on a
+// Target per rules/performance.md: ≥ 100 MB/sec on a
 // typical laptop. The benchmark sets b.SetBytes so the reported
 // MB/s number is automatic.
 //

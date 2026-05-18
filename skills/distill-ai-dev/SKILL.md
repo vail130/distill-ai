@@ -1,23 +1,30 @@
 ---
-name: distill-output
-description: Dogfood the local `distill-ai` binary on this project's own command output. Use whenever a test run, build, lint, or other command produces enough output that the interesting failures are buried — pipe it through `./bin/distill-ai` (or the integration-test binary) instead of reading thousands of lines. Forces the maintainer (you) to feel every gap in the tool before customers do.
+name: distill-ai-dev
+description: Dogfood the local `distill-ai` binary while developing it. Use whenever a test run, build, lint, or other command in this repo produces enough output that the interesting failures are buried — pipe it through `./bin/distill-ai` (or the integration-test binary) instead of reading thousands of lines. Forces the maintainer (you) to feel every gap in the tool before customers do. For *using* distill-ai as a downstream tool, see the sibling `distill-ai` skill instead.
 ---
 
-# distill-output
+# distill-ai-dev
 
 This is `distill-ai`'s repo. We use the tool we are building on our own
 command output, so every rough edge surfaces during normal development
 instead of in a downstream user's terminal. Dogfooding is the cheapest
 honest test we have.
 
-## When to use
+For **using** `distill-ai` as a downstream tool, see the sibling
+[`distill-ai`](../distill-ai/SKILL.md) skill — it covers the general
+invocation patterns without the repo-internal context. This skill
+focuses on the development loop: building the binary, debugging
+parsers, and keeping the CLI-surface manifest in sync.
+
+## When to use this skill
 
 - Any time `make test` / `go test ./...` produces more than ~30 lines.
 - Any time `make lint` reports more than a couple of findings.
-- Any time you're about to copy a long failure block into a chat
-  window or ticket — distill it first.
 - Any time you change a format parser and want to see the resulting
   Event stream on a real fixture.
+- Any time the CLI surface or a recipe-affecting behaviour changes —
+  the manifest below has to move with the code (see the drift-guard
+  section at the bottom).
 
 Do **not** use this skill when:
 
@@ -25,6 +32,8 @@ Do **not** use this skill when:
   `-v` / `--verbose`). Run the command bare.
 - The command runs under 1 second and emits under 30 lines. The
   overhead of the extra pipeline is not worth the saving.
+- You're not working on `distill-ai` itself. Load the
+  [`distill-ai`](../distill-ai/SKILL.md) skill instead.
 
 ## The binary
 
@@ -61,7 +70,7 @@ output falls back to `generic`. Use `--strict` to turn the
 fallback into a hard error (exit 2) for CI.
 
 Looking past v1.0: the post-v1.0 roadmap is recorded in
-[ADR-0002](../../../docs/decisions/0002-v1.0-scope-and-post-v1.0-roadmap.md).
+[ADR-0002](../../docs/decisions/0002-v1.0-scope-and-post-v1.0-roadmap.md).
 v1.1 will add `golangci-lint` + `go vet` (M23) and `cargo`
 (M24) Formats — both consume upstream-emitted JSON envelopes,
 so dogfooding them once they ship will look like
@@ -132,13 +141,20 @@ The dogfooding loop today:
    the full block plus parsed stack frames in `Event.Frames`.
    M9.4 will add `--severity` / `--keep-warnings` plumbing.
 
-## Recipes
+## Dev recipes
 
-Every recipe below is written for the surface as it is today.
-Recipes that depend on a not-yet-registered format are labelled
-with the milestone that unblocks them.
+These recipes are scoped to working **on** the parsers and CLI, not
+general usage. Every example uses `./bin/distill-ai` — the locally
+built binary, not whatever happens to be on `PATH`. That distinction
+matters: a `make build` away from a parser change can silently leave
+you testing yesterday's code.
 
-### Inspect the CLI surface
+For general-purpose invocation patterns (autodetect, JSON output,
+budget, etc.) see the sibling [`distill-ai`](../distill-ai/SKILL.md)
+skill. The recipes here cover only what's specific to developing the
+tool.
+
+### Inspect the locally-built CLI surface
 
 ```sh
 ./bin/distill-ai --help
@@ -147,10 +163,11 @@ with the milestone that unblocks them.
 ```
 
 The `run` and `explain` help pages enumerate the full flag set with
-behaviour notes, including the flags whose plumbing lands in
-M8.2.x follow-up commits.
+behaviour notes, including flags whose plumbing lands in scoped
+follow-up commits. If the help output doesn't match the manifest
+below, one of them is wrong — see the drift-guard section.
 
-### Check what the detector thinks of a fixture
+### Check what the detector picks for a fixture
 
 ```sh
 ./bin/distill-ai detect test/integration/testdata/fixtures/gotest-fail.input
@@ -161,58 +178,40 @@ After M10 this prints `format: gotest` with `confidence: 1.00` and
 exits 0. For input that no specific format claims, the detector
 falls back to `generic` (`fellback_to_generic: true`, exit 1). Use
 `--strict` to turn that fallback into a hard error (exit 2).
+Useful when adding a new format: confirm it claims its own
+fixtures and **doesn't** claim a sibling format's.
 
-### Distil this project's own `go test` output
+### Dogfood this project's own test output
 
 ```sh
 make test 2>&1 | ./bin/distill-ai
 ```
 
-The canonical dogfooding loop: every test run becomes a real-world
-distill-ai input. Gaps in the gotest parser surface immediately.
-The same shape works for any tool's output — `kubectl logs`, an
-application log — and falls back to the regex-driven generic
-scanner when no specific format claims it.
+The canonical loop. Every test run becomes a real-world
+distill-ai input. Gaps in the gotest parser surface immediately
+because they manifest in *your own terminal* before they manifest
+in a customer's. If the distilled output omits a failure you can
+see in the raw stream, that's a parser bug — fix it before moving
+on.
 
-### Distil a pytest run
+### Iterate on a parser against a specific fixture
 
 ```sh
 pytest -v 2>&1 | ./bin/distill-ai pytest --output=markdown
+./bin/distill-ai run pytest test/integration/testdata/fixtures/pytest-fail.input
 ```
 
 Useful when working on `internal/formats/pytest/` — feed your own
-fixture, see what comes out, iterate. The explicit `pytest`
-argument skips autodetect; drop it to let the detector pick.
-Pass `--keep-warnings` to also capture entries from the
-`=== warnings summary ===` section; warnings are dropped by
-default so the distilled output stays focused on failures.
+fixture, see what comes out, iterate. The explicit format argument
+(`pytest`) skips autodetect, which is what you want when you're
+testing the parser, not the detector. Drop it to exercise the
+detector path.
 
-### Dry-run a pipeline with `explain`
+`--keep-warnings` captures entries from the `=== warnings summary
+===` section; warnings are dropped by default so the distilled
+output stays focused on failures.
 
-```sh
-./bin/distill-ai explain captured.log
-```
-
-Emits one diagnostic line per event saying whether it was kept and,
-if dropped, why (`severity-filter`, `budget`, `dedupe-evicted`,
-`vendor-collapsed`). Useful when a particular `--budget` setting is
-silently pruning events you expected to see. After M9.1 the dry-run
-succeeds for any input (falls back to `generic` when nothing
-specific matches); until M9.2 fills in the scanner, the dry-run
-will simply report zero kept events.
-
-### Constrain output to a token budget
-
-```sh
-cmd 2>&1 | ./bin/distill-ai --budget=2000 --tokenizer=heuristic
-```
-
-Drops or truncates lower-severity events to fit. Exit code 3 if any
-event was dropped or truncated. The heuristic estimator is
-zero-dep; switch to `--tokenizer=tiktoken` when you need exact
-counts for OpenAI / Claude context windows.
-
-### Compare the distilled output against the golden
+### Compare distilled output against a golden file
 
 ```sh
 ./bin/distill-ai detect testdata/case-XX.input \
@@ -221,7 +220,10 @@ counts for OpenAI / Claude context windows.
 
 The integration test suite at `test/integration/` runs a stronger
 form of this: the suite compiles the binary, runs it against every
-real fixture, and diffs against the committed expected output.
+real fixture, and diffs against the committed expected output. When
+fixing a parser bug, add the failing input as a fixture **first**,
+in the same commit as the fix (see the [alignment
+rule](../../rules/alignment.md)).
 
 ## What to do when distill-ai fails
 

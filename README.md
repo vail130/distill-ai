@@ -190,10 +190,14 @@ The agent reads its rules file at session start and applies the pattern
 to every applicable command for the rest of the session.
 
 For opencode, the project ships
-[`.opencode/skills/distill-output/SKILL.md`](./.opencode/skills/distill-output/SKILL.md)
-which loads automatically when output volume warrants it. Per-agent
-recipes for Claude Code, Cursor, Copilot, Codex, Gemini, Windsurf, and
-Cline are planned for v1.6 (see
+[`skills/distill-ai/SKILL.md`](./skills/distill-ai/SKILL.md) — a
+self-contained, agent-agnostic skill that loads automatically when
+output volume warrants it. It assumes only that `distill-ai` is on
+`PATH` and is reusable verbatim outside this repo. A sibling
+[`skills/distill-ai-dev/SKILL.md`](./skills/distill-ai-dev/SKILL.md)
+covers the in-repo dogfooding loop for contributors. Per-agent
+integration recipes for Claude Code, Cursor, Copilot, Codex, Gemini,
+Windsurf, and Cline are planned for v1.6 (see
 [TODO.md § M29](./TODO.md#m29--per-agent-integration-recipes-documentation)).
 
 ### Library use

@@ -6,7 +6,7 @@ For style and conventions, see AGENTS.md and CONTRIBUTING.md.
 
 HARD RULE: every commit that changes code must also update the
 corresponding docs and tests in the same commit. See
-https://github.com/vail130/distill-ai/blob/main/.opencode/rules/alignment.md
+https://github.com/vail130/distill-ai/blob/main/rules/alignment.md
 -->
 
 ## What this changes
@@ -81,15 +81,20 @@ Tick every box that applies; explicitly mark N/A for the rest.
       changed; `schema_version` bumped for breaking changes.
 - [ ] **`docs/formats/<name>.md`** added/updated if a format was added
       or its extraction behaviour changed.
-- [ ] **`.opencode/skills/distill-output/SKILL.md`** updated if the
+- [ ] **`skills/distill-ai-dev/SKILL.md`** updated if the
       CLI surface changed (new subcommand, new top-level flag, new
       format that becomes a recipe target, or a dogfood-relevant
       behaviour change). The `cli-surface` manifest at the top of
       the skill is parsed by
       `TestSkill_DocumentsCurrentCLISurface` — that test fails if
       the manifest drifts from the binary. The
-      [alignment rule](../.opencode/rules/alignment.md) names this
+      [alignment rule](../rules/alignment.md) names this
       explicitly.
+- [ ] **`skills/distill-ai/SKILL.md`** (the consumer-facing skill)
+      updated if a flag, subcommand, or recipe relevant to downstream
+      usage changed. The dev skill is *not* a substitute — the
+      consumer skill is reused outside this repo and must stay
+      self-contained.
 - [ ] **CHANGELOG.md** updated under `[Unreleased]` for user-visible
       changes.
 
@@ -108,7 +113,7 @@ Tick every box that applies; explicitly mark N/A for the rest.
       doesn't, the "Why" section above explains why we should bend them.
 - [ ] No network behaviour introduced.
 - [ ] Output schema unchanged, or schema version bumped per
-      [output-stability rule](../.opencode/rules/output-stability.md).
+      [output-stability rule](../rules/output-stability.md).
 
 ## For format additions only
 
