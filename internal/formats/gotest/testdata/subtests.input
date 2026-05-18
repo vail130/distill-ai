@@ -1,0 +1,12 @@
+=== RUN   TestParse
+=== RUN   TestParse/empty_input
+=== RUN   TestParse/binary_input
+=== RUN   TestParse/large_input
+    parse_test.go:50: empty case failed
+    --- FAIL: TestParse/empty_input (0.00s)
+    parse_test.go:55: binary case failed
+    --- FAIL: TestParse/binary_input (0.00s)
+--- FAIL: TestParse (0.01s)
+FAIL
+exit status 1
+FAIL	example.com/parser	0.123s

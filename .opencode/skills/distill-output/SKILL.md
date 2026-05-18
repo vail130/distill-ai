@@ -42,19 +42,16 @@ source of truth.
 ## State of play
 
 The full CLI surface — flags, subcommands, exit codes — landed in
-**M8**. The **generic fallback** is complete as of **M9** (all
-five sub-items): registration + detect floor (M9.1), severity-
-anchored scanner (M9.2), traceback / panic block accumulation
-with parsed stack frames (M9.3), `--severity` / `--keep-warnings`
-/ `--context` flag plumbing (M9.4), and ten canonical fixtures
-(M9.5). Real command output — Python tracebacks, Go panics, JVM
-stack dumps, ERROR / WARN lines — now distills end-to-end. `cmd |
-distill-ai` is the canonical invocation.
+**M8**. The **generic fallback** is complete as of **M9**, and
+**gotest** is the first specific format to ship: **M10** lands
+the parser end-to-end with `test_failure`, `panic`, `build_failure`,
+and `race_condition` Event kinds plus structured stack frames and
+`-json` reporter support. `make test 2>&1 | ./bin/distill-ai` is
+now the canonical dogfooding loop for this project.
 
-The remaining gap is the **specific format set**. Until M10/M11/M12
-ship gotest/pytest/jest, every invocation falls back to `generic`.
-Use `--strict` to turn the fallback into a hard error (exit 2)
-for CI.
+The remaining gaps are pytest (**M11**) and jest (**M12**). Until
+those ship, pytest / jest output falls back to `generic`. Use
+`--strict` to turn the fallback into a hard error (exit 2) for CI.
 
 The full surface today is enumerated in the manifest below.
 
@@ -144,27 +141,22 @@ M8.2.x follow-up commits.
 echo "exit: $?"
 ```
 
-After M9.1 this prints `format: generic` with
-`fellback_to_generic: true` on stdout and exits 1, because no
-specific format is registered to claim gotest output yet. Once M10
-ships, the expected output flips to `format: gotest` with
-`confidence: 1.00` and exit 0. Use `--strict` to turn the "fell
-back to generic" path into a hard error (exit 2).
+After M10 this prints `format: gotest` with `confidence: 1.00` and
+exits 0. For input that no specific format claims, the detector
+falls back to `generic` (`fellback_to_generic: true`, exit 1). Use
+`--strict` to turn that fallback into a hard error (exit 2).
 
-### Distil this project's own `go test` output (once M10 lands)
+### Distil this project's own `go test` output
 
 ```sh
 make test 2>&1 | ./bin/distill-ai
 ```
 
-This is the canonical dogfooding loop: every test run becomes a
-real-world distill-ai input. M10 ships gotest specifically to make
-this loop work; gaps in the parser surface the moment you run
-`make test`. Pre-M10 the same command falls back to the generic
-scanner (M9.1+); M9.2 fills in the scanner so the fallback emits
-useful events. The same shape works for any tool's output —
-`kubectl logs`, an application log — and falls back to the
-regex-driven generic scanner when no specific format claims it.
+The canonical dogfooding loop: every test run becomes a real-world
+distill-ai input. Gaps in the gotest parser surface immediately.
+The same shape works for any tool's output — `kubectl logs`, an
+application log — and falls back to the regex-driven generic
+scanner when no specific format claims it.
 
 ### Distil a pytest run (once M11 lands)
 

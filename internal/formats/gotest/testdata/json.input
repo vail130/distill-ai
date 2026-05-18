@@ -1,0 +1,12 @@
+{"Time":"2024-01-01T00:00:00Z","Action":"run","Package":"example.com/proj","Test":"TestX"}
+{"Time":"2024-01-01T00:00:00Z","Action":"output","Package":"example.com/proj","Test":"TestX","Output":"=== RUN   TestX\n"}
+{"Time":"2024-01-01T00:00:00Z","Action":"output","Package":"example.com/proj","Test":"TestX","Output":"    x_test.go:10: expected 200, got 500\n"}
+{"Time":"2024-01-01T00:00:00Z","Action":"output","Package":"example.com/proj","Test":"TestX","Output":"--- FAIL: TestX (0.01s)\n"}
+{"Time":"2024-01-01T00:00:00Z","Action":"fail","Package":"example.com/proj","Test":"TestX","Elapsed":0.01}
+{"Time":"2024-01-01T00:00:00Z","Action":"run","Package":"example.com/proj","Test":"TestY"}
+{"Time":"2024-01-01T00:00:00Z","Action":"output","Package":"example.com/proj","Test":"TestY","Output":"=== RUN   TestY\n"}
+{"Time":"2024-01-01T00:00:00Z","Action":"output","Package":"example.com/proj","Test":"TestY","Output":"--- PASS: TestY (0.00s)\n"}
+{"Time":"2024-01-01T00:00:00Z","Action":"pass","Package":"example.com/proj","Test":"TestY","Elapsed":0.00}
+{"Time":"2024-01-01T00:00:00Z","Action":"output","Package":"example.com/proj","Output":"FAIL\n"}
+{"Time":"2024-01-01T00:00:00Z","Action":"output","Package":"example.com/proj","Output":"FAIL\texample.com/proj\t0.123s\n"}
+{"Time":"2024-01-01T00:00:00Z","Action":"fail","Package":"example.com/proj","Elapsed":0.123}

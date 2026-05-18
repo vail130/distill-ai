@@ -1,0 +1,50 @@
+[
+  {
+    "severity": "error",
+    "kind": "build_failure",
+    "title": "undefined: bar",
+    "location": {
+      "file": "foo.go",
+      "line": 42,
+      "column": 7
+    },
+    "body": [
+      "foo.go:42:7: undefined: bar"
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false
+  },
+  {
+    "severity": "error",
+    "kind": "build_failure",
+    "title": "cannot use string as int value in return statement",
+    "location": {
+      "file": "foo.go",
+      "line": 50,
+      "column": 1
+    },
+    "body": [
+      "foo.go:50:1: cannot use string as int value in return statement"
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false
+  },
+  {
+    "severity": "error",
+    "kind": "build_failure",
+    "title": "syntax error: unexpected newline, expected expression",
+    "location": {
+      "file": "bar.go",
+      "line": 10,
+      "column": 5
+    },
+    "body": [
+      "bar.go:10:5: syntax error: unexpected newline, expected expression"
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false
+  }
+]

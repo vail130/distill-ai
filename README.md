@@ -37,12 +37,12 @@ noise.
   WARN markers, Python tracebacks, Go panics, and JVM stack dumps.
   Used whenever no specific format claims the input. Documented at
   [docs/formats/generic.md](./docs/formats/generic.md).
-- `gotest` (M10, partial) — recognises `go test` output: `--- FAIL:`
-  headers, package `FAIL\t<pkg>` summaries, `=== RUN` headers, and
-  bare goroutine panics. M10.2 emits one `test_failure` Event per
-  failure block with assertion-derived Title and Location; later
-  M10 sub-items add `panic`, `build_failure`, and `race_condition`
-  kinds. Documented at [docs/formats/gotest.md](./docs/formats/gotest.md).
+- `gotest` (M10) — parses `go test` output: `--- FAIL:` blocks,
+  package summaries, `=== RUN` headers, bare goroutine panics,
+  build failures, race-detector reports, and `go test -json` mode.
+  Emits `test_failure`, `panic`, `build_failure`, and
+  `race_condition` Events with structured stack frames. Documented
+  at [docs/formats/gotest.md](./docs/formats/gotest.md).
 - `pytest` (planned, M11), `jest` (planned, M12) — test-runner formats
   with structured failure / panic / build-failure extraction.
 

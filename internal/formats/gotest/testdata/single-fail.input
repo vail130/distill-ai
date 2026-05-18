@@ -1,0 +1,6 @@
+=== RUN   TestLogin
+    auth_test.go:42: expected 200, got 500
+--- FAIL: TestLogin (0.02s)
+FAIL
+exit status 1
+FAIL	example.com/auth	0.123s

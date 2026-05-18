@@ -24,14 +24,11 @@ check before the milestone is marked complete (see
 
 Milestones M1–M13 are scoped this way today. Per the working
 agreement, **at least** the next three open milestones are kept
-fully scoped at all times. As of the M8 completion + envelope-design
-decision, the open scoped set is M9 (generic), M10 (gotest), M11
-(pytest), M12 (jest), and M13 (envelope) — five milestones rather
-than the minimum three, because the M10/M11/M12 reordering and the
-M13 envelope insertion travelled together in the same planning
-pass. As each scoped milestone lands, the next sketched one (M14
-config, M15 library API, M16 docs, M17 release) gets scoped. M14–M17
-are sketched but not yet scoped.
+fully scoped at all times. As of M10's completion, the open scoped
+set is M11 (pytest), M12 (jest), and M13 (envelope) — exactly the
+minimum three. As each scoped milestone lands, the next sketched
+one (M14 config, M15 library API, M16 docs, M17 release) gets
+scoped. M14–M17 are sketched but not yet scoped.
 
 ---
 
@@ -1894,7 +1891,7 @@ and update the project's format-list / scope documents.
 
 ---
 
-## M10 — gotest format
+## M10 — gotest format ✅
 
 The first real format parser, chosen ahead of pytest and jest because
 gotest is the format this very project emits on every `make test` —
@@ -1931,7 +1928,7 @@ Events). Each item below lists Definition of Done, required tests,
 and required doc updates per the
 [alignment rule](./.opencode/rules/alignment.md).
 
-### M10.1 — `internal/formats/gotest/gotest.go`: skeleton + Detect
+### M10.1 — `internal/formats/gotest/gotest.go`: skeleton + Detect ✅
 
 Land the package, register it, and implement `Format.Detect`. No
 parsing yet — `Parse` returns an empty channel — so M3 autodetection
@@ -1999,7 +1996,7 @@ exercises the new format end-to-end before the heavy parser arrives.
     as "shipped" once M10.5 lands; for M10.1 the entry says
     "detect-only, parser lands in M10.2".
 
-### M10.2 — Parse `--- FAIL:` blocks (test_failure)
+### M10.2 — Parse `--- FAIL:` blocks (test_failure) ✅
 
 The common case: `go test` (with or without `-v`). Each FAIL block
 runs from a `--- FAIL: TestName (duration)` line to the next
@@ -2092,7 +2089,7 @@ delimiter. The parser emits one Event per block with
   - No SCHEMA.md change — `test_failure` is already listed under
     gotest's kind values.
 
-### M10.3 — Parse panic blocks and build failures
+### M10.3 — Parse panic blocks and build failures ✅
 
 Two distinct Event Kinds gotest emits outside the normal failure
 flow: panics that escape a test goroutine, and build failures that
@@ -2170,7 +2167,7 @@ downstream consumers can route on it.
   - No SCHEMA.md change — `panic` and `build_failure` are
     already listed under gotest's kind values.
 
-### M10.4 — Stack frames, race detector, reporter modes
+### M10.4 — Stack frames, race detector, reporter modes ✅
 
 Populate `Event.Frames` from the goroutine dump, emit the
 race-detector report as a single `race_condition` Event, and handle
@@ -2253,7 +2250,7 @@ the three reporter modes gotest emits.
     populated vs nil, the race-detector example, the `-json`
     mapping table.
 
-### M10.5 — Fixtures, ARCHITECTURE update, and integration coverage
+### M10.5 — Fixtures, ARCHITECTURE update, and integration coverage ✅
 
 Tie M10 off with the canonical fixture set per
 [CONTRIBUTING.md § Adding a format](./CONTRIBUTING.md#adding-a-format),

@@ -1,0 +1,5 @@
+# example.com/proj
+foo.go:42:7: undefined: bar
+foo.go:50:1: cannot use string as int value in return statement
+bar.go:10:5: syntax error: unexpected newline, expected expression
+FAIL	example.com/proj [build failed]

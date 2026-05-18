@@ -1,0 +1,60 @@
+[
+  {
+    "severity": "error",
+    "kind": "test_failure",
+    "title": "empty case failed",
+    "location": {
+      "file": "parse_test.go",
+      "line": 50,
+      "column": null
+    },
+    "body": [
+      "    parse_test.go:50: empty case failed",
+      "    --- FAIL: TestParse/empty_input (0.00s)",
+      "    parse_test.go:55: binary case failed"
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "duration": "0.00s",
+      "package": "example.com/parser",
+      "test_id": "TestParse/empty_input"
+    }
+  },
+  {
+    "severity": "error",
+    "kind": "test_failure",
+    "title": "--- FAIL: TestParse/binary_input (0.00s)",
+    "location": null,
+    "body": [
+      "    --- FAIL: TestParse/binary_input (0.00s)"
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "duration": "0.00s",
+      "package": "example.com/parser",
+      "test_id": "TestParse/binary_input"
+    }
+  },
+  {
+    "severity": "error",
+    "kind": "test_failure",
+    "title": "--- FAIL: TestParse (0.01s)",
+    "location": null,
+    "body": [
+      "--- FAIL: TestParse (0.01s)",
+      "FAIL"
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "duration": "0.01s",
+      "package": "example.com/parser",
+      "test_id": "TestParse"
+    }
+  }
+]

@@ -1,0 +1,61 @@
+[
+  {
+    "severity": "error",
+    "kind": "race_condition",
+    "title": "WARNING: DATA RACE",
+    "location": null,
+    "body": [
+      "==================",
+      "WARNING: DATA RACE",
+      "Write at 0x00c0000a0008 by goroutine 7:",
+      "  example.com/proj.set(...)",
+      "      /home/u/proj/race.go:10 +0x1a",
+      "",
+      "Previous read at 0x00c0000a0008 by goroutine 8:",
+      "  example.com/proj.get(...)",
+      "      /home/u/proj/race.go:15 +0x2b",
+      "",
+      "Goroutine 7 (running) created at:",
+      "  example.com/proj.run(...)",
+      "      /home/u/proj/run.go:7 +0x0c",
+      "",
+      "Goroutine 8 (finished) created at:",
+      "  example.com/proj.run(...)",
+      "      /home/u/proj/run.go:8 +0x1d",
+      "=================="
+    ],
+    "frames": [
+      {
+        "file": "/home/u/proj/race.go",
+        "line": 10,
+        "function": "example.com/proj.set",
+        "vendor": false
+      },
+      {
+        "file": "/home/u/proj/race.go",
+        "line": 15,
+        "function": "example.com/proj.get",
+        "vendor": false
+      },
+      {
+        "file": "/home/u/proj/run.go",
+        "line": 7,
+        "function": "example.com/proj.run",
+        "vendor": false
+      },
+      {
+        "file": "/home/u/proj/run.go",
+        "line": 8,
+        "function": "example.com/proj.run",
+        "vendor": false
+      }
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "race_goroutines": "2",
+      "test_id": "TestRace"
+    }
+  }
+]

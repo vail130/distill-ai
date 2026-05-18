@@ -1,0 +1,8 @@
+=== RUN   TestFoo
+--- PASS: TestFoo (0.00s)
+=== RUN   TestBar
+--- PASS: TestBar (0.01s)
+=== RUN   TestBaz
+--- PASS: TestBaz (0.00s)
+PASS
+ok  	example.com/proj	0.123s

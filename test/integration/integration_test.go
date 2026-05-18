@@ -447,6 +447,35 @@ func TestBinary_DetectStrictRejectsFallback(t *testing.T) {
 	}
 }
 
+// TestBinary_GotestEndToEndProducesOutput pins the M10 happy
+// path: feeding a gotest-shaped fixture through the binary
+// detects the gotest format, runs the M10.2 / M10.3 / M10.4
+// scanner, and emits a non-empty distilled summary.
+//
+// Replaces the pre-M10 fall-through assertion that lived against
+// pytest-fail.input (which still falls back to generic until
+// M11 lands).
+func TestBinary_GotestEndToEndProducesOutput(t *testing.T) {
+	input := readFixture(t, "gotest-fail.input")
+	got := runBinary(t, input)
+	if got.exitCode != 0 {
+		t.Fatalf("exit = %d, want 0 (events emitted); stdout=%q stderr=%q",
+			got.exitCode, got.stdout, got.stderr)
+	}
+	wants := []string{
+		"events from gotest",
+		// Title is derived from the assertion line.
+		"expected 200, got 500",
+		// test_id metadata appears in the per-event block.
+		"TestThing",
+	}
+	for _, w := range wants {
+		if !strings.Contains(got.stdout, w) {
+			t.Errorf("stdout missing %q; got:\n%s", w, got.stdout)
+		}
+	}
+}
+
 // TestBinary_GenericEndToEndProducesOutput pins the M9 happy
 // path at the integration boundary: `cmd | distill-ai > out.txt`
 // produces a non-empty out.txt when stdin contains a severity
