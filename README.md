@@ -235,9 +235,22 @@ self-contained, agent-agnostic skill that loads automatically when
 output volume warrants it. It assumes only that `distill-ai` is on
 `PATH` and is reusable verbatim outside this repo. A sibling
 [`skills/distill-ai-dev/SKILL.md`](./skills/distill-ai-dev/SKILL.md)
-covers the in-repo dogfooding loop for contributors. Per-agent
-integration recipes for Claude Code, Cursor, Copilot, Codex, Gemini,
-Windsurf, and Cline are planned for v1.6 (see
+covers the in-repo dogfooding loop for contributors.
+
+To make the consumer skill available in opencode sessions outside
+this repo, symlink it into your user-level skills directory:
+
+```bash
+make install-skill
+```
+
+This links `skills/distill-ai/` into
+`~/.config/opencode/skills/distill-ai`. Override the destination with
+`SKILL_DEST=/path/to/skill make install-skill`. Run
+`make uninstall-skill` to remove the link.
+
+Per-agent integration recipes for Claude Code, Cursor, Copilot, Codex,
+Gemini, Windsurf, and Cline are planned for v1.6 (see
 [TODO.md § M29](./TODO.md#m29--per-agent-integration-recipes-documentation)).
 
 ### Embedding in Go

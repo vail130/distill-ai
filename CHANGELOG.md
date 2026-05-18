@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Makefile: `install-skill` and `uninstall-skill` targets that
+  symlink `skills/distill-ai/` into `~/.config/opencode/skills/`
+  (overridable via `SKILL_DEST=...`). Idempotent: refuses to
+  overwrite an existing non-symlink at the destination, and
+  no-ops when the link already points at the canonical source.
+  README install section documents the targets so users adopting
+  the consumer skill in opencode sessions outside this repo have
+  a one-command path to wiring it up.
 - M15.5: library API consumer documentation. New
   `docs/library-api.md` is the full reference for the `pkg/distill`
   surface: when to use the library vs the binary (decision
