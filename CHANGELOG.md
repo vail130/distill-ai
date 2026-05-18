@@ -9,6 +9,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- M15.2: `pkg/distill.Distill` streaming entry point. Takes
+  `(ctx, io.Reader, Options)` and returns `(<-chan Event,
+  *Summary, error)`. Setup errors (ErrNilWriter,
+  ErrUnknownTokenizer, ErrUnknownOutput, ErrUnknownFormat,
+  ErrUnknownStripEnvelope) surface synchronously before any
+  goroutine starts; the returned channel and Summary are valid
+  only on a nil-error return. Mid-stream parser problems do not
+  surface — parsers convert recoverable issues into best-effort
+  Events and continue per the project's resolution in
+  KNOWN_ISSUES.md. The Event channel publishes every Event the
+  pipeline emits post-stages (after collapse, dedupe, budget,
+  max-events) and pre-encoding; library callers wanting
+  programmatic access read from the channel, callers wanting only
+  the encoded output through opts.Writer drain it with a no-op
+  goroutine. Either way the encoder writes to opts.Writer in
+  parallel. The Summary's fields are populated by a bookkeeping
+  goroutine after the pipeline drains; Summary.Wait blocks until
+  fields are valid and Summary.Done returns a channel for
+  select-style synchronisation. The done-channel pattern replaces
+  the earlier "fields valid after channel closes" contract with a
+  race-free synchronisation point.
+  Implementation lives in pkg/distill/distill.go: translateOptions
+  converts public Options into the orchestrator's Config
+  vocabulary, translateOutput maps OutputFormat strings onto the
+  orchestrator's typed constant (empty defaults to OutputText),
+  and translateOrchestratorError remaps orchestrator sentinels
+  onto the package's public sentinels so callers use errors.Is
+  against the public names without importing the internal
+  package. A teeingSink in the orchestrator package fans each
+  Event to both the public channel (with backpressure on slow
+  consumers) and the underlying encoder Sink, with explicit ctx
+  cancellation honoured at every send point.
+  Sixteen Distill tests cover the canonical happy path (text
+  output), JSON batch and ndjson outputs, explicit format vs
+  autodetect, generic fallback, strict-mode error path, the four
+  sentinel errors (nil writer, unknown tokenizer, unknown format,
+  unknown output), Summary-vs-JSON-trailer parity, the streaming
+  contract (slowReader proves Events emit before EOF), context
+  cancellation (channel closes within 2s of cancel), goroutine
+  leak guard (20 iterations, baseline-vs-final NumGoroutine),
+  determinism (same input twice → byte-equal output AND matching
+  Summary), and the explicit channel-delivers-events case
+  asserting the channel count matches Summary.EventsEmitted. All
+  pass under -race.
 - M15.4: `pkg/distill/internal/orchestrator` private subpackage.
   Hosts the bridge between the public `pkg/distill.Options` and
   every internal package the run touches: `internal/detect`,

@@ -177,16 +177,23 @@ type Options struct {
 }
 
 // Summary captures the run-level counters and exit-code-relevant
-// signals Distill populates after the Event channel closes. The
-// fields are a re-export of the JSON-schema summary object
-// documented in docs/formats/SCHEMA.md § Summary object; a library
-// caller and a JSON consumer of `distill-ai run --output=json`
-// observe the same numbers.
+// signals Distill populates after the pipeline drains. The fields
+// are a re-export of the JSON-schema summary object documented in
+// docs/formats/SCHEMA.md § Summary object; a library caller and a
+// JSON consumer of `distill-ai run --output=json` observe the same
+// numbers.
 //
-// Fields are valid only after the Event channel returned by Distill
-// closes. Reading them while events are still flowing returns
-// in-flight (possibly zero) values; Distill documents this timing
-// contract.
+// Fields are valid only after the [Summary.Wait] method returns
+// (or, equivalently, after the [Summary.Done] channel closes).
+// Reading them while events are still flowing returns in-flight
+// (possibly zero) values; Distill documents this timing contract.
+// The simplest correct pattern is:
+//
+//	events, summary, err := distill.Distill(ctx, r, opts)
+//	if err != nil { ... }
+//	for ev := range events { ... }   // drain events
+//	summary.Wait()                   // synchronise on populate
+//	// summary fields are now valid
 type Summary struct {
 	// InputLines is the total lines consumed from the input
 	// io.Reader. Reflects the line-count footer in
@@ -242,6 +249,48 @@ type Summary struct {
 	// instead of populating this field; ExitCode = 2 is reserved
 	// for that case and is not set by Distill itself.
 	ExitCode int
+
+	// done is closed by Distill's bookkeeping goroutine after the
+	// Summary's fields have been populated. Callers consult it via
+	// Wait or Done.
+	done chan struct{}
+}
+
+// Wait blocks until the Summary's fields are populated. Returns
+// immediately if the Summary has already been populated.
+//
+// Wait must not be called on a Summary returned by a Distill call
+// that errored (the returned Summary is nil in that case; calling
+// Wait on a nil receiver blocks forever, since the channel was
+// never created).
+//
+// Wait is safe to call from any goroutine and any number of times;
+// subsequent calls after the first return immediately.
+func (s *Summary) Wait() {
+	if s == nil || s.done == nil {
+		return
+	}
+	<-s.done
+}
+
+// Done returns a channel that closes when the Summary's fields are
+// populated. Useful for callers that want to multiplex Summary
+// readiness with other signals via select.
+//
+// Returns nil on a nil Summary (so a select on the result blocks
+// forever; the caller has to handle this case explicitly).
+func (s *Summary) Done() <-chan struct{} {
+	if s == nil {
+		return nil
+	}
+	return s.done
+}
+
+// newSummary constructs a Summary with an unsignalled done
+// channel. Called by Distill so library callers don't have to
+// initialise the synchronisation themselves.
+func newSummary() *Summary {
+	return &Summary{done: make(chan struct{})}
 }
 
 // ForcedDrops reports whether the BudgetStage either dropped or
