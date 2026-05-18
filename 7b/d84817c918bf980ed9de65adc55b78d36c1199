@@ -1,0 +1,80 @@
+internal/cli/config_integration_test.go
+  67419cc542bacf3e 1-530
+internal/cli/run_test.go
+  67419cc542bacf3e 1-554
+internal/cli/exported.go
+  67419cc542bacf3e 1-50
+internal/cli/list_formats.go
+  67419cc542bacf3e 1-51
+internal/cli/parseopts_test.go
+  67419cc542bacf3e 1-189
+internal/cli/root.go
+  67419cc542bacf3e 1-182
+internal/cli/register.go
+  67419cc542bacf3e 1-47
+internal/cli/explain.go
+  67419cc542bacf3e 1-149
+internal/cli/buildinfo.go
+  67419cc542bacf3e 1-12
+internal/cli/completions.go
+  67419cc542bacf3e 1-73
+internal/cli/config_loader.go
+  67419cc542bacf3e 1-258
+internal/cli/cli_test.go
+  67419cc542bacf3e 1-244
+internal/cli/version.go
+  67419cc542bacf3e 1-47
+internal/cli/completions_test.go
+  67419cc542bacf3e 1-93
+internal/cli/explain_test.go
+  67419cc542bacf3e 1-143
+internal/cli/exitcode_test.go
+  67419cc542bacf3e 1-145
+internal/cli/list_formats_test.go
+  67419cc542bacf3e 1-105
+internal/cli/detect.go
+  67419cc542bacf3e 1-149
+internal/cli/version_test.go
+  67419cc542bacf3e 1-60
+internal/cli/root_test.go
+  67419cc542bacf3e 1-108
+internal/cli/run.go
+  67419cc542bacf3e 1-573
+internal/cli/exitcode.go
+  67419cc542bacf3e 1-37
+cmd/distill-ai/main.go
+  67419cc542bacf3e 5-8,14-15,18-20,28-29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "7bd84817c918bf980ed9de65adc55b78d36c1199",
+  "prompts": {
+    "67419cc542bacf3e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c338681effeHlRG8hsTPU3peT",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 5769,
+      "total_deletions": 187,
+      "accepted_lines": 5587,
+      "overriden_lines": 0
+    },
+    "6bf018cc3c3cb2a8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c3b7709dffekBdPc4ZFU4gWYD",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 6516,
+      "overriden_lines": 0
+    }
+  }
+}
