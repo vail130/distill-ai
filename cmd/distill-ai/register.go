@@ -39,4 +39,9 @@ import (
 	// (timestamps, group markers, error/warning directives) before
 	// format detection runs.
 	_ "github.com/vail130/distill-ai/internal/envelope/githubactions"
+
+	// gitlab-ci strips the GitLab CI job envelope (section markers,
+	// CRLF line endings) and surfaces the job-failure marker as a
+	// signal Event before format detection runs.
+	_ "github.com/vail130/distill-ai/internal/envelope/gitlabci"
 )

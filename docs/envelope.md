@@ -206,7 +206,7 @@ rule](../rules/output-stability.md) they do not bump
 |-------------------|----------|----------|
 | `none` (Noop)     | shipped  | M13.1    |
 | `github-actions`  | shipped  | M13.3    |
-| `gitlab-ci`       | planned  | M13.4    |
+| `gitlab-ci`       | shipped  | M13.4    |
 
 ### github-actions
 
@@ -285,10 +285,86 @@ One synthesised signal Event arrives in parallel:
 `envelope_step_failure` with `Title=""` (the group was already
 closed), `metadata.exit_code="1"`.
 
-M13.1 ships the package skeleton, the interface, the registry, the
-Noop stripper, and the `Wrap` entry point. Concrete strippers
-follow in M13.3 / M13.4; CLI flag plumbing in M13.2; fixtures and
-the integration recipe in M13.5.
+### gitlab-ci
+
+Strips the GitLab CI job envelope: `section_start:` /
+`section_end:` markers, trailing carriage returns, and the
+runner's terminal "Job failed" line.
+
+**Detection.** Confidence `1.0` when the sample contains any line
+matching `section_start:NS:name` or `section_end:NS:name` (with or
+without the canonical `\r` terminator). Confidence `0.8` when the
+sample contains the "Running with gitlab-runner " banner together
+with at least five distinct ANSI CSI escape sequences in the first
+1 KiB.
+
+**Stripped from cleaned output.**
+
+| Input                                                | Cleaned output                |
+|------------------------------------------------------|-------------------------------|
+| `section_start:1700000000:build\r`                   | *(removed)*                   |
+| `section_end:1700000000:build\r`                     | *(removed)*                   |
+| `line ending with \r\n`                              | `line ending with \n`         |
+| `ERROR: Job failed: exit code N`                     | *(removed)*; emits signal     |
+
+Per-line ANSI escapes are passed through unchanged — inner-format
+parsers handle them where they matter (gotest, pytest, jest all
+strip ANSI from Title fields).
+
+**Synthesised signal Events.**
+
+| Input line                              | `Kind`                    | Severity | Title / Metadata                                                         |
+|-----------------------------------------|---------------------------|----------|--------------------------------------------------------------------------|
+| `ERROR: Job failed: exit code N`        | `envelope_step_failure`   | `error`  | Title = surrounding section name (or empty); `metadata.exit_code="N"`, `metadata.step` set when in scope |
+
+**Notes.**
+
+- No timestamp stripping. GitLab CI does not prefix per-line
+  timestamps in the default runner configuration. When a project
+  enables timestamping via runner config, the timestamps land in
+  the inner stream and the inner format handles them.
+- The section stack is bounded at depth 8 for symmetry with the
+  github-actions stripper; in practice GitLab sections do not
+  nest.
+- The runner appends `ERROR: Job failed: exit code N` after a
+  failing job — typically after the final `section_end`. The
+  surrounding section is therefore usually closed when the marker
+  fires; `metadata.step` is empty in that case. When the marker
+  appears inside an open section (rare in practice but possible
+  with custom runner configurations), the section name is
+  attached.
+
+**Example.**
+
+Input:
+
+```
+Running with gitlab-runner 16.0.0 (abcdef12)
+section_start:1700000000:run_go_test
+--- FAIL: TestLogin (0.02s)
+    auth_test.go:42: expected 200, got 502
+FAIL
+section_end:1700000000:run_go_test
+ERROR: Job failed: exit code 1
+```
+
+(With `\r` terminators on every line in the real runner output.)
+
+Cleaned output passed to format detection:
+
+```
+Running with gitlab-runner 16.0.0 (abcdef12)
+--- FAIL: TestLogin (0.02s)
+    auth_test.go:42: expected 200, got 502
+FAIL
+```
+
+The cleaned bytes detect as `gotest` (the `Running with
+gitlab-runner` line is harmless prose to gotest's parser).
+
+One synthesised signal Event arrives in parallel:
+`envelope_step_failure` with `Title=""` (the section was closed
+before the marker fired), `metadata.exit_code="1"`.
 
 ## Adding a new stripper
 

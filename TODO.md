@@ -3283,7 +3283,7 @@ Implement the first concrete `Stripper` for GitHub Actions logs.
     workflow command catalogue, what's stripped, what becomes
     a signal, example I/O.
 
-### M13.4 — GitLab CI stripper
+### M13.4 — GitLab CI stripper ✅
 
 Parallel to M13.3 for GitLab CI logs.
 
