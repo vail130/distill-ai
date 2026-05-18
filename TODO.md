@@ -3219,7 +3219,7 @@ default is a no-op until M13.3).
     with the new flag entry.
   - Extend `docs/envelope.md` with the CLI section.
 
-### M13.3 — GitHub Actions stripper
+### M13.3 — GitHub Actions stripper ✅
 
 Implement the first concrete `Stripper` for GitHub Actions logs.
 

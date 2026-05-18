@@ -205,8 +205,85 @@ rule](../rules/output-stability.md) they do not bump
 | Name              | Status   | Lands in |
 |-------------------|----------|----------|
 | `none` (Noop)     | shipped  | M13.1    |
-| `github-actions`  | planned  | M13.3    |
+| `github-actions`  | shipped  | M13.3    |
 | `gitlab-ci`       | planned  | M13.4    |
+
+### github-actions
+
+Strips the GitHub Actions workflow envelope: per-line RFC3339-Z
+timestamps, `##[group]` / `##[endgroup]` markers, and workflow
+commands. Surfaces `##[error]`, `##[warning]`, `##[notice]`, and the
+canonical "step failed" line as signal Events.
+
+**Detection.** Confidence `1.0` when the sample contains any of
+`##[group]`, `##[error]`, `##[warning]`, `##[debug]`,
+`##[notice]`, or `::set-output ` on a line (with or without a
+leading timestamp). Confidence `0.8` when no workflow command
+appears but at least three of the first ten non-blank lines carry
+an RFC3339-Z timestamp prefix (e.g., `2024-01-15T10:23:45.1234567Z `).
+
+**Stripped from cleaned output.**
+
+| Input                                              | Cleaned output                |
+|----------------------------------------------------|-------------------------------|
+| `2024-01-15T10:23:45.1234567Z hello`               | `hello`                       |
+| `##[group]Build` and `##[endgroup]`                | *(removed)*                   |
+| `##[error]Boom`                                    | *(removed)*; emits signal     |
+| `##[warning]Deprecated`                            | *(removed)*; emits signal     |
+| `##[notice]Heads up`                               | *(removed)*; emits signal     |
+| `##[debug]Verbose`                                 | *(removed)*; no signal        |
+| `::set-output name=foo::bar`, `::add-mask::…` etc. | *(removed)*; no signal        |
+
+**Synthesised signal Events.**
+
+| Input line                                                | `Kind`                    | Severity | Title / Metadata                            |
+|-----------------------------------------------------------|---------------------------|----------|---------------------------------------------|
+| `##[error]Boom`                                           | `envelope_error`          | `error`  | Title `"Boom"`                              |
+| `##[warning]Deprecated` or `##[notice]Heads up`           | `envelope_warning`        | `warn`   | Title `"Deprecated"` / `"Heads up"`         |
+| `##[error]Process completed with exit code N.`            | `envelope_step_failure`   | `error`  | Title = surrounding group's name; `metadata.exit_code="N"`, `metadata.step` set when in scope |
+
+**Notes.**
+
+- ANSI escape sequences in input are passed through unchanged.
+  Inner-format parsers handle ANSI on Titles where it matters.
+- The group-name stack is bounded at depth 8; deeper nesting is
+  silently ignored. Real workflows nest at most two or three
+  levels, so the cap is purely defensive.
+- The `##[error]Process completed with exit code N.` pattern is
+  the canonical "step finished failing" marker the runner appends
+  after every failing step. When the marker fires before the
+  surrounding `##[endgroup]`, the signal's `metadata.step` and
+  Title carry the group name. When it fires after (the common
+  case for actions whose final command itself emits
+  `##[endgroup]`), `metadata.step` is empty.
+
+**Example.**
+
+Input:
+
+```
+2024-01-15T10:23:45.1234567Z ##[group]Run go test
+2024-01-15T10:23:46.1234567Z --- FAIL: TestLogin (0.02s)
+2024-01-15T10:23:47.1234567Z     auth_test.go:42: expected 200, got 502
+2024-01-15T10:23:48.1234567Z FAIL
+2024-01-15T10:23:49.1234567Z ##[endgroup]
+2024-01-15T10:23:50.1234567Z ##[error]Process completed with exit code 1.
+```
+
+Cleaned output passed to format detection:
+
+```
+--- FAIL: TestLogin (0.02s)
+    auth_test.go:42: expected 200, got 502
+FAIL
+```
+
+The cleaned bytes detect as `gotest` with `Confidence=1.0`; the
+gotest parser sees exactly the bytes `go test` emitted.
+
+One synthesised signal Event arrives in parallel:
+`envelope_step_failure` with `Title=""` (the group was already
+closed), `metadata.exit_code="1"`.
 
 M13.1 ships the package skeleton, the interface, the registry, the
 Noop stripper, and the `Wrap` entry point. Concrete strippers
