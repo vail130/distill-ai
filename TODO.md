@@ -22,13 +22,17 @@ Each milestone ends with **exit criteria** — a milestone-level drift
 check before the milestone is marked complete (see
 [alignment.md § Enforcement](./.opencode/rules/alignment.md#enforcement)).
 
-Milestones M1–M13 are scoped this way today. Per the working
-agreement, **at least** the next three open milestones are kept
-fully scoped at all times. As of M10's completion, the open scoped
-set is M11 (pytest), M12 (jest), and M13 (envelope) — exactly the
-minimum three. As each scoped milestone lands, the next sketched
-one (M14 config, M15 library API, M16 docs, M17 release) gets
-scoped. M14–M17 are sketched but not yet scoped.
+Milestones M1–M13 are scoped this way today, along with the three
+post-v1.0 milestones M23, M24, and M25 that
+[ADR-0002](./docs/decisions/0002-v1.0-scope-and-post-v1.0-roadmap.md)
+introduces. Per the working agreement, **at least** the next three
+open milestones are kept fully scoped at all times. As of M10's
+completion, the open scoped set is M11 (pytest), M12 (jest), and
+M13 (envelope). When the v1.0 release prep (M17) lands and the v1.1
+branch opens, the next scoped three will be M23 (golangci-lint),
+M24 (cargo-json), and M25 (Markdown outline) — already scoped below
+so the v1.1 cut is ready when v1.0 ships. M14–M17 (the rest of
+v1.0) and M18–M22 (v1.3 code distillation) remain sketched.
 
 ---
 
@@ -3442,19 +3446,392 @@ recipe.
 
 ---
 
-## v1.1 — more log / test formats (post-launch)
+## v1.1 — Static analysis & linting (post-launch)
 
-- [ ] `k8s` format: kubectl logs, structured + unstructured
-- [ ] `json` format: generic JSON-per-line logs (Zap, slog, Bunyan, Pino)
-- [ ] `npm`/`yarn`/`pnpm` install/build output
-- [ ] `cargo` test/build output
-- [ ] `rspec` format
-- [ ] `mocha` format
+The first post-v1.0 release. Theme:
+[ADR-0002](./docs/decisions/0002-v1.0-scope-and-post-v1.0-roadmap.md)
+— *structured findings about static artefacts*, distinct from the
+runtime-failure theme of v1.0. Both Formats in this version consume
+upstream-emitted JSON envelopes (`golangci-lint --out-format=json`,
+`cargo ... --message-format=json`), so the marginal cost is the
+lowest of any new-Format work the project has shipped.
 
-> Compiler / build-error formats (rustc, tsc, gcc) live in
-> [M22](#m22--compiler--build-error-formats) under v1.3 — they
-> overlap with code distillation conceptually and ship in that
-> sequence.
+The earlier "v1.1 grab-bag" (k8s logs, structured JSON logs,
+npm/yarn/pnpm, rspec, mocha) moves to
+[v1.5](#v15--more-log--test-formats-post-launch). The Rust pieces of
+[M22](#m22--compiler--build-error-formats) move forward into M24
+because they share clippy's JSON envelope and shipping them apart
+makes no sense; M22 narrows to `tsc` / `gcc` / `clang`.
+
+### M23 — `golangci-lint-json` + `go vet` format
+
+A single Format that consumes both:
+
+- `golangci-lint run --out-format=json` — multi-linter rollup, the
+  canonical Go static-analysis pipeline.
+- `go vet ./... 2>&1` — stdlib's built-in checks, line-oriented
+  output, falls back to a regex parser within the same Format when
+  the JSON envelope isn't present.
+
+Detection prefers the JSON envelope (Confidence 1.0 on a clear
+`{"Issues":[...` prefix or `{"Reports":[...`). Line-oriented `go vet`
+output detects at 0.8 via `^# <pkg>` headers plus `<path>:<line>:<col>:`
+diagnostic lines. The Format emits one `Event` per finding with
+`Severity` derived from the linter's level, `Kind` set to the linter
+name (`govet`, `staticcheck`, `revive`, `errcheck`, `ineffassign`,
+etc.), `Location` populated from the JSON envelope, and `Body`
+carrying the linter's message verbatim.
+
+Cross-references
+[ARCHITECTURE.md § Format plugin contract](./ARCHITECTURE.md#format-plugin-contract),
+[docs/formats/SCHEMA.md § Kind values](./docs/formats/SCHEMA.md#kind-values)
+(new kinds land here),
+[ADR-0002](./docs/decisions/0002-v1.0-scope-and-post-v1.0-roadmap.md).
+
+M23 builds on M1 (`Format`, `formats.Register`), M3 (autodetection),
+M7 (encoders — all three render the new Events without modification),
+M9 (generic remains the fallback if `golangci-lint`'s envelope changes
+shape unexpectedly), and M10 (the format-test harness in
+`internal/formats/testing.go` and the integration-suite end-to-end
+pattern). Each item below lists Definition of Done, required tests,
+and required doc updates per the
+[alignment rule](./.opencode/rules/alignment.md).
+
+#### M23.1 — Skeleton + Detect
+
+- **DoD:**
+  - New package `internal/formats/golintjson` exporting `Format`
+    (value type, implements `formats.Format`).
+  - `func init() { formats.Register(Format{}) }`.
+  - `Name() string` returns `"golangci-lint"`.
+  - `Detect(sample []byte) Confidence`:
+    - `1.0` when the sample begins with `{"Issues":` or
+      `{"Reports":` (the two stable top-level keys
+      `golangci-lint --out-format=json` emits).
+    - `0.8` when the sample contains `^# <importpath>$` lines
+      followed by `^<path/with/slash>\.go:\d+:\d+: ` diagnostic
+      lines — the `go vet ./...` shape.
+    - `0.0` otherwise.
+    - Threshold constants named `confidenceClearMarker = 1.0`,
+      `confidenceFuzzy = 0.8` per the gotest/pytest precedent.
+  - `Parse(ctx, r, opts)` returns an immediately-closed channel
+    with `nil` error for M23.1; M23.2 and M23.3 fill it in.
+- **Tests** (`internal/formats/golintjson/golintjson_test.go`):
+  - `TestGolintJSON_DetectClearMarkerIssues`: feed `{"Issues":[]}`
+    fragment; assert `1.0`.
+  - `TestGolintJSON_DetectClearMarkerReports`: feed
+    `{"Reports":[]}` fragment; assert `1.0`.
+  - `TestGolintJSON_DetectGoVet`: feed two-line fragment
+    `# example.com/m\n/path/to/file.go:12:5: assignment copies lock`;
+    assert `0.8`.
+  - `TestGolintJSON_DetectNegative`: feed gotest output, pytest
+    output, plain prose; assert `0.0` for each.
+  - `TestGolintJSON_RegisteredAtInit`: import for side effect,
+    `formats.Get("golangci-lint")` returns `(format, true)`.
+  - `TestGolintJSON_ParseEmptyStub`: `Parse` returns a closed
+    channel without error so autodetection paths work end-to-end
+    before the parser lands.
+- **Docs:**
+  - Godoc on `Format`, `Detect`, `Parse`, and the confidence
+    constants.
+  - New `docs/formats/golangci-lint.md` with section skeleton
+    (intro, detection markers, what's extracted, what's dropped,
+    example I/O). M23.1 fills intro + detection.
+  - Update [README.md](./README.md) "Supported formats" with
+    `golangci-lint` as "detect-only, parser lands in M23.2"
+    when M23.1 lands.
+
+#### M23.2 — Parse `golangci-lint` JSON envelope
+
+- **DoD:**
+  - Streaming JSON-array parser over `Issues[]`. Each issue
+    becomes one `Event`:
+    - `Severity = SeverityError` for `Severity:"error"`,
+      `SeverityWarn` for `"warning"`, `SeverityInfo` for `"info"`
+      and unknown.
+    - `Kind = <linter_name>` (e.g., `"govet"`, `"staticcheck"`).
+      The string lives verbatim in `Kind` and is added to
+      [SCHEMA.md § Kind values](./docs/formats/SCHEMA.md#kind-values)
+      under a `golangci-lint` open-set entry.
+    - `Title = <Text>` from the JSON; if multi-line, the first
+      line is `Title`, the rest joins `Body`.
+    - `Location = {File: Pos.Filename, Line: Pos.Line, Column: Pos.Column}`.
+    - `Body` carries the message plus the `SourceLines` array
+      (the surrounding context `golangci-lint` already extracts).
+    - `Metadata["linter"]` = linter name (duplicate of `Kind` for
+      discoverability).
+  - Streaming: the parser uses `json.Decoder` on `Issues[`, reads
+    `[`, then decodes one object per call to `Decoder.Decode`,
+    emits the `Event`, never buffers the whole array.
+  - Schema-version drift guard: a `TestGolintJSON_SchemaShape` test
+    fails the build if the upstream JSON shape (`Issues[].Pos.Filename`
+    etc.) drifts. The fixture is the canonical schema reference.
+- **Tests:**
+  - `TestGolintJSON_ParseSingleIssue`: one-issue fixture from
+    `testdata/case-01.input` → expected one `Event`, all fields
+    populated.
+  - `TestGolintJSON_ParseMultipleLinters`: fixture with
+    govet, staticcheck, and revive findings interleaved; assert
+    one Event per finding with the right `Kind`.
+  - `TestGolintJSON_ParseSeverityMapping`: feed each of
+    `"error"`, `"warning"`, `"info"`, and `""` (empty); assert
+    the documented mapping.
+  - `TestGolintJSON_ParseStreaming`: `testutil.SlowReader` drips
+    the JSON array; assert the first Event emerges before EOF.
+  - `TestGolintJSON_ParseEmptyIssues`: `{"Issues":[]}` → zero
+    Events, channel closes cleanly.
+  - `TestGolintJSON_ParseMalformedJSON`: truncated input →
+    `Parse` closes the channel and returns the JSON error via
+    a sentinel Event with `Severity=SeverityError`,
+    `Kind="parse_error"`.
+  - Golden tests under `internal/formats/golintjson/testdata/` per
+    the M10 harness pattern. Minimum five cases: clean run
+    (no issues), single govet finding, multi-linter, severity
+    mix, malformed input.
+- **Docs:**
+  - Extend `docs/formats/golangci-lint.md` with the kind taxonomy,
+    severity mapping, example input + output, the parse-error
+    contract.
+  - Add the open-set `Kind` entries to SCHEMA.md.
+
+#### M23.3 — Parse line-oriented `go vet` output
+
+- **DoD:**
+  - Fallback line parser invoked when the JSON envelope wasn't
+    detected (M23.1 returned `0.8` on the line-oriented shape).
+  - State machine: `statePackageHeader` (matching `^# <path>$`,
+    captures current package), `stateDiagnostic` (matching
+    `^<path>:<line>:<col>: <message>$`).
+  - One `Event` per diagnostic with
+    `Severity = SeverityError`, `Kind = "govet"`,
+    `Location = {File, Line, Column}`, `Body = [message]`,
+    `Metadata["package"]` = the most recent package header.
+  - Streaming: each Event forwards on the line after the
+    diagnostic; no whole-input buffering.
+- **Tests:**
+  - `TestGoVet_ParseSingleDiagnostic`.
+  - `TestGoVet_ParseMultiplePackages`: two `# pkg` headers, three
+    diagnostics; assert `Metadata["package"]` is correct per
+    Event.
+  - `TestGoVet_ParseLocationParsing`: column field optional —
+    handle both `file.go:12:5: msg` and `file.go:12: msg`.
+  - `TestGoVet_ParseStreaming`.
+  - Golden test cases under
+    `internal/formats/golintjson/testdata/govet-*.input`.
+- **Docs:**
+  - Extend `docs/formats/golangci-lint.md` with the `go vet`
+    section.
+  - README "Supported formats" promotes the entry from
+    "detect-only" to "shipped" once M23.3 lands.
+
+### M23 exit criteria
+
+- All three sub-items ticked.
+- `make check` clean; no race hits.
+- M23 milestone drift check: SCHEMA.md `golangci-lint` Kind
+  section exists; README format list mentions the format as
+  shipped; `docs/formats/golangci-lint.md` documents both the
+  JSON and `go vet` paths; the integration test suite has at
+  least one end-to-end `golangci-lint` fixture.
+
+### M24 — `cargo-json` format (rustc / cargo build / cargo test / clippy)
+
+Rust's `--message-format=json` envelope is the same shape across
+`cargo build`, `cargo check`, `cargo test`, and `cargo clippy`. One
+Format handles all four. The envelope is a stream of newline-
+delimited JSON objects (`reason`-tagged), so the parser is a
+streaming `json.Decoder` over `r`, one Event per
+`compiler-message` / `compiler-artifact` / `test` reason as
+relevant.
+
+This milestone subsumes the Rust-related items previously listed
+under [M22](#m22--compiler--build-error-formats) (rustc, cargo
+output); M22 narrows to `tsc` / `gcc` / `clang`. See
+[ADR-0002](./docs/decisions/0002-v1.0-scope-and-post-v1.0-roadmap.md)
+for the rationale.
+
+Cross-references
+[ARCHITECTURE.md § Format plugin contract](./ARCHITECTURE.md#format-plugin-contract),
+[docs/formats/SCHEMA.md § Kind values](./docs/formats/SCHEMA.md#kind-values).
+
+M24 builds on M1, M3, M7, M9, M10, and on M23's JSON-envelope
+parsing pattern. Each item below lists Definition of Done,
+required tests, and required doc updates per the
+[alignment rule](./.opencode/rules/alignment.md).
+
+#### M24.1 — Skeleton + Detect
+
+- **DoD:**
+  - New package `internal/formats/cargojson` exporting `Format`.
+  - `func init() { formats.Register(Format{}) }`.
+  - `Name() string` returns `"cargo"`.
+  - `Detect(sample []byte) Confidence`:
+    - `1.0` when any line in the sample is a JSON object with a
+      top-level `"reason"` field matching the cargo envelope
+      vocabulary: `"compiler-message"`, `"compiler-artifact"`,
+      `"build-script-executed"`, `"build-finished"`,
+      `"test-started"`, `"test"`, `"suite"`. Detection scans
+      up to the first newline boundary within the sample to
+      avoid full-input parsing.
+    - `0.8` when the sample is non-JSON but contains
+      `^error\[E\d+\]: ` or `^warning: ` and at least one
+      `--> <path>:<line>:<col>` indented reference (the
+      line-oriented rustc default).
+    - `0.0` otherwise.
+    - Threshold constants `confidenceClearMarker = 1.0`,
+      `confidenceFuzzy = 0.8`.
+  - `Parse(ctx, r, opts)` returns an immediately-closed channel
+    with `nil` error for M24.1.
+- **Tests** (`internal/formats/cargojson/cargojson_test.go`):
+  - `TestCargoJSON_DetectCompilerMessage`: feed one-line
+    `{"reason":"compiler-message",...}`; assert `1.0`.
+  - `TestCargoJSON_DetectTestSuite`: feed
+    `{"reason":"suite","event":"started",...}`; assert `1.0`.
+  - `TestCargoJSON_DetectLineOriented`: feed
+    `error[E0308]: mismatched types\n  --> src/main.rs:3:5\n`;
+    assert `0.8`.
+  - `TestCargoJSON_DetectNegative`: gotest output, pytest output,
+    plain prose — `0.0` each.
+  - `TestCargoJSON_RegisteredAtInit`.
+  - `TestCargoJSON_ParseEmptyStub`.
+- **Docs:**
+  - Godoc on `Format`, `Detect`, `Parse`, the confidence
+    constants.
+  - New `docs/formats/cargo.md` with the section skeleton.
+  - README "Supported formats" gets a "detect-only, parser lands
+    in M24.2" entry.
+
+#### M24.2 — Parse `compiler-message` events (cargo build / cargo check / cargo clippy)
+
+- **DoD:**
+  - Streaming NDJSON parser. `json.Decoder` over `r`, one decode
+    per line. Each decoded object is dispatched by `reason`:
+    - `"compiler-message"`: emit one Event. `Severity` from
+      `message.level` (`error` → SeverityError, `warning` →
+      SeverityWarn, `note`/`help` → SeverityInfo).
+      `Kind = "compiler_message"` for rustc messages,
+      `Kind = "clippy_lint"` when `message.code.code` starts with
+      `clippy::`. `Title = message.message`.
+      `Location = {File, Line, Column}` from
+      `message.spans[].file_name / line_start / column_start`,
+      preferring the span with `is_primary = true`. `Body` joins
+      `message.rendered` (rustc/clippy already produce a
+      human-readable rendering — preserve it).
+      `Metadata["code"]` = `message.code.code` if present
+      (`E0308`, `clippy::needless_return`, etc.).
+    - `"compiler-artifact"`, `"build-script-executed"`,
+      `"build-finished"`: silently dropped (build chatter is the
+      noise this Format exists to remove).
+    - All other reasons: held over for M24.3 (test events).
+  - Streaming: each Event forwards as its NDJSON line is consumed.
+- **Tests:**
+  - `TestCargoJSON_ParseRustcError`.
+  - `TestCargoJSON_ParseClippyLint`: assert
+    `Kind == "clippy_lint"` and `Metadata["code"]` carries the
+    `clippy::*` code.
+  - `TestCargoJSON_ParseSeverityMapping`: feed `error`,
+    `warning`, `note`, `help`; assert the documented mapping.
+  - `TestCargoJSON_ParseDropsArtifactNoise`: feed a fixture with
+    20 `compiler-artifact` and 2 `compiler-message` events;
+    assert exactly 2 Events emerge.
+  - `TestCargoJSON_ParsePrimarySpan`: fixture has multiple
+    spans; assert the primary one wins.
+  - `TestCargoJSON_ParseStreaming`.
+  - Golden tests under
+    `internal/formats/cargojson/testdata/` per the M10 pattern.
+    Minimum five cases: clean build, single error, multi-error,
+    clippy mix, severity mix.
+- **Docs:**
+  - Extend `docs/formats/cargo.md` with the kind taxonomy,
+    severity mapping, the artifact-drop policy, example I/O.
+  - Add the new Kind values to SCHEMA.md under a `cargo` open-set
+    section.
+
+#### M24.3 — Parse `test` and `suite` events (cargo test)
+
+- **DoD:**
+  - The same parser handles `"reason":"test"` and
+    `"reason":"suite"` lines:
+    - `test` with `event:"started"`: silently dropped (start
+      events are noise).
+    - `test` with `event:"ok"`: silently dropped (passing tests
+      are the noise we exist to remove).
+    - `test` with `event:"failed"`: emit one Event.
+      `Severity = SeverityError`, `Kind = "test_failure"`.
+      `Title = "test <test_name> failed"`. `Body = stdout`
+      (cargo test captures stdout per-test and includes it in
+      the JSON). `Metadata["test_name"]` = the test's name.
+    - `suite` with `event:"failed"`: emit a summary Event.
+      `Severity = SeverityError`, `Kind = "test_suite_failure"`,
+      `Title` reflecting failed/passed counts.
+    - `suite` with `event:"ok"`: silently dropped.
+  - When the input is a mix of `compiler-message` (M24.2) and
+    `test` events (`cargo test` re-runs the build), both shapes
+    coexist in one stream and both fire Events.
+- **Tests:**
+  - `TestCargoJSON_ParseTestFailed`: fixture with one failed
+    test event; assert Event shape.
+  - `TestCargoJSON_ParseTestPassing_NoEvent`: fixture with 100
+    passing test events; assert zero Events.
+  - `TestCargoJSON_ParseSuiteSummary`: fixture with a `suite`
+    event reporting 5 passed / 2 failed; assert one
+    `test_suite_failure` Event.
+  - `TestCargoJSON_ParseBuildPlusTestStream`: realistic
+    `cargo test` output with rebuild + test events; assert
+    rebuild errors and test failures both emerge with the right
+    `Kind`.
+  - Golden test cases under
+    `internal/formats/cargojson/testdata/test-*.input`.
+- **Docs:**
+  - Extend `docs/formats/cargo.md` with the test-event section.
+  - README "Supported formats" promotes the entry from
+    "detect-only" to "shipped" once M24.3 lands.
+
+#### M24.4 — Parse line-oriented rustc output (fallback)
+
+- **DoD:**
+  - When detect returned `0.8` (no JSON envelope), parse the
+    default rustc renderer output:
+    - Multi-line block starting `^error\[E\d+\]: <msg>` or
+      `^warning: <msg>` and containing one `--> <path>:<line>:<col>`
+      reference.
+    - One Event per block. `Severity` from the prefix
+      (`error` / `warning`). `Kind = "compiler_message"`.
+      `Title` = the first line. `Body` = the verbatim block.
+      `Location` parsed from the first `--> path:line:col` line.
+  - This path is a best-effort fallback for users who pipe
+    `cargo build 2>&1` without `--message-format=json`. The JSON
+    path is preferred; this path exists so the Format isn't a
+    dead end when users forget the flag.
+- **Tests:**
+  - `TestCargoJSON_ParseLineOrientedError`.
+  - `TestCargoJSON_ParseLineOrientedWarning`.
+  - `TestCargoJSON_ParseLineOrientedMultipleBlocks`.
+  - Golden cases under
+    `internal/formats/cargojson/testdata/lineoriented-*.input`.
+- **Docs:**
+  - Extend `docs/formats/cargo.md` with a section on the
+    line-oriented fallback and a recommendation to prefer
+    `--message-format=json` for fidelity.
+
+### M24 exit criteria
+
+- All four sub-items ticked.
+- `make check` clean; no race hits.
+- M24 milestone drift check: SCHEMA.md `cargo` Kind section
+  exists; README format list mentions the format as shipped;
+  `docs/formats/cargo.md` documents JSON, line-oriented, and test
+  paths; the integration test suite has at least one end-to-end
+  `cargo` fixture each for build and test.
+
+### v1.1 exit criteria
+
+- M23 and M24 both shipped, tagged, and released.
+- The static-analysis theme is documented in the v1.1 release
+  notes.
+- Before the v1.2 branch opens, re-check the
+  [ADR-0002 re-evaluation criteria](./docs/decisions/0002-v1.0-scope-and-post-v1.0-roadmap.md#re-evaluation-criteria) —
+  user signal since v1.0 may justify reordering v1.2 / v1.3.
 
 ---
 
@@ -3540,15 +3917,185 @@ branch opens, per the
 
 ### M22 — Compiler / build-error formats
 
-- [ ] `rustc` / `cargo` output as a Format
+Narrowed by
+[ADR-0002](./docs/decisions/0002-v1.0-scope-and-post-v1.0-roadmap.md):
+Rust (rustc / cargo / clippy) moved forward into
+[M24](#m24--cargo-json-format-rustc--cargo-build--cargo-test--clippy)
+under v1.1. `go build` errors are already handled by `gotest` (M10
+emits `build_failure` Events). What remains here:
+
 - [ ] `tsc` output as a Format
-- [ ] `go build` output as a Format (currently overlaps with `gotest`;
-      decide whether to merge or split)
 - [ ] `gcc` / `clang` output as a Format
-- [ ] Independent of M18–M21 architecturally; this is "more formats"
-      in the v1.1 sense, but listed here because compiler errors
-      reference source positions and benefit from the same per-event
-      structure code distillation defines
+- [ ] Independent of M18–M21 architecturally; listed here because
+      compiler errors reference source positions and benefit from
+      the same per-event structure code distillation defines
+
+---
+
+## v1.4 — Documentation formats
+
+Per [ADR-0002](./docs/decisions/0002-v1.0-scope-and-post-v1.0-roadmap.md).
+Markdown outline is the cheapest doc-format opportunity and pairs
+naturally with the M20 agent-read wrapper (v1.3) that consumes it.
+HTML readable-content extraction is a candidate but deferred to its
+own design pass; not scoped here.
+
+### M25 — Markdown outline format
+
+A `markdown` Format that emits one Event per heading, capturing the
+heading hierarchy of a Markdown document. Useful as a "what's in
+this file" probe — particularly for the M20 agent-read wrapper,
+which can serve the outline to an agent before any prose content.
+
+Detection is the file's content shape rather than its filename:
+`Format.Detect` returns `0.7` when a sample contains at least three
+ATX headings (`^#{1,6} `) **and** has Markdown-typical formatting
+(bullet lists, fenced code blocks, link syntax). It deliberately
+loses to any specific format on ties because Markdown is a
+container — a Markdown file containing a pytest log should detect
+as pytest, not Markdown.
+
+Cross-references
+[ARCHITECTURE.md § Format plugin contract](./ARCHITECTURE.md#format-plugin-contract),
+[docs/formats/SCHEMA.md § Kind values](./docs/formats/SCHEMA.md#kind-values).
+
+M25 builds on M1, M3, M7, M9, and M10's testing patterns. Each
+item lists Definition of Done, required tests, and required doc
+updates per the
+[alignment rule](./.opencode/rules/alignment.md).
+
+#### M25.1 — Skeleton + Detect
+
+- **DoD:**
+  - New package `internal/formats/markdown` exporting `Format`.
+  - `func init() { formats.Register(Format{}) }`.
+  - `Name() string` returns `"markdown"`.
+  - `Detect(sample []byte) Confidence`:
+    - `0.7` when the sample contains ≥ 3 ATX-heading lines
+      (`^#{1,6} ` with the trailing space) **and** at least one
+      of: a fenced code block (`^```\w*`), a bullet-list line
+      (`^[-*+] `), or a link `[text](url)` sequence. The
+      composite check rejects log files that happen to contain
+      lines starting with `#` (comments, shell history).
+    - `0.0` otherwise.
+    - Threshold constant `confidenceMarkdown = 0.7`.
+    - **Deliberately below 1.0.** Markdown is a container format;
+      any specific format (gotest, pytest, jest, cargo, etc.)
+      contained inside a Markdown file should win the tie. The
+      0.7 floor sits below their `confidenceClearMarker = 1.0`
+      and above the `generic` floor (0.1).
+  - `Parse(ctx, r, opts)` returns an immediately-closed channel
+    with `nil` error for M25.1.
+- **Tests** (`internal/formats/markdown/markdown_test.go`):
+  - `TestMarkdown_DetectHeadingsPlusCodeFence`.
+  - `TestMarkdown_DetectHeadingsPlusBullets`.
+  - `TestMarkdown_DetectHeadingsPlusLinks`.
+  - `TestMarkdown_DetectInsufficientHeadings`: two headings only
+    → `0.0`.
+  - `TestMarkdown_DetectNotShellHistory`: a file of `# command`
+    lines with no formatting → `0.0`.
+  - `TestMarkdown_DetectLosesToSpecific`: a pytest log embedded
+    in a Markdown fixture detects as pytest, not markdown
+    (depends on M11 being shipped; if M11 is still pending when
+    M25.1 lands, use gotest as the embedded format).
+  - `TestMarkdown_RegisteredAtInit`.
+  - `TestMarkdown_ParseEmptyStub`.
+- **Docs:**
+  - Godoc on `Format`, `Detect`, `Parse`, the confidence
+    constant.
+  - New `docs/formats/markdown.md` with the section skeleton
+    (intro, detection model, what's extracted — `heading` Event
+    per heading — what's dropped, example I/O).
+  - README "Supported formats" gets a "detect-only, parser lands
+    in M25.2" entry when M25.1 lands.
+
+#### M25.2 — Parse ATX and setext headings
+
+- **DoD:**
+  - Streaming scanner over `r`. Each ATX heading
+    (`^(#{1,6}) (.+)$`) emits one Event:
+    - `Severity = SeverityInfo`.
+    - `Kind = "heading"`.
+    - `Title` = the heading text (after the `#` prefix and the
+      one mandatory space, trailing whitespace trimmed).
+    - `Location = {File: <filename if known>, Line: <line>}` —
+      the source filename comes from `opts.Filename` (a new
+      `ParseOpts` field added at this milestone; the line comes
+      from the scanner's running line counter.
+    - `Body` = empty (the heading text is already in `Title`).
+    - `Metadata["level"]` = the heading level as a decimal
+      string ("1" through "6").
+    - `Metadata["anchor"]` = the GitHub-flavoured anchor slug
+      (lowercase, spaces → hyphens, strip non-alphanumeric
+      except `-`).
+  - Setext headings (`====` / `----` underlines on the line
+    following the heading text) emit Events with `level=1` and
+    `level=2` respectively. The scanner uses a one-line
+    lookahead.
+  - **Inside fenced code blocks**, lines starting with `#` are
+    not headings. The scanner tracks the fence state with a
+    boolean flag.
+  - Streaming: each Event forwards as the heading line (or, for
+    setext, the underline line) is consumed.
+- **Tests:**
+  - `TestMarkdown_ParseAtxHeadings`: fixture with H1–H6;
+    assert six Events with the documented `Metadata["level"]`.
+  - `TestMarkdown_ParseSetextHeadings`: fixture with `===` and
+    `---` underlines; assert two Events with levels 1 and 2.
+  - `TestMarkdown_ParseAnchor`: feed `## Hello, World!`; assert
+    `Metadata["anchor"] == "hello-world"`.
+  - `TestMarkdown_ParseFencedCodeBlock_NotHeading`: fixture with
+    a heading-like line inside a `````` fence; assert zero
+    Events.
+  - `TestMarkdown_ParseStreaming`: `testutil.SlowReader` drips
+    a fixture; first Event emerges before EOF.
+  - `TestMarkdown_ParseLineNumberAccuracy`: feed a fixture with
+    a heading on line 47; assert `Location.Line == 47`.
+  - Golden tests under `internal/formats/markdown/testdata/`
+    per the M10 harness pattern. Minimum five cases: ATX-only,
+    setext-only, mixed ATX and setext, fenced-block guard,
+    deeply nested (H5/H6).
+- **Docs:**
+  - Extend `docs/formats/markdown.md` with the heading taxonomy,
+    fenced-block rule, anchor algorithm, example I/O.
+  - Add the `heading` Kind value to SCHEMA.md.
+  - README "Supported formats" promotes the entry to "shipped"
+    once M25.2 lands.
+
+### M25 exit criteria
+
+- Both sub-items ticked.
+- `make check` clean.
+- M25 milestone drift check: SCHEMA.md `heading` Kind documented;
+  README format list mentions Markdown as shipped; the
+  integration test suite has at least one end-to-end Markdown
+  fixture.
+- Note: M25 ships outline-only. Other Markdown features (link
+  inventory, code-block extraction, front-matter) are explicitly
+  deferred — they need their own design and value-vs-cost case.
+
+---
+
+## v1.5 — More log / test formats (post-launch)
+
+The displaced original v1.1 list, per
+[ADR-0002](./docs/decisions/0002-v1.0-scope-and-post-v1.0-roadmap.md).
+These items are not yet scoped; they will be scoped one-by-one
+after v1.0 ships, in priority order determined by real usage
+signal.
+
+- [ ] `k8s` format: kubectl logs, structured + unstructured
+- [ ] `json` format: generic JSON-per-line logs (Zap, slog, Bunyan, Pino)
+- [ ] `npm`/`yarn`/`pnpm` install/build output
+- [ ] `rspec` format
+- [ ] `mocha` format
+
+> The previous note about cargo / rustc / tsc / gcc has been
+> resolved: cargo and rustc ship in
+> [M24](#m24--cargo-json-format-rustc--cargo-build--cargo-test--clippy)
+> under v1.1; tsc / gcc / clang remain in
+> [M22](#m22--compiler--build-error-formats) under v1.3; `go build`
+> errors are already handled by `gotest` (M10).
 
 ---
 

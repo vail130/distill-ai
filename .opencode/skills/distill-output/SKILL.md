@@ -53,6 +53,15 @@ The remaining gaps are pytest (**M11**) and jest (**M12**). Until
 those ship, pytest / jest output falls back to `generic`. Use
 `--strict` to turn the fallback into a hard error (exit 2) for CI.
 
+Looking past v1.0: the post-v1.0 roadmap is recorded in
+[ADR-0002](../../../docs/decisions/0002-v1.0-scope-and-post-v1.0-roadmap.md).
+v1.1 will add `golangci-lint` + `go vet` (M23) and `cargo`
+(M24) Formats — both consume upstream-emitted JSON envelopes,
+so dogfooding them once they ship will look like
+`golangci-lint run --out-format=json | ./bin/distill-ai` and
+`cargo build --message-format=json | ./bin/distill-ai`.
+Update this section in the same commit that wires either Format.
+
 The full surface today is enumerated in the manifest below.
 
 <!-- BEGIN cli-surface -->

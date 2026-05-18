@@ -187,7 +187,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-_None yet._
+- ADR-0002 records the v1.0 scope (unchanged: `pytest`, `jest`,
+  `gotest`, `generic`) and the post-v1.0 roadmap: v1.1 is now a
+  focused static-analysis & linting theme (M23 `golangci-lint` +
+  `go vet`, M24 `cargo-json` covering rustc / cargo build /
+  cargo test / clippy via `--message-format=json`); v1.2 (MCP) and
+  v1.3 (code distillation) are unchanged; v1.4 adds Markdown
+  outline (M25); the previous v1.1 grab-bag (k8s, JSON logs,
+  npm/yarn/pnpm, rspec, mocha) moves to v1.5. M22 narrows to
+  `tsc` / `gcc` / `clang` since Rust moved forward into M24. The
+  three post-v1.0 milestones (M23, M24, M25) are scoped now so the
+  working-agreement minimum of three open scoped milestones holds
+  once M11–M13 land. ARCHITECTURE.md, TODO.md, and the
+  `distill-output` skill updated to point at the new ADR.
 
 ### Deprecated
 
