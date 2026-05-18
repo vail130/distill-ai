@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- M14.1: `internal/config` package decodes the TOML configuration
+  schema documented in `docs/config.md` (and sketched in
+  ARCHITECTURE.md § Config file). `Config.Load(path)` and
+  `Config.LoadBytes(data)` decode a single file into the in-memory
+  shape; unknown keys (typos like `keep_warning` instead of
+  `keep_warnings`) fail loudly with the offending dotted key
+  named, and an explicit `schema_version` mismatch produces a
+  clear "config schema version N not supported by this binary
+  (version 1)" error. Per-format `[formats.<name>]` blocks decode
+  into a `FormatConfig` whose nullable-pointer fields distinguish
+  an explicit zero from an absent key — the precedence chain in
+  M14.3 depends on that distinction. `[[formats.custom.NAME]]`
+  array tables decode into `CustomFormats[NAME]` with
+  `detect_regex` and `event_start` validated as required; regex
+  compilation is deferred to M14.5. Adds `BurntSushi/toml` v1.6.0
+  as the second project-config dependency (after the cobra /
+  pflag pair landed in M8.1).
 - M10: `gotest` format — the first specific Format ships
   end-to-end. The detector raises Confidence to 1.0 on
   `--- FAIL:` headers, `FAIL\t<pkg>` summaries (with a Go-package-
