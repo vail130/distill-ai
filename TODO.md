@@ -4357,7 +4357,7 @@ Go" section is finalised). Each item below lists Definition of
 Done, required tests, and required doc updates per the
 [alignment rule](./rules/alignment.md).
 
-### M16.1 — Man page generated from cobra (`man/distill-ai.1`)
+### M16.1 — Man page generated from cobra (`man/distill-ai.1`) ✅
 
 Land the build artefact, wire it into the release pipeline, and
 add a drift-guard test that fails if a new subcommand or flag is
