@@ -29,17 +29,21 @@ const SchemaVersion = 1
 // LineCounter wraps an io.Reader and counts the newline-terminated
 // lines that flow through it. The CLI (M8) installs one around the
 // pipeline's input so the Sink can render the "distilled N → M lines"
-// footer. Safe for concurrent reads under one writer because the count
-// is updated with atomic.AddInt64 — the Sink reads the value after the
-// pipeline drains, so there is no in-flight contention in practice,
-// but the atomic guards against any future Source that might count
-// while a Sink is still emitting.
+// footer.
+//
+// Both the line count and the "trailing partial line" flag are stored
+// atomically so a concurrent Reader (parser goroutine still running
+// under context cancellation) and a Lines() caller (orchestrator
+// Wait reading the Summary) can race without producing undefined
+// behaviour. The trailing flag uses an int32 because Go's atomic
+// package doesn't expose a Bool type that's safe across older
+// toolchains; 0 means false and 1 means true.
 type LineCounter struct {
 	// Reader is the underlying source. Required.
 	Reader io.Reader
 
 	lines    int64
-	trailing bool
+	trailing int32
 }
 
 // Read implements io.Reader and counts newlines in the bytes returned.
@@ -60,7 +64,11 @@ func (l *LineCounter) Read(p []byte) (int, error) {
 			}
 		}
 		atomic.AddInt64(&l.lines, newlines)
-		l.trailing = n > 0 && p[n-1] != '\n'
+		if p[n-1] != '\n' {
+			atomic.StoreInt32(&l.trailing, 1)
+		} else {
+			atomic.StoreInt32(&l.trailing, 0)
+		}
 	}
 	return n, err
 }
@@ -70,7 +78,7 @@ func (l *LineCounter) Read(p []byte) (int, error) {
 // one line, matching `wc -l` semantics on most platforms.
 func (l *LineCounter) Lines() int {
 	n := atomic.LoadInt64(&l.lines)
-	if l.trailing {
+	if atomic.LoadInt32(&l.trailing) == 1 {
 		n++
 	}
 	return int(n)

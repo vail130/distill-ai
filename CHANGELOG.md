@@ -9,6 +9,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- M15.4: `pkg/distill/internal/orchestrator` private subpackage.
+  Hosts the bridge between the public `pkg/distill.Options` and
+  every internal package the run touches: `internal/detect`,
+  `internal/envelope`, `internal/formats`, `internal/output`,
+  `internal/pipeline`, `internal/tokens`. Go's `internal/`
+  visibility rule keeps the orchestrator unreachable from outside
+  the `pkg/distill` subtree, so the public surface
+  (`pkg/distill/distill.go`, `options.go`, `errors.go`) stays
+  clean while the bridge can freely import internal packages.
+  The package exposes `Setup(ctx, Config, Reader) (*Run, error)`
+  which validates the Config, resolves format (autodetect or
+  explicit), wires envelope stripping, builds the pipeline, and
+  returns a `*Run` whose `Start(ctx)` / `Wait()` split lets the
+  caller stream Events to its consumer while the pipeline runs,
+  then read the Summary once the channel closes. Five sentinel
+  errors — `ErrNilReader`, `ErrNilWriter`, `ErrUnknownTokenizer`,
+  `ErrUnknownFormat`, `ErrUnknownOutput`,
+  `ErrUnknownStripEnvelope` — surface setup failures before any
+  goroutine starts. `pkg/distill/register.go` brings the v1
+  format set (generic, gotest, jest, pytest) and envelope
+  strippers (github-actions, gitlab-ci) into the global registry
+  via side-effect imports so library consumers get the same
+  default behaviour as the CLI without enumerating each one.
+  Twelve orchestrator unit tests cover every sentinel error
+  arm, the end-to-end gotest path, explicit-format-beats-detect,
+  zero-events exit-code mapping, context cancellation, ndjson
+  output, markdown fence-lang, and the MinSeverity propagation
+  into ParseOpts. Two integration tests in test/integration/
+  guard the layering invariant: `TestPublicAPI_NoLeakedInternalImports`
+  parses every .go file directly under pkg/distill/ and asserts
+  every internal/* import is either (a) a documented type-alias
+  target (internal/event, internal/formats) or (b) a known
+  side-effect import for registry registration;
+  `TestPublicAPI_OrchestratorIsPrivate` confirms the
+  orchestrator directory sits under pkg/distill/internal/ so
+  Go's visibility rule protects it.
 - M15.1: `pkg/distill` public library API surface. New
   `Options` struct exposes every CLI flag's library equivalent
   (Format, Strict, Output, Budget, Tokenizer, DedupeWindow,
