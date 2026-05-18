@@ -1,0 +1,27 @@
+============================= test session starts ==============================
+collected 2 items
+
+tests/test_db.py F                                                      [ 50%]
+tests/test_cache.py E                                                   [100%]
+
+=================================== FAILURES ===================================
+________________________________ test_query ________________________________
+
+    def test_query(db):
+>       assert db.fetch("u1") is not None
+E       AssertionError: assert None is not None
+
+tests/test_db.py:14: AssertionError
+=================================== ERRORS ====================================
+________________________ ERROR at setup of test_cache_hit ________________________
+
+@pytest.fixture
+def cache():
+>       raise ConnectionError("redis unreachable")
+E       ConnectionError: redis unreachable
+
+tests/conftest.py:25: ConnectionError
+=========================== short test summary info ============================
+FAILED tests/test_db.py::test_query
+ERROR tests/test_cache.py::test_cache_hit - ConnectionError
+======================== 1 failed, 1 error in 0.19s ===========================

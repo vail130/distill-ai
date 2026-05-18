@@ -49,9 +49,16 @@ and `race_condition` Event kinds plus structured stack frames and
 `-json` reporter support. `make test 2>&1 | ./bin/distill-ai` is
 now the canonical dogfooding loop for this project.
 
-The remaining gaps are pytest (**M11**) and jest (**M12**). Until
-those ship, pytest / jest output falls back to `generic`. Use
-`--strict` to turn the fallback into a hard error (exit 2) for CI.
+**M11** adds the **pytest** format: `=== FAILURES ===` and
+`=== ERRORS ===` blocks, parametrised test IDs, four `--tb`
+reporter shapes, the `=== warnings summary ===` section, and
+structured stack frames. Emits `test_failure`, `test_error`,
+`collection_error`, and `warning` Events. The filter rules from
+`--keep-warnings` / `--severity` apply.
+
+The remaining gap is jest (**M12**). Until that ships, jest
+output falls back to `generic`. Use `--strict` to turn the
+fallback into a hard error (exit 2) for CI.
 
 Looking past v1.0: the post-v1.0 roadmap is recorded in
 [ADR-0002](../../../docs/decisions/0002-v1.0-scope-and-post-v1.0-roadmap.md).
@@ -167,7 +174,7 @@ The same shape works for any tool's output — `kubectl logs`, an
 application log — and falls back to the regex-driven generic
 scanner when no specific format claims it.
 
-### Distil a pytest run (once M11 lands)
+### Distil a pytest run
 
 ```sh
 pytest -v 2>&1 | ./bin/distill-ai pytest --output=markdown
@@ -176,6 +183,9 @@ pytest -v 2>&1 | ./bin/distill-ai pytest --output=markdown
 Useful when working on `internal/formats/pytest/` — feed your own
 fixture, see what comes out, iterate. The explicit `pytest`
 argument skips autodetect; drop it to let the detector pick.
+Pass `--keep-warnings` to also capture entries from the
+`=== warnings summary ===` section; warnings are dropped by
+default so the distilled output stays focused on failures.
 
 ### Dry-run a pipeline with `explain`
 

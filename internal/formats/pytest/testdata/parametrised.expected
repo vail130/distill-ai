@@ -1,0 +1,58 @@
+[
+  {
+    "severity": "error",
+    "kind": "test_failure",
+    "title": "AssertionError: assert None == 7",
+    "location": {
+      "file": "tests/test_parse.py",
+      "line": 18,
+      "column": null
+    },
+    "body": [
+      "______________________ test_parse[input2-expected2] ______________________",
+      "",
+      "input = '0o7', expected = 7",
+      "",
+      "    @pytest.mark.parametrize(\"input,expected\", [...])",
+      "    def test_parse(input, expected):",
+      "\u003e       assert parse(input) == expected",
+      "E       AssertionError: assert None == 7",
+      "",
+      "tests/test_parse.py:18: AssertionError"
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "test_id": "test_parse[input2-expected2]"
+    }
+  },
+  {
+    "severity": "error",
+    "kind": "test_failure",
+    "title": "AssertionError: assert None == 5",
+    "location": {
+      "file": "tests/test_parse.py",
+      "line": 18,
+      "column": null
+    },
+    "body": [
+      "______________________ test_parse[input4-expected4] ______________________",
+      "",
+      "input = '0b101', expected = 5",
+      "",
+      "    @pytest.mark.parametrize(\"input,expected\", [...])",
+      "    def test_parse(input, expected):",
+      "\u003e       assert parse(input) == expected",
+      "E       AssertionError: assert None == 5",
+      "",
+      "tests/test_parse.py:18: AssertionError"
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "test_id": "test_parse[input4-expected4]"
+    }
+  }
+]

@@ -1,0 +1,27 @@
+[
+  {
+    "severity": "error",
+    "kind": "test_failure",
+    "title": "AssertionError: assert 'fail' == 'ok'",
+    "location": {
+      "file": "tests/test_legacy.py",
+      "line": 12,
+      "column": null
+    },
+    "body": [
+      "________________________________ test_old_api ________________________________",
+      "",
+      "    def test_old_api():",
+      "\u003e       assert legacy_call() == \"ok\"",
+      "E       AssertionError: assert 'fail' == 'ok'",
+      "",
+      "tests/test_legacy.py:12: AssertionError"
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "test_id": "test_old_api"
+    }
+  }
+]

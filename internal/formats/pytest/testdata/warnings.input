@@ -1,0 +1,24 @@
+============================= test session starts ==============================
+collected 2 items
+
+tests/test_legacy.py .F                                                 [100%]
+
+=================================== FAILURES ===================================
+________________________________ test_old_api ________________________________
+
+    def test_old_api():
+>       assert legacy_call() == "ok"
+E       AssertionError: assert 'fail' == 'ok'
+
+tests/test_legacy.py:12: AssertionError
+============================== warnings summary ===============================
+tests/test_legacy.py::test_old_api
+  /path/tests/test_legacy.py:9: DeprecationWarning: legacy_call is deprecated, use new_call() instead
+    legacy_call()
+
+tests/test_legacy.py::test_old_api
+  /path/src/util.py:42: PendingDeprecationWarning: helper() will move to util.helpers
+    helper()
+=========================== short test summary info ============================
+FAILED tests/test_legacy.py::test_old_api
+=================== 1 failed, 1 passed, 2 warnings in 0.07s ===================

@@ -26,13 +26,15 @@ Milestones M1–M13 are scoped this way today, along with the three
 post-v1.0 milestones M23, M24, and M25 that
 [ADR-0002](./docs/decisions/0002-v1.0-scope-and-post-v1.0-roadmap.md)
 introduces. Per the working agreement, **at least** the next three
-open milestones are kept fully scoped at all times. As of M10's
-completion, the open scoped set is M11 (pytest), M12 (jest), and
-M13 (envelope). When the v1.0 release prep (M17) lands and the v1.1
-branch opens, the next scoped three will be M23 (golangci-lint),
-M24 (cargo-json), and M25 (Markdown outline) — already scoped below
-so the v1.1 cut is ready when v1.0 ships. M14–M17 (the rest of
-v1.0) and M18–M22 (v1.3 code distillation) remain sketched.
+open milestones are kept fully scoped at all times. As of M11's
+completion the open scoped set is M12 (jest) and M13 (envelope);
+M14 (config) is next in line and needs its sub-items expanded
+before the M12 milestone closes. When the v1.0 release prep (M17)
+lands and the v1.1 branch opens, the next scoped three will be
+M23 (golangci-lint), M24 (cargo-json), and M25 (Markdown outline)
+— already scoped below so the v1.1 cut is ready when v1.0 ships.
+M14–M17 (the rest of v1.0) and M18–M22 (v1.3 code distillation)
+remain sketched.
 
 ---
 
@@ -2338,7 +2340,7 @@ integration test (addresses
 
 ---
 
-## M11 — pytest format
+## M11 — pytest format ✅
 
 The second real format parser, modelled on M10's gotest implementation
 shape. M11 implements `formats.Format` for pytest — detect by terminal
@@ -2562,7 +2564,7 @@ non-default `--tb` settings (`short`, `line`, `native`).
     by side, the rule for when Frames is populated vs nil, the
     warning handling.
 
-### M11.5 — Fixtures, ARCHITECTURE update, and integration coverage
+### M11.5 — Fixtures, ARCHITECTURE update, and integration coverage ✅
 
 Tie M11 off with the canonical fixture set per
 [CONTRIBUTING.md § Adding a format](./CONTRIBUTING.md#adding-a-format),
