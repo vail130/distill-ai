@@ -40,21 +40,47 @@ also fails to claim the format, verified by
 
 ## What gets extracted
 
-M12.1 ships only the skeleton: `Parse` returns an immediately-closed
-channel so the autodetect → parse path is exercised end-to-end
-while the scanner is under construction.
+M12.2 ships the `●` block scanner. Each failure block emits one
+Event with:
 
-M12.2–M12.4 fill in the parser:
+- `Severity = SeverityError`.
+- `Kind = "test_failure"`.
+- `Title` derived by walking body lines for, in order:
+    1. an `expect(...).toBe(...)`-style assertion call,
+    2. an `Expected: <value>` line (jest's structured diff render),
+    3. an `Error: <msg>` / `<Class>Error: <msg>` line,
+    4. the trimmed test-path text from the `●` header.
 
-- `●`-anchored failure blocks → `Kind="test_failure"`.
-- `expect(...).toMatchSnapshot(...)` / `toMatchInlineSnapshot(...)`
-  blocks with a `Snapshot:` / `Received:` diff →
-  `Kind="snapshot_mismatch"`, with `Metadata["snapshot_kind"]`
-  distinguishing file-backed from inline snapshots.
-- Top-of-file suite failures (`● Test suite failed to run` and the
-  bare-file `●` variant) → `Kind="suite_error"`.
-- Frame extraction from the indented `at <fn> (<path>:<line>:<col>)`
-  lines at the foot of each failure block.
+  ANSI escape sequences are stripped from Title before precedence
+  matching so coloured default-reporter output and plain CI output
+  produce the same Title. Body retains the escapes verbatim.
+- `Location` = the first `at <fn> (<path>:<line>:<col>)` or
+  `at <path>:<line>:<col>` stack-frame line, populated as
+  `{File, Line, Column}`. Nil when no stack frame appears in the
+  block (deliberately suppressed output, jest's `--noStackTrace`
+  flag).
+- `Body` = the verbatim block lines from the `●` header through
+  the block terminator, ANSI escapes intact.
+- `Metadata["test_id"]` = the test-path text from the `●` header,
+  with the Unicode chevron `›` (U+203A) normalised to ASCII `>` so
+  the value is grep-able from any terminal or editor.
+- `Metadata["suite_file"]` = the file path from the most recent
+  `FAIL <path>` per-file header in scope.
+
+Block terminators: the next `●` header, the next `FAIL`/`PASS`
+per-file header, a `Test Suites:` or `Tests:` summary line, or EOF.
+
+M12.3 will distinguish snapshot mismatches (`toMatchSnapshot` /
+`toMatchInlineSnapshot` with `Snapshot:` / `Received:` diffs)
+into a `snapshot_mismatch` kind with the diff captured in Body and
+`Metadata["snapshot_kind"]` distinguishing file-backed from inline
+snapshots.
+
+M12.4 will populate `Event.Frames` from every `at` line in the
+block (not just the first, which M12.2 uses for Location), emit
+`suite_error` for the `● Test suite failed to run` and bare-file
+`●` shapes, and lock down the `--verbose` and CI reporter mode
+goldens.
 
 The set is finalised in M12.5 with the canonical fixture set.
 

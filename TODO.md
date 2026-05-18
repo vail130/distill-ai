@@ -2744,7 +2744,7 @@ exercises the new format end-to-end before the heavy parser arrives.
     as "detect-only, parser lands in M12.2" for M12.1; M12.5
     promotes it to "shipped".
 
-### M12.2 — Parse failure blocks (test_failure)
+### M12.2 — Parse failure blocks (test_failure) ✅
 
 The common case: a default-reporter failure block runs from a `●`
 line to the next `●` line, the next file's `PASS`/`FAIL` header, or
