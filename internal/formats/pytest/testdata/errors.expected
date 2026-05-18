@@ -1,0 +1,53 @@
+[
+  {
+    "severity": "error",
+    "kind": "test_failure",
+    "title": "AssertionError: assert None is not None",
+    "location": {
+      "file": "tests/test_db.py",
+      "line": 14,
+      "column": null
+    },
+    "body": [
+      "________________________________ test_query ________________________________",
+      "",
+      "    def test_query(db):",
+      "\u003e       assert db.fetch(\"u1\") is not None",
+      "E       AssertionError: assert None is not None",
+      "",
+      "tests/test_db.py:14: AssertionError"
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "test_id": "test_query"
+    }
+  },
+  {
+    "severity": "error",
+    "kind": "test_error",
+    "title": "ConnectionError: redis unreachable",
+    "location": {
+      "file": "tests/conftest.py",
+      "line": 25,
+      "column": null
+    },
+    "body": [
+      "________________________ ERROR at setup of test_cache_hit ________________________",
+      "",
+      "@pytest.fixture",
+      "def cache():",
+      "\u003e       raise ConnectionError(\"redis unreachable\")",
+      "E       ConnectionError: redis unreachable",
+      "",
+      "tests/conftest.py:25: ConnectionError"
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "test_id": "ERROR at setup of test_cache_hit"
+    }
+  }
+]

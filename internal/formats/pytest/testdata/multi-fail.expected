@@ -1,0 +1,78 @@
+[
+  {
+    "severity": "error",
+    "kind": "test_failure",
+    "title": "AssertionError: assert 'x' == 'y'",
+    "location": {
+      "file": "tests/test_a.py",
+      "line": 10,
+      "column": null
+    },
+    "body": [
+      "________________________________ test_alpha ________________________________",
+      "",
+      "    def test_alpha():",
+      "\u003e       assert compute(\"x\") == \"y\"",
+      "E       AssertionError: assert 'x' == 'y'",
+      "",
+      "tests/test_a.py:10: AssertionError"
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "test_id": "test_alpha"
+    }
+  },
+  {
+    "severity": "error",
+    "kind": "test_failure",
+    "title": "AssertionError: assert None is not None",
+    "location": {
+      "file": "tests/test_a.py",
+      "line": 25,
+      "column": null
+    },
+    "body": [
+      "________________________________ test_gamma ________________________________",
+      "",
+      "    def test_gamma():",
+      "\u003e       assert lookup(42) is not None",
+      "E       AssertionError: assert None is not None",
+      "",
+      "tests/test_a.py:25: AssertionError"
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "test_id": "test_gamma"
+    }
+  },
+  {
+    "severity": "error",
+    "kind": "test_failure",
+    "title": "AssertionError: assert 500 == 200",
+    "location": {
+      "file": "tests/test_b.py",
+      "line": 8,
+      "column": null
+    },
+    "body": [
+      "________________________________ test_beta ________________________________",
+      "",
+      "    def test_beta():",
+      "        result = run()",
+      "\u003e       assert result.status_code == 200",
+      "E       AssertionError: assert 500 == 200",
+      "",
+      "tests/test_b.py:8: AssertionError"
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "test_id": "test_beta"
+    }
+  }
+]

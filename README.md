@@ -43,11 +43,13 @@ noise.
   Emits `test_failure`, `panic`, `build_failure`, and
   `race_condition` Events with structured stack frames. Documented
   at [docs/formats/gotest.md](./docs/formats/gotest.md).
-- `pytest` (M11, detect-only until M11.2) — parses pytest output.
-  Detect anchors on the `=== test session starts ===` and
-  `=== FAILURES ===` banners. Scanner lands across M11.2-M11.4 and
-  will emit `test_failure`, `test_error`, `collection_error`, and
-  `warning` Events. Documented at
+- `pytest` (M11) — parses pytest output: `=== FAILURES ===` and
+  `=== ERRORS ===` blocks, the four `--tb` shapes (`long`,
+  `short`, `line`, `native`), warnings summary, parametrised test
+  IDs, collection-phase failures. Emits `test_failure`,
+  `test_error`, `collection_error`, and `warning` Events with
+  structured stack frames. Honours `--keep-warnings` and
+  `--severity`. Documented at
   [docs/formats/pytest.md](./docs/formats/pytest.md).
 - `jest` (planned, M12) — test-runner format with structured
   failure / snapshot-mismatch / suite-error extraction.

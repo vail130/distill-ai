@@ -394,9 +394,8 @@ func TestBinary_DetectPlaintextInput(t *testing.T) {
 // on stdout. Replaces the pre-M11 fall-through assertion that
 // asserted exit 1 / fellback_to_generic=true.
 //
-// The full end-to-end positive test (`run` subcommand emitting
-// distilled Events) lands in M11.5 once the scanner is in place;
-// this M11.1 test only confirms the detector wires up.
+// The full end-to-end positive `run`-path test that this milestone
+// also ships lives below as TestBinary_PytestEndToEndProducesOutput.
 func TestBinary_DetectPytestFixturePositive(t *testing.T) {
 	path := writeTempFixture(t, readFixture(t, "pytest-fail.input"))
 	got := runBinary(t, "", "detect", path)
@@ -477,6 +476,34 @@ func TestBinary_GotestEndToEndProducesOutput(t *testing.T) {
 		"expected 200, got 500",
 		// test_id metadata appears in the per-event block.
 		"TestThing",
+	}
+	for _, w := range wants {
+		if !strings.Contains(got.stdout, w) {
+			t.Errorf("stdout missing %q; got:\n%s", w, got.stdout)
+		}
+	}
+}
+
+// TestBinary_PytestEndToEndProducesOutput pins the M11 happy
+// path: feeding a pytest-shaped fixture through the binary
+// detects the pytest format, runs the M11.2 / M11.3 / M11.4
+// scanner, and emits a non-empty distilled summary.
+//
+// Mirrors TestBinary_GotestEndToEndProducesOutput so the two
+// real-format end-to-end tests stay in lock-step.
+func TestBinary_PytestEndToEndProducesOutput(t *testing.T) {
+	input := readFixture(t, "pytest-fail.input")
+	got := runBinary(t, input)
+	if got.exitCode != 0 {
+		t.Fatalf("exit = %d, want 0 (events emitted); stdout=%q stderr=%q",
+			got.exitCode, got.stdout, got.stderr)
+	}
+	wants := []string{
+		"events from pytest",
+		// Title derived from the `E   ` assertion line.
+		"AssertionError: expected '/dashboard', got '/login?next=/'",
+		// test_id metadata appears in the per-event block.
+		"tests/test_auth.py:47",
 	}
 	for _, w := range wants {
 		if !strings.Contains(got.stdout, w) {

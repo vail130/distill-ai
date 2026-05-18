@@ -1,0 +1,28 @@
+[
+  {
+    "severity": "error",
+    "kind": "test_failure",
+    "title": "AssertionError: this one actually fails",
+    "location": {
+      "file": "tests/test_flaky.py",
+      "line": 30,
+      "column": null
+    },
+    "body": [
+      "________________________________ test_real_fail ________________________________",
+      "",
+      "    def test_real_fail():",
+      "\u003e       assert False, \"this one actually fails\"",
+      "E       AssertionError: this one actually fails",
+      "E       assert False",
+      "",
+      "tests/test_flaky.py:30: AssertionError"
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "test_id": "test_real_fail"
+    }
+  }
+]
