@@ -3,7 +3,7 @@
 **Default answer to "should I add this dependency?" is no.**
 
 Adding a dependency requires justification in the commit message. The
-[dependency list in ARCHITECTURE.md](../../ARCHITECTURE.md#dependencies)
+[dependency list in ARCHITECTURE.md](../ARCHITECTURE.md#dependencies)
 is the allow-list. New entries need:
 
 1. A concrete reason the stdlib won't do.

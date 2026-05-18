@@ -3,7 +3,7 @@
 ## JSON output is a public API
 
 The schema emitted by `--output=json` is documented in
-[`docs/formats/SCHEMA.md`](../../docs/formats/SCHEMA.md) and treated as
+[`docs/formats/SCHEMA.md`](../docs/formats/SCHEMA.md) and treated as
 a public API. Breaking changes require:
 
 1. **A version bump in the schema** (`"schema_version": 2`).

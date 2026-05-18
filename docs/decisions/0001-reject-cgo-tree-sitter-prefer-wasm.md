@@ -77,7 +77,7 @@ repository before committing to the multi-language path.
   The choice between (2) and (3) is deferred to M18 scoping.
 - `wazero` adds a dependency. It is well-maintained (Tetrate),
   CGo-free, pure-Go, and on its own merits passes the
-  [dependency policy](../../.opencode/rules/dependencies.md). Confirm
+  [dependency policy](../../rules/dependencies.md). Confirm
   at M18 time.
 
 ## Alternatives considered

@@ -132,7 +132,7 @@ the typed-Event story.
    agent to invoke `distill-ai` on its command output. Mirrors
    rtk's `rtk init --agent <name>` and snip's `snip init --agent
    <name>` without becoming a proxy or shipping per-agent hooks.
-   The existing opencode skill (`.opencode/skills/distill-output/`)
+   The existing opencode skill (`skills/distill-ai-dev/`)
    is the first one; the milestone formalises the pattern.
 5. **TOML custom-format extension hook** — already sketched in
    ARCHITECTURE.md as `[[formats.custom.myapp]]` in

@@ -12,13 +12,13 @@ Each kind of change has a fixed set of docs that must move with it:
 | Change                                          | Doc(s) that must update in the same commit              |
 |-------------------------------------------------|---------------------------------------------------------|
 | New / renamed / removed exported symbol         | Godoc on the symbol; ARCHITECTURE.md if it appears there |
-| New / renamed / removed CLI flag or subcommand  | README.md usage section; `--help` text in `cmd/`; the `cli-surface` manifest in `.opencode/skills/distill-output/SKILL.md` |
+| New / renamed / removed CLI flag or subcommand  | README.md usage section; `--help` text in `cmd/`; the `cli-surface` manifest in `skills/distill-ai-dev/SKILL.md` |
 | New / changed JSON output field or kind value   | `docs/formats/SCHEMA.md`; bump `schema_version` if breaking |
-| New format added                                | README format list; ARCHITECTURE format list; `docs/formats/<name>.md`; `.opencode/skills/distill-output/SKILL.md` recipes |
+| New format added                                | README format list; ARCHITECTURE format list; `docs/formats/<name>.md`; `skills/distill-ai-dev/SKILL.md` recipes |
 | Design principle bent or scope changed          | ARCHITECTURE.md design principles / out-of-scope sections |
 | Public package API change in `pkg/distill/`     | godoc; `pkg/distill/example_test.go`                     |
-| Performance budget changed (binary size, latency, throughput) | `.opencode/rules/performance.md`; commit-message justification |
-| New dogfood-relevant binary behaviour (build output path, env vars consumed, etc.) | `.opencode/skills/distill-output/SKILL.md` recipes section |
+| Performance budget changed (binary size, latency, throughput) | `rules/performance.md`; commit-message justification |
+| New dogfood-relevant binary behaviour (build output path, env vars consumed, etc.) | `skills/distill-ai-dev/SKILL.md` recipes section |
 
 If a change touches code that's described elsewhere and the description
 doesn't change, that's also a doc bug — the doc has drifted.
@@ -33,7 +33,7 @@ doesn't change, that's also a doc bug — the doc has drifted.
   covers the regression").
 - **Every format ships ≥5 golden fixtures.** Clean run, single failure,
   multi-failure, mixed warnings+errors, edge case. Detailed in
-  [CONTRIBUTING.md § Adding a format](../../CONTRIBUTING.md#adding-a-format).
+  [CONTRIBUTING.md § Adding a format](../CONTRIBUTING.md#adding-a-format).
 - **Determinism is a property test on every format** (same input twice
   → byte-identical output). Not optional.
 - **Streaming behaviour is a property test on every format** (events
@@ -46,7 +46,7 @@ doesn't change, that's also a doc bug — the doc has drifted.
   undocumented exported symbols.
 - **Skill drift guard.** `TestSkill_DocumentsCurrentCLISurface` in
   `test/integration/integration_test.go` parses the `cli-surface`
-  manifest in `.opencode/skills/distill-output/SKILL.md` and asserts
+  manifest in `skills/distill-ai-dev/SKILL.md` and asserts
   every subcommand and top-level flag listed there is recognised by
   the compiled binary — and conversely, every subcommand the binary
   prints in `--help` is in the manifest (or its `cli-surface-future`

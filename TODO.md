@@ -14,13 +14,13 @@ Each milestone is split into sub-items. Each sub-item has:
 
 - **Definition of Done (DoD):** what must be true for the box to be ticked.
 - **Tests:** the tests that must exist when the item lands. Per the
-  [alignment rule](./.opencode/rules/alignment.md)
+  [alignment rule](./rules/alignment.md)
   these ship in the same commit as the code.
 - **Docs:** the docs that must update when the item lands. Same rule.
 
 Each milestone ends with **exit criteria** — a milestone-level drift
 check before the milestone is marked complete (see
-[alignment.md § Enforcement](./.opencode/rules/alignment.md#enforcement)).
+[alignment.md § Enforcement](./rules/alignment.md#enforcement)).
 
 Milestones M1–M13 are scoped this way today, along with the three
 post-v1.0 milestones M23, M24, and M25 that
@@ -66,7 +66,7 @@ every later milestone consumes. Cross-references
 
 Each item below lists Definition of Done (DoD), required tests, and
 required doc updates per the
-[alignment rule](./.opencode/rules/alignment.md).
+[alignment rule](./rules/alignment.md).
 
 ### M1.1 — `internal/event/event.go`: core types ✅
 
@@ -246,7 +246,7 @@ Promote the design's two big invariants to enforceable tests.
 - **Docs:**
   - Document `slowReader` in `internal/testutil/`.
   - Reference these tests from
-    [testing.md](./.opencode/rules/testing.md).
+    [testing.md](./rules/testing.md).
 
 ### M2.3 — Backpressure & goroutine safety audit ✅
 
@@ -263,7 +263,7 @@ Before M3 lands more stages, prove the existing skeleton doesn't leak.
     pipe a large synthetic stream, sample memory.
 - **Docs:**
   - Add a note to
-    [performance.md](./.opencode/rules/performance.md) on the bounded-
+    [performance.md](./rules/performance.md) on the bounded-
     memory invariant and how it's verified.
 
 ### M2 exit criteria
@@ -418,7 +418,7 @@ overestimation with a built-in safety margin.
   performance gates are agreed at M17 release prep.
 - **Docs:**
   - Note the benchmark in
-    [performance.md](./.opencode/rules/performance.md) so it joins
+    [performance.md](./rules/performance.md) so it joins
     the project's set of throughput targets.
 
 ### M4.3 — Tiktoken estimator (opt-in, embedded BPE) ✅
@@ -438,7 +438,7 @@ overestimation with a built-in safety margin.
   - Adds two dependencies: `github.com/pkoukk/tiktoken-go` and
     `github.com/pkoukk/tiktoken-go-loader`. Both pure Go, MIT, no
     CGo. Justified in the commit per
-    [dependencies.md](./.opencode/rules/dependencies.md).
+    [dependencies.md](./rules/dependencies.md).
   - Returns an `Estimator` whose error path is `init failure` only;
     once initialised, `Estimate` is infallible (returns 0 on impossible
     inputs rather than erroring, matching the `Heuristic` shape).
@@ -511,7 +511,7 @@ two stages plug in).
 Both passes are pipeline `Stage` implementations; the `Pipeline`
 shape from M2 does not change. Each item below lists Definition of
 Done (DoD), required tests, and required doc updates per the
-[alignment rule](./.opencode/rules/alignment.md).
+[alignment rule](./rules/alignment.md).
 
 ### M5.1 — `internal/event/dedupe.go`: bounded LRU dedupe ✅
 
@@ -771,7 +771,7 @@ than wasting headroom.
 M6 builds on M5 (DedupeStage, CollapseStage) and M4 (`tokens.Estimator`,
 `tokens.ByName`). Each item below lists Definition of Done (DoD),
 required tests, and required doc updates per the
-[alignment rule](./.opencode/rules/alignment.md).
+[alignment rule](./rules/alignment.md).
 
 ### M6.1 — `internal/pipeline/budget.go`: BudgetStage with severity-priority emission ✅
 
@@ -954,7 +954,7 @@ Cross-references
 [ARCHITECTURE.md § Output formats](./ARCHITECTURE.md#output-formats),
 [docs/formats/SCHEMA.md](./docs/formats/SCHEMA.md) (the source of
 truth for JSON), and
-[output-stability rule](./.opencode/rules/output-stability.md) (JSON
+[output-stability rule](./rules/output-stability.md) (JSON
 is a public API).
 
 M7 builds on M6 (`BudgetCounters` populates the summary; estimated
@@ -963,7 +963,7 @@ The Sink reads counters and the BudgetStage's
 `BudgetCounters.EstimatedTokens` after the pipeline returns. Each
 item below lists Definition of Done (DoD), required tests, and
 required doc updates per the
-[alignment rule](./.opencode/rules/alignment.md).
+[alignment rule](./rules/alignment.md).
 
 ### M7.1 — `internal/output/text.go`: default compact encoder ✅
 
@@ -1094,7 +1094,7 @@ Match the schema in
     is the contract). Document the text/markdown vs JSON
     `--no-footer` asymmetry under
     [SCHEMA.md § Summary object](./docs/formats/SCHEMA.md#summary-object).
-  - Update [output-stability rule](./.opencode/rules/output-stability.md)
+  - Update [output-stability rule](./rules/output-stability.md)
     if any drift-guard test name changes.
 
 ### M7.3 — `internal/output/markdown.go`: markdown encoder ✅
@@ -1147,7 +1147,7 @@ Promote the cross-cutting invariants to single-source-of-truth tests.
 - **Tests:** the property tests are the deliverable.
 - **Docs:**
   - Reference these tests from
-    [testing.md](./.opencode/rules/testing.md) under the existing
+    [testing.md](./rules/testing.md) under the existing
     property-test section, alongside the pipeline property tests.
 
 ### M7 exit criteria
@@ -1174,7 +1174,7 @@ the user without this milestone.
 Cross-references
 [ARCHITECTURE.md § Flags](./ARCHITECTURE.md#flags),
 [§ Exit codes](./ARCHITECTURE.md#exit-codes),
-[flag-policy rule](./.opencode/rules/flag-policy.md) (a flag is a
+[flag-policy rule](./rules/flag-policy.md) (a flag is a
 one-way door — read this before suggesting any addition).
 
 M8 builds on M3 (autodetect, the `detect` subcommand stub), M5
@@ -1182,7 +1182,7 @@ M8 builds on M3 (autodetect, the `detect` subcommand stub), M5
 and M7 (Sinks). It introduces `cobra` as the CLI framework — see
 M8.1 for the dependency justification. Each item below lists DoD,
 required tests, and required doc updates per the
-[alignment rule](./.opencode/rules/alignment.md).
+[alignment rule](./rules/alignment.md).
 
 ### M8.1 — Adopt `cobra` for flag and subcommand handling ✅
 
@@ -1194,7 +1194,7 @@ worthwhile.
   - Add `github.com/spf13/cobra` and `github.com/spf13/pflag`
     (cobra's transitive flag library) as dependencies. Justified
     in the commit body per
-    [dependencies rule](./.opencode/rules/dependencies.md): the
+    [dependencies rule](./rules/dependencies.md): the
     flag matrix in
     [ARCHITECTURE.md § Flags](./ARCHITECTURE.md#flags) has 17
     flags across four groups, plus six subcommands with their own
@@ -1497,7 +1497,7 @@ from the candidate set up front), M5 (StackFrame classification via
 `ClassifyFrames`, when the parser opportunistically extracts a
 frame), and M7 (the encoders that render generic Events). Each item
 below lists Definition of Done, required tests, and required doc
-updates per the [alignment rule](./.opencode/rules/alignment.md).
+updates per the [alignment rule](./rules/alignment.md).
 
 ### M9.1 — `internal/formats/generic/generic.go`: skeleton + Detect ✅
 
@@ -1937,7 +1937,7 @@ contain heavy `/src/runtime/`, `pkg/mod/`, and `/vendor/` runs that
 extracts the frames), and M7 (the output encoders that render gotest
 Events). Each item below lists Definition of Done, required tests,
 and required doc updates per the
-[alignment rule](./.opencode/rules/alignment.md).
+[alignment rule](./rules/alignment.md).
 
 ### M10.1 — `internal/formats/gotest/gotest.go`: skeleton + Detect ✅
 
@@ -2292,7 +2292,7 @@ integration test (addresses
     gotest in alphabetical position — verified by extending
     `cmd/distill-ai/list_formats_test.go`.
   - README format list updated alongside ARCHITECTURE.
-  - `.opencode/skills/distill-output/SKILL.md` gains a "Distil a
+  - `skills/distill-ai-dev/SKILL.md` gains a "Distil a
     gotest run" recipe replacing the existing pre-M9 form, per
     [CONTRIBUTING.md § Adding a format step 10](./CONTRIBUTING.md#adding-a-format).
     The recipe shows `make test 2>&1 | ./bin/distill-ai`
@@ -2376,7 +2376,7 @@ harness now living in `internal/formats/testing.go`, the SKILL.md
 recipe pattern, the integration-suite end-to-end pattern from
 `TestBinary_GotestEndToEndProducesOutput`). Each item below lists
 Definition of Done, required tests, and required doc updates per the
-[alignment rule](./.opencode/rules/alignment.md).
+[alignment rule](./rules/alignment.md).
 
 ### M11.1 — `internal/formats/pytest/pytest.go`: skeleton + Detect ✅
 
@@ -2594,7 +2594,7 @@ integration test (mirroring M10.5; addresses
     pytest in alphabetical position — verified by extending
     `cmd/distill-ai/list_formats_test.go`.
   - README format list updated alongside ARCHITECTURE.
-  - `.opencode/skills/distill-output/SKILL.md` gains a "Distil a
+  - `skills/distill-ai-dev/SKILL.md` gains a "Distil a
     pytest run" recipe paralleling the M10 gotest recipe, per
     [CONTRIBUTING.md § Adding a format step 10](./CONTRIBUTING.md#adding-a-format).
   - **Integration suite** gains a positive-detection test
@@ -2672,7 +2672,7 @@ extracts the frames), M7 (the encoders that render jest Events), M9
 and the shared format-test harness now in `internal/formats/testing.go`
 (extracted in M9.5, exercised by M10.5 and M11.5). Each item below
 lists Definition of Done, required tests, and required doc updates
-per the [alignment rule](./.opencode/rules/alignment.md).
+per the [alignment rule](./rules/alignment.md).
 
 ### M12.1 — `internal/formats/jest/jest.go`: skeleton + Detect
 
@@ -2998,7 +2998,7 @@ integration test (mirroring M10.5 and M11.5; addresses
     in alphabetical position — verified by extending
     `cmd/distill-ai/list_formats_test.go`.
   - README format list updated alongside ARCHITECTURE.
-  - `.opencode/skills/distill-output/SKILL.md` gains a "Distil a
+  - `skills/distill-ai-dev/SKILL.md` gains a "Distil a
     jest run" recipe paralleling the M10/M11 recipes, per
     [CONTRIBUTING.md § Adding a format step 10](./CONTRIBUTING.md#adding-a-format).
   - **Integration suite** gains a `jest-fail.input` fixture (new
@@ -3075,7 +3075,7 @@ distinct from `Stage`),
 
 M13 builds on M1, M3, M5, M7, M9, M10, M11, M12. Each item below
 lists Definition of Done, required tests, and required doc updates
-per the [alignment rule](./.opencode/rules/alignment.md).
+per the [alignment rule](./rules/alignment.md).
 
 ### M13.1 — `internal/envelope/envelope.go`: stripper interface and skeleton
 
@@ -3369,7 +3369,7 @@ recipe.
     under or adjacent to "Autodetection".
   - README.md gains an "Envelopes" subsection in the format
     overview.
-  - `.opencode/skills/distill-output/SKILL.md` gains a "Distil
+  - `skills/distill-ai-dev/SKILL.md` gains a "Distil
     a GitHub Actions log" recipe and a "Distil a GitLab CI
     log" recipe, both showing `gh run view --log | ./bin/distill-ai`
     and `glab ci trace | ./bin/distill-ai` as the canonical
@@ -3502,7 +3502,7 @@ shape unexpectedly), and M10 (the format-test harness in
 `internal/formats/testing.go` and the integration-suite end-to-end
 pattern). Each item below lists Definition of Done, required tests,
 and required doc updates per the
-[alignment rule](./.opencode/rules/alignment.md).
+[alignment rule](./rules/alignment.md).
 
 #### M23.1 — Skeleton + Detect
 
@@ -3664,7 +3664,7 @@ Cross-references
 M24 builds on M1, M3, M7, M9, M10, and on M23's JSON-envelope
 parsing pattern. Each item below lists Definition of Done,
 required tests, and required doc updates per the
-[alignment rule](./.opencode/rules/alignment.md).
+[alignment rule](./rules/alignment.md).
 
 #### M24.1 — Skeleton + Detect
 
@@ -3888,7 +3888,7 @@ branch opens, per the
 ### M19 — Multi-language code distillation (WASM tree-sitter)
 
 - [ ] Add `wazero` dependency, justified per
-      [dependencies rule](./.opencode/rules/dependencies.md)
+      [dependencies rule](./rules/dependencies.md)
 - [ ] `internal/codeparse/`: WASM grammar loader, query helpers
 - [ ] Languages: Python, TypeScript, JavaScript, Rust as Formats
 - [ ] Resolve the binary-size tradeoff captured in
@@ -3897,7 +3897,7 @@ branch opens, per the
       single `distill-ai` binary or split a `distill-ai-code` binary
 - [ ] Performance budget revisit: WASM is ~2–3× slower than native
       tree-sitter; document the floor in
-      [performance rule](./.opencode/rules/performance.md)
+      [performance rule](./rules/performance.md)
 
 ### M20 — Agent-read wrapper
 
@@ -3969,7 +3969,7 @@ Cross-references
 M25 builds on M1, M3, M7, M9, and M10's testing patterns. Each
 item lists Definition of Done, required tests, and required doc
 updates per the
-[alignment rule](./.opencode/rules/alignment.md).
+[alignment rule](./rules/alignment.md).
 
 #### M25.1 — Skeleton + Detect
 
@@ -4165,7 +4165,7 @@ not be added here without superseding that ADR.
       `init` subcommands. Per ADR-0003 the project does not enter
       the command-execution path
 - [ ] The existing
-      `.opencode/skills/distill-output/SKILL.md` is the first
+      `skills/distill-ai-dev/SKILL.md` is the first
       recipe; M29 formalises the pattern and adds the rest
 
 ### M30 — TOML custom-format extension hook
@@ -4187,7 +4187,7 @@ not be added here without superseding that ADR.
 ### v1.6 exit criteria
 
 - All five milestones scoped in detail (DoD, tests, docs per
-  [alignment.md](./.opencode/rules/alignment.md)) before any of
+  [alignment.md](./rules/alignment.md)) before any of
   them lands.
 - ADR-0003 cross-referenced from each milestone's commit body so
   the rationale is anchored to the decision.

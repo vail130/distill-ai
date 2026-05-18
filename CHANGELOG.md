@@ -171,6 +171,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- AI assets (rules and skills) relocated from opencode-specific
+  `.opencode/` paths to agent-agnostic top-level directories: rules
+  now live at `rules/`, skills at `skills/`. Opencode auto-loading is
+  preserved via two mechanisms: `opencode.json` points its
+  `instructions` glob at `rules/*.md`, and a symlink
+  `.opencode/skills → ../skills` is checked into the tree so opencode
+  still discovers skills at its expected location. Existing
+  references in README, CONTRIBUTING, ADRs, PR template, and the
+  alignment rule updated to the new paths. The skill formerly known
+  as `distill-output` is renamed `distill-ai-dev` and is now the
+  in-repo dogfooding / parser-debugging skill; a new sibling
+  `distill-ai` skill is the self-contained, agent-agnostic
+  consumer-usage skill that downstream tooling can reuse without
+  carrying repo-internal context. `TestSkill_DocumentsCurrentCLISurface`
+  updated to read the new path.
 - `cmd/distill-ai/main.go` switched from a hand-rolled switch on
   `os.Args[1]` to a `cobra`-based root command. Production behaviour
   for `--help`, `--version`, and `detect` is preserved.
@@ -199,7 +214,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   three post-v1.0 milestones (M23, M24, M25) are scoped now so the
   working-agreement minimum of three open scoped milestones holds
   once M11–M13 land. ARCHITECTURE.md, TODO.md, and the
-  `distill-output` skill updated to point at the new ADR.
+  `distill-ai-dev` skill (formerly `distill-output`) updated to
+  point at the new ADR.
 
 ### Deprecated
 

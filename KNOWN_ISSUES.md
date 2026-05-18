@@ -17,7 +17,7 @@ No scoped milestone (M9, M10, M11) has a DoD bullet that plumbs
 either flag.
 
 **Why it matters.** A flag is a one-way door
-([`flag-policy.md`](./.opencode/rules/flag-policy.md)). Once shipped
+([`flag-policy.md`](./rules/flag-policy.md)). Once shipped
 in `--help`, removing it is a breaking change. Carrying an inert
 flag indefinitely is the exact failure mode the policy exists to
 prevent.

@@ -52,5 +52,5 @@ it should be two commits.
 - After ANY force-push to a branch with an open PR, update the PR
   description so it still matches the commit log.
 - The PR description includes every commit's full message in a
-  collapsible `<details>` block, per the [PR template](../../.github/PULL_REQUEST_TEMPLATE.md).
+  collapsible `<details>` block, per the [PR template](../.github/PULL_REQUEST_TEMPLATE.md).
 - Single-commit PR: title = commit subject.

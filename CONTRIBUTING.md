@@ -116,10 +116,10 @@ This is the most common contribution. The process:
 9. Add a doc under `docs/formats/<name>.md` describing what's extracted
    and what's dropped.
 10. Add a recipe to
-    `.opencode/skills/distill-output/SKILL.md` showing how to dogfood
+    `skills/distill-ai-dev/SKILL.md` showing how to dogfood
     the new format on this repo's own command output. Skill recipes
     are part of the documentation surface; see the
-    [alignment rule](./.opencode/rules/alignment.md) for the full
+    [alignment rule](./rules/alignment.md) for the full
     list of docs that must move when the CLI surface or recipe-
     relevant behaviour changes.
 
@@ -130,7 +130,7 @@ Don't touch other formats' code. The plugin model exists for isolation.
 > **Hard rule:** every commit that changes code must also update the
 > corresponding docs and tests in the same commit. PRs without aligned
 > docs/tests are rejected. See
-> [.opencode/rules/alignment.md](./.opencode/rules/alignment.md)
+> [rules/alignment.md](./rules/alignment.md)
 > for the full rule and the table mapping each kind of change to the
 > docs that must move with it.
 
@@ -150,7 +150,7 @@ Don't touch other formats' code. The plugin model exists for isolation.
 
 ### Commit messages
 
-Full rules in [`.opencode/rules/commits.md`](./.opencode/rules/commits.md).
+Full rules in [`rules/commits.md`](./rules/commits.md).
 Summary:
 
 - Imperative subject line, prefixed with the component:
@@ -162,7 +162,7 @@ Summary:
 
 ### Code style
 
-Full rules in [`.opencode/rules/code-style.md`](./.opencode/rules/code-style.md).
+Full rules in [`rules/code-style.md`](./rules/code-style.md).
 Summary:
 
 - Go: no blank lines inside functions; struct/map literals one field per line.
@@ -173,7 +173,7 @@ Summary:
 
 ### Adding dependencies
 
-Full rules in [`.opencode/rules/dependencies.md`](./.opencode/rules/dependencies.md).
+Full rules in [`rules/dependencies.md`](./rules/dependencies.md).
 Summary: the default answer is **no**. If you believe one is needed:
 
 1. Justify it in the commit message: what does it do that the stdlib
