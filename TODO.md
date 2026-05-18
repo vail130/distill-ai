@@ -25,16 +25,21 @@ check before the milestone is marked complete (see
 Milestones M1–M13 are scoped this way today, along with the three
 post-v1.0 milestones M23, M24, and M25 that
 [ADR-0002](./docs/decisions/0002-v1.0-scope-and-post-v1.0-roadmap.md)
-introduces. Per the working agreement, **at least** the next three
-open milestones are kept fully scoped at all times. As of M11's
-completion the open scoped set is M12 (jest) and M13 (envelope);
-M14 (config) is next in line and needs its sub-items expanded
-before the M12 milestone closes. When the v1.0 release prep (M17)
-lands and the v1.1 branch opens, the next scoped three will be
-M23 (golangci-lint), M24 (cargo-json), and M25 (Markdown outline)
-— already scoped below so the v1.1 cut is ready when v1.0 ships.
-M14–M17 (the rest of v1.0) and M18–M22 (v1.3 code distillation)
-remain sketched.
+introduces. The five v1.6 filter-engine-parity milestones (M26–M30)
+introduced by
+[ADR-0003](./docs/decisions/0003-position-vs-rtk-and-snip.md) are
+**listed but not yet scoped in detail**; they will be scoped after
+v1.0 ships, in priority order driven by real usage signal. Per the
+working agreement, **at least** the next three open milestones are
+kept fully scoped at all times. As of M11's completion the open
+scoped set is M12 (jest) and M13 (envelope); M14 (config) is next
+in line and needs its sub-items expanded before the M12 milestone
+closes. When the v1.0 release prep (M17) lands and the v1.1 branch
+opens, the next scoped three will be M23 (golangci-lint), M24
+(cargo-json), and M25 (Markdown outline) — already scoped below so
+the v1.1 cut is ready when v1.0 ships. M14–M17 (the rest of v1.0)
+and M18–M22 (v1.3 code distillation) remain sketched. M26–M30
+remain enumerated only.
 
 ---
 
@@ -4098,6 +4103,97 @@ signal.
 > under v1.1; tsc / gcc / clang remain in
 > [M22](#m22--compiler--build-error-formats) under v1.3; `go build`
 > errors are already handled by `gotest` (M10).
+
+---
+
+## v1.6 — Filter-engine parity (post-launch)
+
+Five features identified by
+[ADR-0003](./docs/decisions/0003-position-vs-rtk-and-snip.md) as
+worth adopting from rtk and snip without compromising the
+typed-Event, no-state, no-network, streaming-first design. None
+are scoped in detail yet — they will be scoped one-by-one after
+v1.0 ships, in priority order determined by real usage signal and
+in line with the constraints recorded in ADR-0003.
+
+These are **discrete milestones** (M26–M30), not a grab-bag.
+Anything beyond this list that drifts toward the proxy/wrapper
+model, persistent state, telemetry, or per-agent hook
+installation is explicitly out of scope per ADR-0003 and should
+not be added here without superseding that ADR.
+
+### M26 — `discover` subcommand
+
+- [ ] Scan a directory tree, stdin stream, or CI log archive for
+      log shapes the existing Formats would have distilled
+- [ ] Report would-have-been token savings per Format
+- [ ] Stateless: reads only what the user points it at; no
+      shell-history scrape (would require state)
+- [ ] Cross-reference: rtk's `rtk discover` and snip's `snip
+      discover --since 30`
+
+### M27 — `--ultra-compact` output preset
+
+- [ ] One-line-per-Event representation: severity, kind, location,
+      title; no body, no context
+- [ ] Composes with `--output=text|json|markdown` as a preset, not
+      a new Sink
+- [ ] Intended for agents that want maximum density in a small
+      context window
+- [ ] Cross-reference: rtk's `-u`/`--ultra-compact` global flag
+
+### M28 — Drop-side log on `--budget`
+
+- [ ] When BudgetStage drops events to fit the budget, write the
+      dropped Events to a side file the caller can opt into
+      reading
+- [ ] Configurable path; defaults off (preserve no-state default)
+- [ ] Mirrors rtk's "tee on failure" idea inverted: we keep the
+      *dropped* content, not the *failed* command's full output
+- [ ] Exit code 3 remains the primary signal; the side file is an
+      opt-in artifact for agents that want to re-read dropped
+      detail without re-running the command
+
+### M29 — Per-agent integration recipes (documentation)
+
+- [ ] Curated recipes for Claude Code, opencode, Cursor, Copilot,
+      Codex, Gemini, Windsurf, Cline
+- [ ] Each recipe instructs the agent (via its project rules
+      file: AGENTS.md, CLAUDE.md, .cursorrules, etc.) how to
+      invoke `distill-ai` on its own command output
+- [ ] **Documentation only** — distill-ai does not ship hooks or
+      `init` subcommands. Per ADR-0003 the project does not enter
+      the command-execution path
+- [ ] The existing
+      `.opencode/skills/distill-output/SKILL.md` is the first
+      recipe; M29 formalises the pattern and adds the rest
+
+### M30 — TOML custom-format extension hook
+
+- [ ] Implement the `[[formats.custom.myapp]]` block already
+      sketched in
+      [ARCHITECTURE.md § Config file](./ARCHITECTURE.md#config-file)
+- [ ] Custom formats emit Events with `Kind = "match"` and
+      best-effort `Location` / `Metadata`
+- [ ] Closes the breadth gap for long-tail tools where regex-level
+      filtering is sufficient
+- [ ] Does **not** replace the format-plugin model for typed
+      formats (test runners, structured logs, stack traces)
+- [ ] Lands after M14 (config) ships so the config plumbing is in
+      place
+- [ ] Cross-reference: snip's YAML filter model — the TOML form
+      is the equivalent for distill-ai
+
+### v1.6 exit criteria
+
+- All five milestones scoped in detail (DoD, tests, docs per
+  [alignment.md](./.opencode/rules/alignment.md)) before any of
+  them lands.
+- ADR-0003 cross-referenced from each milestone's commit body so
+  the rationale is anchored to the decision.
+- No milestone introduces network, telemetry, persistent state,
+  or shell-command execution. If one would, supersede ADR-0003
+  first.
 
 ---
 

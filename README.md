@@ -1,35 +1,78 @@
 # distill-ai
 
-Distill logs, stack traces, and test output for LLM consumption.
-
-`distill-ai` is a Unix-pipe-native CLI that parses noisy command output —
-test runs, application logs, stack traces — and emits a compact, structured
-summary suitable for pasting into a chat with an AI coding agent, or for the
-agent itself to consume when it runs commands via its Bash tool.
-
-Most agent-debugging sessions waste 90%+ of input tokens on log noise:
-passing tests, vendor stack frames, repeated warnings, build chatter.
-`distill-ai` removes that noise before it hits the context window.
-
-## Why
-
-When you ask Claude Code, opencode, or any other agent to fix a failing
-test, the agent typically reads the entire command output. A 50,000-line
-pytest run might contain 200 useful lines. You pay for all 50,000 in input
-tokens, the agent spends seconds parsing noise before reasoning, and it
-often latches onto the wrong error because the real one is buried.
-
-`distill-ai` solves this by sitting in the pipe between the command and
-the agent:
+**Turn noisy command output into structured Events for LLM consumption.**
+Unix filter. No proxy, no network, no state. JSON output is a versioned
+public API.
 
 ```bash
 pytest 2>&1 | distill-ai
 ```
 
-It autodetects the format, extracts the actual failures (with relevant
-context and source locations), collapses vendor stack frames, deduplicates
-repeated errors, and emits a compact summary. The agent gets signal, not
-noise.
+`distill-ai` parses the noisy output of test runs, application logs, and
+stack traces, then emits a compact stream of typed Events: severity, kind,
+location, frames, body, context. Pipe it to an AI coding agent, paste it
+into chat, or consume the JSON from your own tooling.
+
+## Why
+
+A 50,000-line `pytest` run typically contains 200 useful lines: the actual
+failures with their assertion messages, file:line locations, and the
+context that explains them. The other 49,800 lines are passing-test noise,
+vendor stack frames, deprecation warnings, and build chatter — and a
+coding agent pays for every one of those lines in input tokens, spends
+seconds parsing the noise before it can reason about the real failure,
+and frequently latches onto the wrong error because the real one is
+buried.
+
+`distill-ai` sits in the pipe between the command and the agent, extracts
+the signal, and discards the noise:
+
+```
+  raw command output (50,000 lines, ~250,000 tokens)
+                       │
+                       ▼
+            ┌─────────────────────┐
+            │ autodetect format   │
+            │ parse → Events      │
+            │ collapse vendor     │
+            │ dedupe identical    │
+            │ enforce --budget    │
+            └─────────────────────┘
+                       │
+                       ▼
+  distilled (24 lines, ~340 tokens)
+  [1] ERROR AssertionError: expected 302, got 200
+    at tests/api/test_auth.py:47
+  [2] ERROR KeyError: 'session_id'
+    at auth/views.py:112  (×4)
+  ---
+  distilled 50,000 lines → 24 lines (340 tokens)
+  dropped: 0 events, 3 deduped, 8 vendor frames
+```
+
+## What distill-ai is, and is not
+
+distill-ai is a **format-aware structured event extractor** for command
+output. It is **not** a general CLI proxy or command wrapper.
+
+|                                  | distill-ai                                | proxy/wrapper tools                     |
+| -------------------------------- | ----------------------------------------- | --------------------------------------- |
+| **Position**                     | Unix filter — sits in a pipe              | Wraps the command (`tool git status`)   |
+| **Forks the underlying command** | Never                                     | Always                                  |
+| **Works on `tail -f`, log files, library use** | Yes                         | No (their model is fork-exec-capture)   |
+| **Output**                       | Versioned structured Events (JSON schema) | Compressed text                         |
+| **State / network / telemetry**  | None. Ever.                               | Varies                                  |
+| **Format model**                 | Per-format parser emitting typed Events   | Per-command filter emitting text        |
+
+If your problem is "my agent runs 50 different shell tools and they're
+all noisy", a proxy/wrapper tool like [rtk] or [snip] is probably what
+you want. If your problem is "I need an agent — or my own tooling — to
+programmatically reason about test failures, stack traces, and logs as
+typed events with locations and severities", distill-ai is what you
+want. The two are complementary.
+
+[rtk]: https://github.com/rtk-ai/rtk
+[snip]: https://github.com/edouard-claude/snip
 
 ## Supported formats
 
@@ -116,24 +159,102 @@ source <(distill-ai completions bash)
 
 ### Integration with coding agents
 
-The highest-leverage usage is via the agent's project instructions. Add to
-your `AGENTS.md` (or `CLAUDE.md`):
+distill-ai does not ship per-agent hooks or `init` subcommands; it
+deliberately stays out of the command-execution path (see
+[ADR-0003](./docs/decisions/0003-position-vs-rtk-and-snip.md)). The
+agent integration pattern is **documentation**: instruct the agent via
+its project rules file to pipe through `distill-ai` when running noisy
+commands.
+
+Add the following block to `AGENTS.md`, `CLAUDE.md`, `.cursorrules`,
+`GEMINI.md`, or your agent's equivalent project-rules file:
 
 ```markdown
-When running tests or tailing logs, pipe through distill-ai:
+When running tests, build commands, or tailing logs, pipe through
+distill-ai to keep the context window lean:
+
   pytest 2>&1 | distill-ai
   npm test 2>&1 | distill-ai
   go test ./... 2>&1 | distill-ai
+  cargo test 2>&1 | distill-ai
   kubectl logs <pod> | distill-ai --dedupe
+
+For a strict token cap (e.g., fit a CI run in 2000 tokens):
+  pytest 2>&1 | distill-ai --budget=2000
+
+To inspect what distill-ai dropped before trusting it:
+  pytest 2>&1 | distill-ai explain
 ```
 
-The agent will then invoke `distill-ai` automatically on every command,
-keeping its context window lean across the whole session.
+The agent reads its rules file at session start and applies the pattern
+to every applicable command for the rest of the session.
+
+For opencode, the project ships
+[`.opencode/skills/distill-output/SKILL.md`](./.opencode/skills/distill-output/SKILL.md)
+which loads automatically when output volume warrants it. Per-agent
+recipes for Claude Code, Cursor, Copilot, Codex, Gemini, Windsurf, and
+Cline are planned for v1.6 (see
+[TODO.md § M29](./TODO.md#m29--per-agent-integration-recipes-documentation)).
+
+### Library use
+
+`distill-ai` also exposes a stable Go API at `pkg/distill/` for tools
+that want to consume Events programmatically rather than via the CLI.
+The library API is intentionally minimal; see
+[ARCHITECTURE.md § Package layout](./ARCHITECTURE.md#package-layout)
+for the M14 / M15 milestones that promote it from type aliases to a
+streaming entry point.
+
+## Design principles
+
+distill-ai's shape is deliberate. The seven principles in
+[ARCHITECTURE.md § Design principles](./ARCHITECTURE.md#design-principles)
+shape every decision:
+
+1. **Unix-pipe-native.** stdin → stdout is the default path.
+2. **Zero-config common case.** Autodetection picks the format.
+3. **Deterministic output.** Same input → same output, byte for byte.
+4. **Streaming-first.** Never require buffering the full input.
+5. **Format plugins, not hardcoded formats.** Adding a format = one Go
+   file. The format registers itself.
+6. **Honest about what it dropped.** A footer summarises every
+   collapse, dedupe, and drop.
+7. **No network. Ever.** No telemetry, no updates, no remote lookups.
+   The tool is usable in air-gapped CI and regulated environments
+   without additional review.
+
+See [ADR-0003](./docs/decisions/0003-position-vs-rtk-and-snip.md) for
+the explicit position decision against the proxy/wrapper model.
 
 ## Status
 
-Early development. See [ARCHITECTURE.md](./ARCHITECTURE.md) for the design
-and [AGENTS.md](./AGENTS.md) for contribution guidance.
+Pre-1.0. The v1.0 contract (`pytest`, `jest`, `gotest`, `generic`) is
+recorded in
+[ADR-0002](./docs/decisions/0002-v1.0-scope-and-post-v1.0-roadmap.md);
+see [TODO.md](./TODO.md) for the milestone status. See
+[ARCHITECTURE.md](./ARCHITECTURE.md) for the design and
+[AGENTS.md](./AGENTS.md) for contribution guidance.
+
+## Inspiration and prior art
+
+distill-ai is shaped by — and explicitly differentiates from — two
+existing tools in the adjacent niche:
+
+- **[rtk]** (Rust Token Killer, 49k+ stars). The dominant
+  general-purpose solution for reducing agent token consumption. CLI
+  proxy / wrapper model. 100+ hand-tuned filters. Auto-rewrite hooks
+  for 13+ AI coding agents.
+- **[snip]** (Go, ~240 stars). An rtk alternative whose
+  differentiation is declarative YAML filters: 126 of them, composed
+  from 19 pipeline actions.
+
+Both are excellent at the breadth play — the agent-shell-loop case
+where 50 different commands need filters. distill-ai is intentionally
+narrower: depth-first format-aware parsing that produces typed Events
+with locations and severities, suitable for programmatic reasoning by
+agents or downstream tools. See
+[ADR-0003](./docs/decisions/0003-position-vs-rtk-and-snip.md) for the
+full comparison and the position decision.
 
 ## License
 
