@@ -1,0 +1,40 @@
+Makefile
+  c8afb899522c06df 12-16,43-74
+README.md
+  c8afb899522c06df 238-253
+CHANGELOG.md
+  c8afb899522c06df 12-19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "9a0f7920ea8207008d6841b4226713f7029d8296",
+  "prompts": {
+    "6bf018cc3c3cb2a8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c3b7709dffekBdPc4ZFU4gWYD",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 846,
+      "total_deletions": 23,
+      "accepted_lines": 7339,
+      "overriden_lines": 8
+    },
+    "c8afb899522c06df": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c376ac87ffeZIa47333T2L3kd",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 274,
+      "total_deletions": 13,
+      "accepted_lines": 274,
+      "overriden_lines": 0
+    }
+  }
+}
