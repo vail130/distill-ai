@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- M14.6: `--max-events` and `--passthrough` plumbed end-to-end;
+  closes KNOWN_ISSUES § 1. `--max-events=N` adds a new
+  MaxEventsStage to the pipeline that caps Events at N and
+  drains the remainder so upstream Stages terminate cleanly;
+  the stage runs after BudgetStage so the budget enforcer's
+  severity-priority ranking operates on the full stream and the
+  cap then trims to the top N. `--passthrough` tees the input
+  through a `bytes.Buffer`; when the pipeline emits zero
+  Events, the buffered raw input replaces the sink's "no events
+  found" output on stdout and the binary exits 0 (not 1). The
+  Sink's writer is also buffered in passthrough mode so the
+  "no events" header doesn't bleed onto stdout before the
+  passthrough decision; the buffer is flushed when events were
+  emitted, dropped when not. Both flags pick up defaults from
+  the config file: `max_events = N` and `passthrough = true` on
+  the top-level Config; per-format overrides not yet exposed
+  (the use cases are global). Tests: five MaxEventsStage unit
+  tests covering cap-at-N, exact-N, zero/negative disabled,
+  context cancellation, and the Build stage-order rule; three
+  CLI integration tests for max-events (CLI, config-driven,
+  works alongside --budget) and three for passthrough
+  (zero-events copy, events suppress copy, config-driven). The
+  KNOWN_ISSUES.md § 1 entry is deleted in this commit.
 - M14.5: regex-driven custom formats. A `[[formats.custom.NAME]]`
   block in a `.distill-ai.toml` registers a Format that
   participates in autodetection and is invokable by the

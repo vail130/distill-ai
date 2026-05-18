@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -126,7 +127,7 @@ func registerRunFlags(cmd *cobra.Command, fl *runFlags) {
 	cmd.Flags().StringVar(&fl.severity, "severity", "",
 		"Minimum severity to keep (error|warn|info). Empty means format-default (error). Per-format opt-in; honoured by 'generic' as of M9.4.")
 	cmd.Flags().IntVar(&fl.maxEvents, "max-events", 0,
-		"Cap the total number of events emitted. Zero means no cap. (Plumbing lands in M8.2.x.)")
+		"Cap the total number of events emitted. Zero means no cap. Applied after --budget so the budget enforcer's severity-priority truncation runs first.")
 	cmd.Flags().IntVar(&fl.context, "context", 0,
 		"Lines of context around each event. Zero means format-default (3 for 'generic').")
 	// Deduplication.
@@ -151,7 +152,7 @@ func registerRunFlags(cmd *cobra.Command, fl *runFlags) {
 	cmd.Flags().BoolVar(&fl.strict, "strict", false,
 		"Fail with exit code 2 when autodetect can't pick a specific format with confidence ≥ 0.6.")
 	cmd.Flags().BoolVar(&fl.passthrough, "passthrough", false,
-		"If no events were found, emit the input unchanged instead of an empty stream. (Plumbing lands in M8.2.x.)")
+		"If no events were found, emit the input unchanged instead of an empty stream. Exit code stays 0. Buffers the input in memory.")
 	cmd.Flags().StringVar(&fl.tokenizer, "tokenizer", "heuristic",
 		"Token estimator used by --budget: heuristic | tiktoken. heuristic is fast and zero-dep; tiktoken is exact for OpenAI / Claude models.")
 	// Envelope.
@@ -193,10 +194,11 @@ func runRun(cmd *cobra.Command, args []string, fl *runFlags) error {
 	stdout := cmd.OutOrStdout()
 	stderr := cmd.ErrOrStderr()
 	stdin := cmd.InOrStdin()
-	// Honour config-driven defaults for --output and
-	// --strip-envelope before any decision they influence.
+	// Honour config-driven defaults for --output, --strip-envelope,
+	// and --passthrough before any decision they influence.
 	applyOutputConfig(cmd, &fl.outputFormat)
 	applyStripEnvelopeConfig(cmd, &fl.stripEnvelope)
+	applyPassthroughConfig(cmd, &fl.passthrough)
 	formatName, files := splitRunArgs(args)
 	if !fl.autoDetect && formatName == "" {
 		fmt.Fprintln(stderr, "distill-ai run: --auto=false requires a positional FORMAT argument")
@@ -209,6 +211,22 @@ func runRun(cmd *cobra.Command, args []string, fl *runFlags) error {
 	}
 	if closer != nil {
 		defer func() { _ = closer.Close() }()
+	}
+	// --passthrough: tee the input bytes into a buffer so we can
+	// replay them to stdout when the pipeline emits zero events.
+	// We also redirect the Sink's writer into a buffer so the
+	// sink's "no events" header doesn't bleed onto stdout before
+	// we decide whether to copy the raw input. The Sink buffer is
+	// flushed when at least one event was emitted; otherwise we
+	// drop it and write the raw input instead. Memory cost is
+	// proportional to input size for the input tee, plus whatever
+	// the sink encoder buffers for its trailer (small).
+	var passthroughBuf *bytes.Buffer
+	sinkWriter := stdout
+	if fl.passthrough {
+		passthroughBuf = &bytes.Buffer{}
+		input = io.TeeReader(input, passthroughBuf)
+		sinkWriter = &bytes.Buffer{}
 	}
 	// Install a LineCounter around the input so the Sink footer can
 	// report the input-line count.
@@ -250,7 +268,7 @@ func runRun(cmd *cobra.Command, args []string, fl *runFlags) error {
 	// overwriting Changed flag values.
 	applyConfigToFlags(cmd, &opts, &parseOpts, chosen.Name())
 	src := &pipeline.FormatSource{Format: chosen, Reader: stream, Opts: parseOpts}
-	sink, sinkInfo := newSinkFromFlags(fl, chosen.Name(), stdout)
+	sink, sinkInfo := newSinkFromFlags(fl, chosen.Name(), sinkWriter)
 	pipe, err := pipeline.Build(src, sink, opts)
 	if err != nil {
 		fmt.Fprintf(stderr, "distill-ai run: build pipeline: %v\n", err)
@@ -292,7 +310,26 @@ func runRun(cmd *cobra.Command, args []string, fl *runFlags) error {
 	if pipe.BudgetCounters != nil && pipe.BudgetCounters.ForcedDrops() {
 		return &exitCodeError{code: ExitPartial}
 	}
-	if readEmitted(sink) == 0 {
+	emitted := readEmitted(sink)
+	// In passthrough mode the sink wrote to a buffer; flush it
+	// to stdout when events were emitted, drop it and replay
+	// the raw input when none were.
+	if fl.passthrough {
+		sinkBuf, _ := sinkWriter.(*bytes.Buffer)
+		if emitted > 0 && sinkBuf != nil {
+			if _, err := stdout.Write(sinkBuf.Bytes()); err != nil {
+				fmt.Fprintf(stderr, "distill-ai run: write distilled output: %v\n", err)
+				return &exitCodeError{code: ExitError}
+			}
+		} else if emitted == 0 && passthroughBuf != nil && passthroughBuf.Len() > 0 {
+			if _, err := stdout.Write(passthroughBuf.Bytes()); err != nil {
+				fmt.Fprintf(stderr, "distill-ai run: passthrough copy: %v\n", err)
+				return &exitCodeError{code: ExitError}
+			}
+			return nil
+		}
+	}
+	if emitted == 0 {
 		return &exitCodeError{code: ExitNoEvents}
 	}
 	return nil
@@ -404,6 +441,7 @@ func buildPipelineOptions(fl *runFlags) pipeline.Options {
 		KeepVendor: fl.keepVendor,
 		Budget:     fl.budget,
 		Tokenizer:  fl.tokenizer,
+		MaxEvents:  fl.maxEvents,
 	}
 	opts.DedupeWindow = resolveDedupeWindow(fl)
 	return opts
