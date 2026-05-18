@@ -94,8 +94,12 @@ want. The two are complementary.
   structured stack frames. Honours `--keep-warnings` and
   `--severity`. Documented at
   [docs/formats/pytest.md](./docs/formats/pytest.md).
-- `jest` (planned, M12) — test-runner format with structured
-  failure / snapshot-mismatch / suite-error extraction.
+- `jest` (M12, detect-only — parser lands in M12.2) — recognises
+  jest output: the `●` failure-block bullet, per-file `FAIL`/`PASS`
+  headers with a path-shaped token guard, and a `Tests:` summary
+  line corroborated by a `jest` mention or a `.test.`/`.spec.`
+  filename. Documented at
+  [docs/formats/jest.md](./docs/formats/jest.md).
 
 Use `distill-ai list-formats` to see what's wired into your binary,
 and `distill-ai detect FILE` to ask the autodetector which format it

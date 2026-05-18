@@ -21,6 +21,11 @@ import (
 	// `--- FAIL:`, `FAIL\t<pkg>`, and `=== RUN`.
 	_ "github.com/vail130/distill-ai/internal/formats/gotest"
 
+	// jest parses jest output. Detect anchors on the `●` failure
+	// bullet, `FAIL`/`PASS` per-file headers with a test-file path
+	// token, and the `Tests:` summary line.
+	_ "github.com/vail130/distill-ai/internal/formats/jest"
+
 	// pytest parses pytest output. Detect anchors on the
 	// `=== test session starts ===` and `=== FAILURES ===` banners.
 	_ "github.com/vail130/distill-ai/internal/formats/pytest"
