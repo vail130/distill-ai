@@ -2674,7 +2674,7 @@ and the shared format-test harness now in `internal/formats/testing.go`
 lists Definition of Done, required tests, and required doc updates
 per the [alignment rule](./rules/alignment.md).
 
-### M12.1 — `internal/formats/jest/jest.go`: skeleton + Detect
+### M12.1 — `internal/formats/jest/jest.go`: skeleton + Detect ✅
 
 Land the package, register it, and implement `Format.Detect`. No
 parsing yet — `Parse` returns an empty channel — so M3 autodetection
