@@ -31,15 +31,14 @@ introduced by
 **listed but not yet scoped in detail**; they will be scoped after
 v1.0 ships, in priority order driven by real usage signal. Per the
 working agreement, **at least** the next three open milestones are
-kept fully scoped at all times. As of M14's completion the open
-scoped set is M15 (library API), M16 (documentation), and M17
-(v1.0 release prep) — all three fully expanded with DoD / Tests /
-Docs per sub-item. When the v1.0 release prep (M17) lands and the
-v1.1 branch opens, the next scoped three will be M23 (golangci-
-lint), M24 (cargo-json), and M25 (Markdown outline) — already
-scoped below so the v1.1 cut is ready when v1.0 ships. M18–M22
-(v1.3 code distillation) remain sketched. M26–M30 remain
-enumerated only.
+kept fully scoped at all times. As of M15's completion the open
+scoped set is M16 (documentation) and M17 (v1.0 release prep) —
+both fully expanded with DoD / Tests / Docs per sub-item. When the
+v1.0 release prep (M17) lands and the v1.1 branch opens, the next
+scoped three will be M23 (golangci-lint), M24 (cargo-json), and
+M25 (Markdown outline) — already scoped below so the v1.1 cut is
+ready when v1.0 ships. M18–M22 (v1.3 code distillation) remain
+sketched. M26–M30 remain enumerated only.
 
 ---
 
@@ -3937,7 +3936,7 @@ common case.
 
 ---
 
-## M15 — Library API
+## M15 — Library API ✅
 
 Promote `pkg/distill` from a type-alias stub (M1.4) to the stable
 public library API. Today's `pkg/distill/distill.go` re-exports
@@ -3984,7 +3983,7 @@ Each item below lists Definition of Done, required tests, and
 required doc updates per the
 [alignment rule](./rules/alignment.md).
 
-### M15.1 — `pkg/distill/options.go`: the public Options struct
+### M15.1 — `pkg/distill/options.go`: the public Options struct ✅
 
 Define the one struct a library caller passes. M15.1 lands the type
 plus its godoc; the `Distill` function itself lands in M15.2.
@@ -4076,7 +4075,7 @@ plus its godoc; the `Distill` function itself lands in M15.2.
     promoted from type aliases to shipped streaming entry
     point" bullet.
 
-### M15.2 — `pkg/distill/distill.go`: the `Distill` entry point
+### M15.2 — `pkg/distill/distill.go`: the `Distill` entry point ✅
 
 Implement the actual function. M15.2 is the bulk of the milestone:
 input handling, format resolution, envelope wiring, Sink
@@ -4178,7 +4177,7 @@ construction, pipeline assembly, summary materialisation.
     the dependency under which v1.2's MCP work becomes
     practical — see TODO.md § v1.2).
 
-### M15.3 — `pkg/distill/example_test.go`: runnable examples and exit-code mapping
+### M15.3 — `pkg/distill/example_test.go`: runnable examples and exit-code mapping ✅
 
 Provide godoc examples (`func ExampleDistill_*`) that double as
 integration tests and surface the CLI's exit-code mapping for
@@ -4220,7 +4219,7 @@ library callers who want to replicate it.
   - Extend `docs/library-api.md` with the exit-code mapping
     section.
 
-### M15.4 — Internal-package compliance audit
+### M15.4 — Internal-package compliance audit ✅
 
 Verify `internal/` actually means internal — no exported symbol
 outside `pkg/distill` is reachable by an external import.
@@ -4272,7 +4271,7 @@ outside `pkg/distill` is reachable by an external import.
   - Document the layering rule in the package godoc on
     `pkg/distill/internal/orchestrator/orchestrator.go`.
 
-### M15.5 — `Distill` consumer recipes and downstream migration notes
+### M15.5 — `Distill` consumer recipes and downstream migration notes ✅
 
 Tie M15 off with documentation aimed at library consumers. M15.5 is
 where M15 stops being "we built a library" and becomes "people can
