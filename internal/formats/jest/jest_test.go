@@ -151,15 +151,18 @@ func TestJest_RegisteredAtInit(t *testing.T) {
 	}
 }
 
-// TestJest_ParseEmptyStub — M12.1 ships the stub Parse that closes
-// the channel immediately. M12.2 fills it in. The early stub lets
-// the autodetect → parse path work end-to-end while the scanner is
-// still under construction.
-func TestJest_ParseEmptyStub(t *testing.T) {
+// TestJest_ParseNoFailuresEmitsNothing — input that contains no
+// `●` headers and no FAIL/PASS markers produces zero Events. The
+// scanner only anchors on those markers; everything else is
+// dropped.
+func TestJest_ParseNoFailuresEmitsNothing(t *testing.T) {
 	f, _ := formats.Get("jest")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	ch, err := f.Parse(ctx, strings.NewReader("  ● Auth › login redirects\n"), formats.ParseOpts{})
+	input := strings.NewReader("PASS src/utils.spec.ts\n" +
+		"Test Suites: 1 passed, 1 total\n" +
+		"Tests:       3 passed, 3 total\n")
+	ch, err := f.Parse(ctx, input, formats.ParseOpts{})
 	if err != nil {
 		t.Fatalf("Parse err = %v, want nil", err)
 	}
@@ -168,6 +171,6 @@ func TestJest_ParseEmptyStub(t *testing.T) {
 		count++
 	}
 	if count != 0 {
-		t.Errorf("got %d events from stub Parse; want 0", count)
+		t.Errorf("Parse emitted %d events; want 0", count)
 	}
 }

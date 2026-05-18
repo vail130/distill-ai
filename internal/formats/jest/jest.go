@@ -127,14 +127,13 @@ func (Format) Detect(sample []byte) event.Confidence {
 // channel is closed exactly once when r reaches EOF, when ctx is
 // cancelled, or when an unrecoverable I/O error occurs.
 //
-// M12.1 ships only the skeleton: Parse returns an immediately-closed
-// channel with nil error so the M3 autodetection path can resolve
-// the new format end-to-end before the real scanner arrives in
-// M12.2.
-func (Format) Parse(_ context.Context, _ io.Reader, _ formats.ParseOpts) (<-chan event.Event, error) {
-	out := make(chan event.Event)
-	close(out)
-	return out, nil
+// M12.2 ships the `●` block scanner that emits one Event per
+// failure block with `Severity=error` and `Kind=test_failure`.
+// M12.3 will distinguish snapshot mismatches; M12.4 adds
+// stack-frame extraction and `suite_error` kinds plus the
+// `--verbose` and CI reporter modes.
+func (Format) Parse(ctx context.Context, r io.Reader, _ formats.ParseOpts) (<-chan event.Event, error) {
+	return parseStream(ctx, r), nil
 }
 
 // init registers Format so the binary picks it up by side-effect
