@@ -1,0 +1,37 @@
+README.md
+  3a421fcaa79f89ac 40-45
+docs/formats/gotest.md
+  3a421fcaa79f89ac 133-139,143-168
+internal/formats/gotest/goldens_test.go
+  3a421fcaa79f89ac 1-25
+.opencode/skills/distill-output/SKILL.md
+  3a421fcaa79f89ac 45-50,52-54,144-147,149,155-159
+internal/formats/gotest/block.go
+  3a421fcaa79f89ac 34,40-41,48
+TODO.md
+  3a421fcaa79f89ac 27-31,1894,1931,1999,2092,2170,2253
+internal/formats/gotest/scanner.go
+  3a421fcaa79f89ac 335-340
+test/integration/integration_test.go
+  3a421fcaa79f89ac 450-478
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "90253a8e7b8d14e5742e055e38bd936606215165",
+  "prompts": {
+    "3a421fcaa79f89ac": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c95dba20ffeQVPYW13D0ZBs1Q",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 606,
+      "total_deletions": 76,
+      "accepted_lines": 582,
+      "overriden_lines": 0
+    }
+  }
+}
