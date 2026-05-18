@@ -1,0 +1,42 @@
+CHANGELOG.md
+  6bf018cc3c3cb2a8 12-35
+skills/distill-ai/SKILL.md
+  6bf018cc3c3cb2a8 99-143
+docs/library-api.md
+  6bf018cc3c3cb2a8 1-334
+README.md
+  6bf018cc3c3cb2a8 243-271
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "07b1d703c501da1c25f07293190401e0338d7e48",
+  "prompts": {
+    "6bf018cc3c3cb2a8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c3b7709dffekBdPc4ZFU4gWYD",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 432,
+      "total_deletions": 8,
+      "accepted_lines": 432,
+      "overriden_lines": 0
+    },
+    "aaf3cafde36d6d2d": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c418a5f6ffedSQpnnmGvZIfK6",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 7130,
+      "overriden_lines": 0
+    }
+  }
+}
