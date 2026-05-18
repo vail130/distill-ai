@@ -1,0 +1,27 @@
+docs/decisions/0003-position-vs-rtk-and-snip.md
+  15c7af2db5403eb0 1-271
+README.md
+  15c7af2db5403eb0 3-5,7-9,11-14,18-25,27-28,31-53,55-72,74-75,162-167,169-170,173-175,179,181-186,189-199,201-206,208-227,231-249,251-257
+TODO.md
+  15c7af2db5403eb0 28-42,4109-4199
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "ef2d1ee5ff927e1ce6f58f713c60dbc3e99d495a",
+  "prompts": {
+    "15c7af2db5403eb0": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c754f08fffek8vefDwEABiqYv",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 526,
+      "total_deletions": 38,
+      "accepted_lines": 526,
+      "overriden_lines": 0
+    }
+  }
+}
