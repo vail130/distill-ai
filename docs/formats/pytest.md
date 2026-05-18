@@ -35,9 +35,11 @@ failure block, with `Severity=error` and `Kind=test_failure`. M11.3
 adds the `=== ERRORS ===` section with two kinds: `test_error` for
 per-test fixture / setup failures, and `collection_error` for
 import-time / conftest failures that prevented tests from running.
-M11.4 will add stack frame extraction, `--tb` shape handling
-(`long`, `short`, `line`, `native`), and warning Events. The four
-pytest kinds are documented in
+M11.4 adds stack-frame extraction (`File "..."` and short-form
+`path:line: in func` lines), warning Events from
+`=== warnings summary ===`, and honours
+`opts.MinSeverity` / `opts.KeepWarnings`. The four pytest kinds
+are documented in
 [SCHEMA.md § Kind values](./SCHEMA.md#kind-values).
 
 ### `test_failure` Event shape
@@ -116,6 +118,47 @@ differences:
   line (a truncated import-time error), `Location.File` is
   populated from the `ERROR collecting <path>` underline so
   consumers can still link to the offending file.
+
+### Stack frames
+
+`Event.Frames` is populated for any failure / error block whose
+body contains traceback frames. Two shapes are recognised:
+
+| pytest reporter | Frame shape recognised                              |
+|-----------------|-----------------------------------------------------|
+| `--tb=long`     | `File "<path>", line N, in <func>` (Python long)    |
+| `--tb=native`   | Same Python long form, flush-left                   |
+| `--tb=short`    | `<path>:<line>: in <func>` (compact)                |
+| `--tb=line`     | One-line summary; no frame data — `Frames` is `nil` |
+
+When at least one matching line is found, the parser builds a
+`StackFrame` per match with `Vendor=false`. The M5
+`CollapseStage` re-populates `Vendor` from its pattern catalogue
+(site-packages, dist-packages, stdlib paths) so consumers running
+with `--keep-vendor=false` see only user-code frames.
+
+### Warning Events
+
+Pytest emits a `=== warnings summary ===` section near the end of
+a run for every captured Python warning. The scanner anchors a
+warning Event on each unindented header line under the banner —
+both the `<path>.py:<line>` and `<path>.py::<test_id>` shapes are
+recognised — and folds the indented continuation lines (typically
+the `WarningClass: message` detail) into the body.
+
+| Field      | Source                                                                                   |
+|------------|------------------------------------------------------------------------------------------|
+| `severity` | `warn`.                                                                                  |
+| `kind`     | `warning`.                                                                               |
+| `title`    | The `<WarningClass>: <message>` form derived from a body line; falls back to the first non-header line. |
+| `location` | `<path>.py:<line>` parsed from the unindented header.                                    |
+| `body`     | The header plus indented continuation lines.                                             |
+
+**Warnings are dropped by default.** The parser only emits warning
+Events when either `ParseOpts.KeepWarnings` is true or
+`ParseOpts.MinSeverity` is explicitly set to `warn` or `info`.
+The precedence rule matches the generic format: an explicit
+`MinSeverity` always wins over `KeepWarnings=false`.
 
 ## What gets dropped
 

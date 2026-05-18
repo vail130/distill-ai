@@ -2516,7 +2516,7 @@ conftest pieces.
     example and the difference between `test_error` and
     `collection_error`.
 
-### M11.4 — Stack frame extraction and `--tb` shape handling
+### M11.4 — Stack frame extraction and `--tb` shape handling ✅
 
 Populate `Event.Frames` from the traceback and handle pytest's three
 non-default `--tb` settings (`short`, `line`, `native`).

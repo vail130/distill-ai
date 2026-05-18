@@ -109,10 +109,15 @@ func (Format) Detect(sample []byte) event.Confidence {
 // M11.3 adds the `=== ERRORS ===` section with two kinds:
 // `test_error` for per-test fixture / setup failures, and
 // `collection_error` for import-time / conftest failures that
-// prevented tests from running. M11.4 will add stack frame
-// extraction and `--tb` shape detection.
-func (Format) Parse(ctx context.Context, r io.Reader, _ formats.ParseOpts) (<-chan event.Event, error) {
-	return parseStream(ctx, r), nil
+// prevented tests from running. M11.4 adds stack frame extraction
+// (Python tracebacks under `--tb=long` / `--tb=native` and the
+// compact `--tb=short` form), warning Events from
+// `=== warnings summary ===`, and honours
+// opts.MinSeverity / opts.KeepWarnings the same way the generic
+// format does.
+func (Format) Parse(ctx context.Context, r io.Reader, opts formats.ParseOpts) (<-chan event.Event, error) {
+	floor := effectiveMinSeverity(opts.MinSeverity, opts.KeepWarnings)
+	return parseStream(ctx, r, floor), nil
 }
 
 // init registers Format so the binary picks it up by side-effect

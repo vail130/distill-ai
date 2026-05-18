@@ -118,10 +118,15 @@ fields. As of M9.4:
   An explicit `--severity=info` emits warnings even without
   `--keep-warnings` (the explicit setting wins). Lines filtered as
   anchors still appear in the surviving Events' `context` slices.
-- **pytest** / **jest** / **gotest**: not yet wired (their
-  milestones haven't shipped). Consumers should not expect a
-  pipeline-wide guarantee — read each format's `docs/formats/<name>.md`
-  to see whether filtering is honoured.
+- **pytest** honours both. The default drops every
+  `=== warnings summary ===` entry; `--keep-warnings` or
+  `--severity=warn|info` emits one warning Event per entry. The
+  precedence rule matches generic: an explicit `--severity` always
+  wins over the `--keep-warnings=false` default.
+- **jest** / **gotest**: not yet wired (their milestones haven't
+  shipped). Consumers should not expect a pipeline-wide guarantee
+  — read each format's `docs/formats/<name>.md` to see whether
+  filtering is honoured.
 
 ### Kind values
 
