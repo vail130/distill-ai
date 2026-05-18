@@ -1,0 +1,68 @@
+man/man1/distill-ai-list-formats.1
+  67419cc542bacf3e 1-40
+ARCHITECTURE.md
+  67419cc542bacf3e 651-660
+internal/cli/root.go
+  67419cc542bacf3e 3-4
+cmd/distill-ai/gen-man/main.go
+  67419cc542bacf3e 1-134
+man/man1/distill-ai-run.1
+  67419cc542bacf3e 1-128
+CHANGELOG.md
+  67419cc542bacf3e 12-38
+README.md
+  67419cc542bacf3e 316-329
+Makefile
+  67419cc542bacf3e 32,43-46
+man/man1/distill-ai.1
+  67419cc542bacf3e 1-131
+.goreleaser.yaml
+  67419cc542bacf3e 57-81
+cmd/distill-ai/gen-man/main_test.go
+  67419cc542bacf3e 1-108
+man/man1/distill-ai-detect.1
+  67419cc542bacf3e 1-47
+go.mod
+  67419cc542bacf3e 14,18-19
+test/integration/manpage_test.go
+  67419cc542bacf3e 1-157
+man/man1/distill-ai-version.1
+  67419cc542bacf3e 1-46
+man/man1/distill-ai-explain.1
+  67419cc542bacf3e 1-126
+man/man1/distill-ai-completions.1
+  67419cc542bacf3e 1-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "3727a9eef7858cca2f06dbf8948b77cdb36010ea",
+  "prompts": {
+    "67419cc542bacf3e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c338681effeHlRG8hsTPU3peT",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 2,
+      "total_deletions": 0,
+      "accepted_lines": 5597,
+      "overriden_lines": 0
+    },
+    "6bf018cc3c3cb2a8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c3b7709dffekBdPc4ZFU4gWYD",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 6516,
+      "overriden_lines": 0
+    }
+  }
+}
