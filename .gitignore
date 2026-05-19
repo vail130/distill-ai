@@ -35,3 +35,8 @@ go.work.sum
 /bin/
 /dist/
 /distill-ai
+
+# Transient files produced by `make readme-stats-check`
+.readme-stats.tsv
+/readme-stats
+/gen-man

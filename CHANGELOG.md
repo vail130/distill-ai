@@ -9,6 +9,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- M16.2: README rewrite around v1.0 use cases. Replaces the abstract
+  "Turn noisy command output into structured Events" pitch with a
+  format-first opener: every shipped format (gotest, pytest, jest,
+  generic) and every envelope stripper (github-actions, gitlab-ci)
+  gets a one-line example in the lede so a reader knows what the
+  tool does from the first screen. The Why section gains a real
+  before/after table for the gha-gotest-fail fixture (251 tokens →
+  105 tokens, 58% reduction) tagged by `<!-- distill-ai-stats:
+  gha-gotest-fail -->` markers that two new Makefile targets keep
+  honest: `make readme-stats` prints fresh numbers per fixture, and
+  `make readme-stats-check` fails if any number in the README has
+  drifted from the binary's output. The Install section is new
+  (Homebrew, go install, GitHub Releases); the Usage section gains
+  worked per-format examples sourced from
+  `test/integration/testdata/fixtures/`; the Status section names
+  every deferred feature explicitly with the post-v1.0 milestone
+  link. Two new tools under tools/ — readme-stats and
+  readme-stats/verify — power the drift guards.
+  Three new integration tests pin the structural contract:
+  TestReadme_FormatListMatchesRegistry (every backticked format in
+  the lede is registered), TestReadme_LinksResolve (every
+  repo-local Markdown link resolves to an existing file), and
+  TestReadme_StatsMarkersResolve (every distill-ai-stats marker
+  has a matching close and references a real fixture). Sets the
+  documentation contract for v1.0: the README is the single source
+  of truth for what ships and how it's used.
+- M16.1.5: LineCounter plumbed through Sinks via a new LineSource
+  interface so the JSON summary's `input_lines` field and the
+  text/markdown footer's "distilled N lines" count are non-zero in
+  production. The Sinks were reading a static InputLines field set
+  at construction; the LineCounter wraps the input only at
+  pipeline-build time, so the field stayed 0 in every real run.
+  Three Sinks gain an optional LineSource field that wins over the
+  static fallback when set; the CLI installs the LineCounter via a
+  new attachLineSource helper paralleling attachCounters.
+  FixedLineSource is added for test scenarios that need a constant
+  without constructing a counter. The drift was invisible because
+  every existing Sink test set InputLines to a constant; three new
+  tests (one per Sink) pin the LineSource-wins contract.
+  Prerequisite for M16.2's readme-stats target.
 - M16.1: man pages generated from the cobra command tree. The CLI
   surface (root command and subcommands) was moved from
   `cmd/distill-ai/` into a new `internal/cli/` package so the
