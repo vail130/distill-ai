@@ -1,0 +1,38 @@
+CHANGELOG.md
+  67419cc542bacf3e 5-13,15-26,32-68,72-94,514-580,763-806,814-815
+test/integration/changelog_test.go
+  67419cc542bacf3e 1-145
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "cb2d91fcaaa95332633119c78d25e8eeb90f65c2",
+  "prompts": {
+    "67419cc542bacf3e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c338681effeHlRG8hsTPU3peT",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 345,
+      "total_deletions": 58,
+      "accepted_lines": 4046,
+      "overriden_lines": 0
+    },
+    "6bf018cc3c3cb2a8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c3b7709dffekBdPc4ZFU4gWYD",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 6402,
+      "overriden_lines": 4
+    }
+  }
+}
