@@ -53,7 +53,7 @@ type Stripper interface {
 ```
 
 `Detect` runs against the first
-[`SampleSize`](../internal/envelope/envelope.go) bytes (4 KiB —
+[`SampleSize`](../internal/envelope/envelope.go) bytes (16 KiB —
 the same window the format detector uses, so the two layers see
 the same shape of input). `Strip` must be streaming: the cleaned
 Reader produces output incrementally, and the signals channel is
@@ -110,7 +110,7 @@ The CLI's `--strip-envelope` flag (M13.2) maps directly onto
 `explain` subcommands, with default `auto`. Behaviour:
 
 ```bash
-# Default: detect a registered stripper from the first 4 KiB of
+# Default: detect a registered stripper from the first 16 KiB of
 # input; fall back to Noop if nothing claims it.
 gh run view --log | distill-ai run
 

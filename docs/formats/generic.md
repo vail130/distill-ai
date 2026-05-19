@@ -33,7 +33,8 @@ try to "win" ties; the detector's exclusion already enforces that
 generic always loses to a specific format.
 
 The cheap detect-time scan looks for any of these markers anywhere
-in the 4 KiB sample:
+in the detector's 16 KiB sample (see
+[`internal/detect.SampleSize`](../../internal/detect/detect.go)):
 
 ```
 ERROR    FATAL    WARN  WARNING
