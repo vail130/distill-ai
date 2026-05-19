@@ -12,6 +12,7 @@ import (
 	// Trigger format registration for the registry lookups below.
 	_ "github.com/vail130/distill-ai/internal/formats/generic"
 	_ "github.com/vail130/distill-ai/internal/formats/gotest"
+	_ "github.com/vail130/distill-ai/internal/formats/gotestsum"
 	_ "github.com/vail130/distill-ai/internal/formats/jest"
 	_ "github.com/vail130/distill-ai/internal/formats/pytest"
 )
@@ -104,7 +105,7 @@ func TestIntegrationDocs_ReferenceShippedFormats(t *testing.T) {
 	// backticked token that matches one of these must resolve to
 	// a registered format. Other backticked tokens (flag names,
 	// commands, file paths) are ignored.
-	candidateFormats := []string{"pytest", "gotest", "jest", "generic"}
+	candidateFormats := []string{"pytest", "gotest", "gotestsum", "jest", "generic"}
 	for _, p := range integrationDocPaths {
 		p := p
 		t.Run(p, func(t *testing.T) {

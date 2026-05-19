@@ -4,12 +4,13 @@
 Unix filter. No proxy, no network, no state. JSON output is a versioned
 public API.
 
-v1.0 ships four format parsers — `gotest`, `pytest`, `jest`, `generic`
-— plus two CI envelope strippers (`github-actions`, `gitlab-ci`) that
+v1.0 ships five format parsers — `gotest`, `gotestsum`, `pytest`,
+`jest`, `generic` — plus CI envelope strippers that
 peel wrapper noise before format detection:
 
 ```bash
 go test ./... 2>&1 | distill-ai        # gotest: --- FAIL blocks, panics, race reports
+gotestsum -- ./... 2>&1 | distill-ai   # gotestsum: === Failed summaries, DONE rollups
 pytest 2>&1 | distill-ai               # pytest: =/= FAILURES =/= blocks, tracebacks
 npx jest 2>&1 | distill-ai             # jest:   ● failure markers, snapshot diffs
 tail -f app.log | distill-ai           # generic: ERROR / FATAL / Traceback fallback
@@ -230,6 +231,10 @@ source <(distill-ai completions zsh)
 - `gotest` — `go test` output, including the `-json` reporter,
   panic blocks, build failures, and race-detector reports.
   Documented at [`docs/formats/gotest.md`](./docs/formats/gotest.md).
+- `gotestsum` — gotestsum-style Go test summaries, including
+  `=== Failed` / `=== FAIL:` blocks, `DONE ...` rollups, and
+  package-level test-binary flag errors. Documented at
+  [`docs/formats/gotestsum.md`](./docs/formats/gotestsum.md).
 - `pytest` — `=== FAILURES ===` / `=== ERRORS ===` blocks, all
   four `--tb` shapes, parametrised tests, collection-phase failures,
   warning summaries. Documented at
@@ -251,8 +256,8 @@ Envelope strippers (run before detection):
   `envelope_step_failure`.
 
 Use `distill-ai list-formats` to see what's wired into your binary,
-and `distill-ai detect FILE` to ask the autodetector which format
-it picks for a given input.
+and `distill-ai detect FILE` to ask the autodetector which envelope
+and inner format it picks for a given input.
 
 ## What distill-ai is, and is not
 

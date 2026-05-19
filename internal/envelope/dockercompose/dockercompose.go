@@ -157,11 +157,10 @@ func countPrefixedLines(lines [][]byte) int {
 	return hits
 }
 
-// Strip peels the docker-compose prefix from every matching line and
-// passes everything else through unchanged. Lines without a
-// recognised prefix (image pull progress, network setup, attach
-// banner) flow through verbatim — they are not common in the body
-// of a run and are usually harmless to the inner-format detector.
+// Strip peels the docker-compose prefix from every matching line. Any
+// non-prefixed pre-attach preamble is dropped so format detection sees
+// the attached command output at the start of the cleaned stream.
+// Non-prefixed lines after attachment pass through unchanged.
 //
 // Lifecycle and cancellation mirror the gitlabci stripper: a
 // scannerLoop goroutine drives bufio.Scanner over r and forwards
@@ -185,6 +184,7 @@ func run(ctx context.Context, r io.Reader, pw *io.PipeWriter) {
 	lines := make(chan string, envelope.SignalBufferSize)
 	scanErr := make(chan error, 1)
 	go scannerLoop(r, lines, scanErr)
+	attached := false
 	for {
 		select {
 		case <-ctx.Done():
@@ -196,7 +196,13 @@ func run(ctx context.Context, r io.Reader, pw *io.PipeWriter) {
 				}
 				return
 			}
-			clean := stripPrefix(line)
+			clean, matched := stripPrefix(line)
+			if !attached && !matched {
+				continue
+			}
+			if matched {
+				attached = true
+			}
 			if _, err := io.WriteString(pw, clean); err != nil {
 				return
 			}
@@ -221,12 +227,10 @@ func scannerLoop(r io.Reader, lines chan<- string, errCh chan<- error) {
 }
 
 // stripPrefix returns line with the docker-compose prefix removed.
-// Lines that don't carry the prefix return unchanged so non-attached
-// output (image pulls, the attach banner) survives.
-func stripPrefix(line string) string {
+func stripPrefix(line string) (string, bool) {
 	loc := linePattern.FindStringIndex(line)
 	if loc == nil {
-		return line
+		return line, false
 	}
-	return line[loc[1]:]
+	return line[loc[1]:], true
 }

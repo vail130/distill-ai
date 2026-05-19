@@ -42,6 +42,7 @@ func TestPublicAPI_NoLeakedInternalImports(t *testing.T) {
 		"github.com/vail130/distill-ai/internal/envelope/gitlabci":      true,
 		"github.com/vail130/distill-ai/internal/formats/generic":        true,
 		"github.com/vail130/distill-ai/internal/formats/gotest":         true,
+		"github.com/vail130/distill-ai/internal/formats/gotestsum":      true,
 		"github.com/vail130/distill-ai/internal/formats/jest":           true,
 		"github.com/vail130/distill-ai/internal/formats/pytest":         true,
 	}

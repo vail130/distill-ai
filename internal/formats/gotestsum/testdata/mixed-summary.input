@@ -1,0 +1,9 @@
+PASS example.com/app.TestPass (0.01s)
+SKIP example.com/app.TestSlow (0.00s)
+FAIL example.com/app.TestCheckout (0.02s)
+
+=== Failed
+=== FAIL: example.com/app TestCheckout (0.02s)
+    checkout_test.go:88: total mismatch
+
+DONE 3 tests, 1 skipped, 1 failure in 0.20s

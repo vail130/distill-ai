@@ -1,0 +1,22 @@
+[
+  {
+    "severity": "error",
+    "kind": "build_failure",
+    "title": "flag provided but not defined: -test.db.migrations",
+    "location": null,
+    "body": [
+      "=== FAIL: example.com/app",
+      "flag provided but not defined: -test.db.migrations",
+      "Usage of /tmp/go-build123/app.test:",
+      "  -test.bench regexp",
+      ""
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "package": "example.com/app",
+      "subject": "example.com/app"
+    }
+  }
+]

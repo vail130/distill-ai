@@ -27,6 +27,7 @@ added without an index update fails CI.
 - [JSON output schema](./formats/SCHEMA.md)
 - [generic format](./formats/generic.md)
 - [gotest format](./formats/gotest.md)
+- [gotestsum format](./formats/gotestsum.md)
 - [jest format](./formats/jest.md)
 - [pytest format](./formats/pytest.md)
 - [Vendor-frame catalogue](./formats/vendor-frames.md)

@@ -484,6 +484,25 @@ func TestBinary_GotestEndToEndProducesOutput(t *testing.T) {
 	}
 }
 
+func TestBinary_GotestsumEndToEndProducesOutput(t *testing.T) {
+	input := readFixture(t, "gotestsum-fail.input")
+	got := runBinary(t, input)
+	if got.exitCode != 0 {
+		t.Fatalf("exit = %d, want 0 (events emitted); stdout=%q stderr=%q",
+			got.exitCode, got.stdout, got.stderr)
+	}
+	wants := []string{
+		"events from gotestsum",
+		"expected 200, got 500",
+		"TestLogin",
+	}
+	for _, w := range wants {
+		if !strings.Contains(got.stdout, w) {
+			t.Errorf("stdout missing %q; got:\n%s", w, got.stdout)
+		}
+	}
+}
+
 // TestBinary_PytestEndToEndProducesOutput pins the M11 happy
 // path: feeding a pytest-shaped fixture through the binary
 // detects the pytest format, runs the M11.2 / M11.3 / M11.4
@@ -603,6 +622,67 @@ func TestBinary_EnvelopeGitLabGotestEndToEnd(t *testing.T) {
 			t.Errorf("stdout missing %q; got:\n%s", w, got.stdout)
 		}
 	}
+}
+
+func TestBinary_EnvelopeGitLabDockerComposeGotestsumEndToEnd(t *testing.T) {
+	input := readFixture(t, "gitlab-dc-gotestsum-fail.input")
+	got := runBinary(t, input)
+	if got.exitCode != 0 {
+		t.Fatalf("exit = %d, want 0 (events emitted); stdout=%q stderr=%q",
+			got.exitCode, got.stdout, got.stderr)
+	}
+	wants := []string{
+		"events from gotestsum",
+		"flag provided but not defined: -test.db.migrations",
+		"TestMigrations",
+	}
+	for _, w := range wants {
+		if !strings.Contains(got.stdout, w) {
+			t.Errorf("stdout missing %q; got:\n%s", w, got.stdout)
+		}
+	}
+}
+
+func TestBinary_EnvelopeGitLabDockerComposeGotestsumLongPreamble(t *testing.T) {
+	input := gitlabDockerComposeGotestsumLongPreambleInput()
+	got := runBinary(t, input)
+	if got.exitCode != 0 {
+		t.Fatalf("exit = %d, want 0 (events emitted); stdout=%q stderr=%q", got.exitCode, got.stdout, got.stderr)
+	}
+	for _, want := range []string{"events from gotestsum", "flag provided but not defined: -test.db.migrations"} {
+		if !strings.Contains(got.stdout, want) {
+			t.Errorf("stdout missing %q; got:\n%s", want, got.stdout)
+		}
+	}
+}
+
+func TestBinary_DetectGitLabDockerComposeGotestsumLongPreamble(t *testing.T) {
+	path := writeTempFixture(t, gitlabDockerComposeGotestsumLongPreambleInput())
+	got := runBinary(t, "", "detect", path)
+	if got.exitCode != 0 {
+		t.Fatalf("exit = %d, want 0 (specific format detected); stdout=%q stderr=%q", got.exitCode, got.stdout, got.stderr)
+	}
+	for _, want := range []string{"envelope: gitlab-ci+docker-compose", "format: gotestsum", "fellback_to_generic: false"} {
+		if !strings.Contains(got.stdout, want) {
+			t.Errorf("stdout missing %q; got:\n%s", want, got.stdout)
+		}
+	}
+}
+
+func gitlabDockerComposeGotestsumLongPreambleInput() string {
+	var input strings.Builder
+	input.WriteString("2026-05-19T00:03:38.478292Z 00O section_start:1779149018:step_script\n")
+	for i := 0; i < 3000; i++ {
+		input.WriteString("2026-05-19T00:03:53.499890Z 01O #")
+		fmt.Fprintf(&input, "%d DONE build preamble before docker attach\n", i)
+	}
+	input.WriteString("2026-05-19T00:08:31.392075Z 01O tests-ci-test-1  | PASS api.TestHealth (0.00s)\n")
+	input.WriteString("2026-05-19T00:14:39.119290Z 01O tests-ci-test-1  | === Failed\n")
+	input.WriteString("2026-05-19T00:14:39.119291Z 01O tests-ci-test-1  | === FAIL: internal/qsrestgrpc  (0.00s)\n")
+	input.WriteString("2026-05-19T00:14:39.119292Z 01O tests-ci-test-1  | flag provided but not defined: -test.db.migrations\n")
+	input.WriteString("2026-05-19T00:14:39.119401Z 01O tests-ci-test-1  | DONE 1760 tests, 2 skipped, 1 failure in 448.490s\n")
+	input.WriteString("2026-05-19T00:14:44.417633Z 00O section_end:1779149684:step_script\n")
+	return input.String()
 }
 
 // TestBinary_GenericEndToEndProducesOutput pins the M9 happy

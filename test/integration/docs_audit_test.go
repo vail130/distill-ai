@@ -19,6 +19,7 @@ import (
 	_ "github.com/vail130/distill-ai/internal/envelope/gitlabci"
 	_ "github.com/vail130/distill-ai/internal/formats/generic"
 	_ "github.com/vail130/distill-ai/internal/formats/gotest"
+	_ "github.com/vail130/distill-ai/internal/formats/gotestsum"
 	_ "github.com/vail130/distill-ai/internal/formats/jest"
 	_ "github.com/vail130/distill-ai/internal/formats/pytest"
 )
@@ -91,7 +92,7 @@ func TestSchemaDoc_EveryKindHasProducer(t *testing.T) {
 // table whose first column is the kind literal. The table is
 // recognised by a leading "| `kind`" header row.
 func TestPerFormatDocs_KindsMatch(t *testing.T) {
-	for _, name := range []string{"generic", "gotest", "pytest", "jest"} {
+	for _, name := range []string{"generic", "gotest", "gotestsum", "pytest", "jest"} {
 		name := name
 		t.Run(name, func(t *testing.T) {
 			documented := docKindsFor(t, name)
@@ -340,6 +341,7 @@ var allKnownKinds = []string{
 	"panic",
 	"build_failure",
 	"race_condition",
+	// gotestsum reuses gotest failure kinds.
 	// pytest
 	"test_error",
 	"collection_error",

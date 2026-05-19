@@ -145,7 +145,9 @@ The CLI's `--strip-envelope` flag (M13.2) maps directly onto
 ## CLI
 
 `--strip-envelope=<choice>` is registered on both the `run` and
-`explain` subcommands, with default `auto`. Behaviour:
+`explain` subcommands, with default `auto`. `detect` also runs the
+same auto envelope-stripping prelude before format detection and
+prints the chosen envelope in its key:value output. Behaviour:
 
 ```bash
 # Default: detect a registered stripper from the first 16 KiB of
@@ -448,8 +450,9 @@ Confidence `0.0` otherwise.
 |----------------------------------------------------------------|-------------------------------|
 | `testrunner-1  \| === RUN TestThing`                           | `=== RUN TestThing`           |
 | `api      \| ready`                                            | `ready`                       |
-| `[+] Pulling testrunner ...` (no prefix)                       | passed through verbatim       |
-| `Attaching to testrunner-1`                                    | passed through verbatim       |
+| `[+] Pulling testrunner ...` before attachment                  | dropped                       |
+| `Attaching to testrunner-1` before attachment                   | dropped                       |
+| `non-prefixed line` after attachment                            | passed through verbatim       |
 
 **No signal Events.** docker compose's framing carries no
 error/warning/step-failure semantics that aren't already present in
@@ -499,17 +502,13 @@ line matches the prefix pattern), runs Strip again. The cleaned
 output handed to the format detector is bare `go test` output:
 
 ```
-Running with gitlab-runner 16.0.0
-[+] Pulling testrunner ...
-Attaching to testrunner-1
 === RUN   TestLogin
 --- FAIL: TestLogin (0.02s)
     auth_test.go:42: expected 200, got 502
 FAIL
 ```
 
-The cleaned bytes detect as `gotest` (the preamble lines are
-harmless prose to gotest's parser). `chosen.Name()` returns
+The cleaned bytes detect as `gotest`. `chosen.Name()` returns
 `"gitlab-ci+docker-compose"`; `envelope.Chain(chosen)` returns the
 two-element slice for callers that want to inspect each link.
 
