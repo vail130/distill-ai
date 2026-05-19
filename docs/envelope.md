@@ -458,12 +458,15 @@ the inner-format detector sees the bare command output.
 - The grammar for the service-name token follows the Compose spec:
   lowercase alphanumerics, underscores, and dashes, optionally
   ending in `-<replica-number>` for replicated services. The
-  `--padding-spaces--| ` minimum is two spaces, which is the
-  docker-compose default when only a single service is attached.
+  `<padding-spaces>| ` separator requires at least one space before
+  `|`. docker compose pads to the longest attached service-name
+  column so multiple services align (`api      | up`), and
+  collapses to a single space when only one service is attached
+  (`testrunner-1 | === RUN ...` for `docker compose run`).
 
 **Example.**
 
-Input (the shape KNOWN_ISSUES.md issue #2 traced):
+Input (a real-world GitLab CI job running `docker compose up`):
 
 ```
 section_start:1700000000:run_tests

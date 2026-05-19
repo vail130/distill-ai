@@ -161,16 +161,23 @@ Three likely causes:
    explicit format argument (`distill-ai pytest`) to skip the
    detect.
 3. **The test runner is wrapped in a `docker compose` log.**
-   distill-ai doesn't yet recognise the `<service>-<replica>  | `
-   per-line prefix docker-compose emits; see
-   [KNOWN_ISSUES.md § 2](../KNOWN_ISSUES.md). The workaround
-   today is a `sed`-based pre-filter:
+   distill-ai's `docker-compose` envelope stripper peels the
+   per-line `<service>  | ` (or `<service>-<replica>  | `) prefix
+   automatically. When the docker-compose log itself is nested
+   inside a CI job (a GitLab CI step that runs `docker compose up`
+   under `gitlab-runner`), `envelope.Wrap` chains both strippers
+   and `chosen.Name()` becomes `gitlab-ci+docker-compose`. No
+   pre-filter required:
 
    ```bash
-   docker compose logs test 2>&1 \
-     | sed -E 's/^[A-Za-z0-9_.-]+ +\| //' \
-     | distill-ai
+   docker compose logs test 2>&1 | distill-ai
    ```
+
+   See [docs/envelope.md § docker-compose](./envelope.md#docker-compose)
+   for the supported prefix shapes (uncoloured form only; on a
+   runner that emits the coloured shape by default, disable colour
+   in the docker compose invocation itself before piping into
+   distill-ai).
 
 ### `distill-ai` exits 0 in CI even when tests fail
 
