@@ -49,6 +49,18 @@ new version's section.
   returns the raw slice. Signals from every applied stripper fan
   into a single output channel. Closes the first half of the
   previous KNOWN_ISSUES.md #2.
+- Chain re-sampling uses a growing window. The first iteration
+  pays the standard 16 KiB cost; subsequent iterations grow in
+  64 KiB chunks (`ChainSampleGrowStep`) up to 256 KiB
+  (`MaxChainSampleSize`) until a remaining Stripper claims or the
+  cap is hit. Real-world CI preambles between an outer envelope
+  (GitLab CI sections) and an inner envelope (docker-compose
+  attached output) can easily exceed 100 KiB — `docker buildx
+  build` followed by `apt-get install` is the canonical case. The
+  initial 16 KiB-only chain re-sample silently missed every such
+  input; the grown window catches them. The dockercompose
+  Detect was simultaneously freed from its own internal 4 KiB
+  truncation so it scans whatever sample Wrap hands it.
 - Real-world chained CI fixture
   (`internal/envelope/testdata/gitlab-dc-gotest-fail.input`). A
   synthesised public-shape log combining a GitLab CI envelope,

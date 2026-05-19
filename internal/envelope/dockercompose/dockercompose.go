@@ -82,12 +82,6 @@ const (
 // because the prefix must satisfy the strict service-name grammar.
 var linePattern = regexp.MustCompile(`^([a-z0-9][a-z0-9_-]*(?:-\d+)?)( +)\| `)
 
-// detectionWindow is the byte slice the heuristics scan. 4 KiB is
-// enough to see plenty of prefixed lines on every shape the
-// stripper claims; sampling more would cost cycles without changing
-// any decision.
-const detectionWindow = 4096
-
 // fuzzyMinPrefixedLines is the minimum number of distinct prefixed
 // lines the fuzzy heuristic requires before scoring 0.8. The
 // threshold rejects user output that happens to contain one or two
@@ -110,28 +104,24 @@ func (Stripper) Name() string { return Name }
 
 // Detect returns:
 //
-//   - 1.0 when the sample contains a line whose prefix matches
-//     linePattern AND the entire first non-blank line is so
-//     prefixed. A first line that does not match is strong evidence
-//     the rest of the prefixed lines are coincidence, not a real
-//     docker-compose run.
+//   - 1.0 when the first non-blank line of the sample is
+//     docker-compose-prefixed. Strong evidence: callers reading the
+//     attached output of a single-service run see the prefix on
+//     the very first byte.
 //   - 0.8 when at least fuzzyMinPrefixedLines distinct lines in the
-//     detection window match linePattern, even if the first line
-//     does not. Catches runs whose preamble (image pull progress,
-//     network setup messages) precedes the container-attached
-//     output.
+//     sample match linePattern, even if the first line does not.
+//     Catches runs whose preamble (image pull progress,
+//     `docker buildx build` output, apt-get install banter) runs
+//     for tens of KiB before docker compose finally attaches.
 //   - 0.0 otherwise.
 //
-// Detection runs against the cleaned bytes of any outer envelope
-// (Wrap's chaining loop re-samples after each strip), so a GitLab
-// CI section_start / glab preamble does not interfere with the
-// match.
+// Detection scans the entire sample. Wrap's chaining loop grows the
+// sample beyond the cheap 16 KiB initial window when no inner
+// envelope claims it; the detector trusts whatever Wrap hands it.
+// Cost is O(sample-bytes); call rate is once per Wrap iteration so
+// the bytes-vs-precision tradeoff sits at the right place.
 func (Stripper) Detect(sample []byte) event.Confidence {
-	window := sample
-	if len(window) > detectionWindow {
-		window = window[:detectionWindow]
-	}
-	lines := bytes.Split(window, []byte{'\n'})
+	lines := bytes.Split(sample, []byte{'\n'})
 	if firstNonBlankMatches(lines) {
 		return confidenceClearMarker
 	}

@@ -119,6 +119,17 @@ stops as soon as no remaining Stripper scores ≥
 `ConfidenceMinDetect`, or after `MaxChainDepth` iterations as a
 safety cap.
 
+The chain re-sample uses a growing window. The first iteration
+samples the standard 16 KiB (`SampleSize`); each subsequent
+iteration starts at 16 KiB and grows in 64 KiB chunks
+(`ChainSampleGrowStep`) up to `MaxChainSampleSize` (256 KiB) if no
+remaining Stripper claims the smaller sample. Real-world CI
+preambles between an outer envelope and an inner envelope —
+`docker buildx build` followed by `apt-get install`, `kubectl wait`
+for several services, etc. — can be 100+ KiB long; without the
+grown window the inner stripper never sees its own markers and
+chaining silently fails to trigger.
+
 When more than one Stripper applies, `chosen.Name()` is the joined
 chain (e.g. `"gitlab-ci+docker-compose"`); the
 [`envelope.Chain`](../internal/envelope/envelope.go) helper returns
