@@ -69,9 +69,9 @@ this is plenty. For typical CI logs piped through `glab ci trace`
 or `gh run view --log` 16 KB is enough to reach past the runner's
 preamble (image pull, secret resolution, git clone) and into the
 test runner's first markers. For unusually long preambles — jobs
-that do `docker compose up` with a long pull, or wait on multiple
-dependent services before tests start — the markers can still fall
-outside the 16 KB window.
+that do `docker compose up` with a long pull, run a large
+`docker buildx build`, or wait on multiple dependent services before
+tests start — the markers can still fall outside the 16 KB window.
 
 The 16 KB pre-v1.0 bump is the cheap fix; the elaborate options
 below remain post-v1.0 work.
@@ -81,15 +81,19 @@ runner's markers fall back to `generic` and lose the per-failure
 structured output the format parsers produce. The pre-v1.0
 docker-compose + chained-stripper work (which closed the previous
 issues #2 and #4) covered the most common case where envelope
-framing pushes the markers past the sample window; what remains is
-the long-tail of jobs whose preamble alone exceeds 16 KB. Making
-the sample large enough to always reach the markers (say 128 KB)
-bloats short-input parsing unnecessarily.
+framing pushes the markers past the sample window. M17.0 now owns
+the concrete gotestsum-shaped gap from `/tmp/addr-job.log` because
+that log's body is not canonical `go test` output even after the
+envelopes peel. What remains here is the broader long-tail of jobs
+whose preamble alone exceeds 16 KB for any format. Making the
+sample large enough to always reach the markers (say 128 KB) bloats
+short-input parsing unnecessarily.
 
 **Owning milestone.** M3.x revisit, slated for post-v1.0. The 16 KB
-pre-v1.0 floor unblocks typical real-world CI logs; the more
-elaborate options below buy worst-case coverage and warrant their
-own design and benchmarking pass.
+pre-v1.0 floor unblocks typical real-world CI logs; M17.0 handles
+the known gotestsum-specific real-world failure before v1.0; the
+more elaborate detector options below buy worst-case coverage and
+warrant their own design and benchmarking pass.
 
 **Recommendation.** Two post-v1.0 options, in increasing order of
 cost / quality:
