@@ -29,11 +29,49 @@ new version's section.
 
 ### Added
 
-_None yet._
+- `docker-compose` envelope stripper. Peels the per-line
+  `<service>  | ` (or `<service>-<replica>  | `) prefix the docker
+  daemon prepends when one or more services are attached. Detection
+  scores 1.0 when the first non-blank line carries the prefix, 0.8
+  when at least four lines in the first 4 KiB do. No signal Events
+  are synthesised — docker compose's framing is pure transport, the
+  inner test runner already emits its own FAIL markers. Closes the
+  second half of the previous KNOWN_ISSUES.md #2 (the first half
+  was the chaining loop below).
+- `envelope.Wrap` now chains strippers on `ChoiceAuto`. After the
+  highest-confidence stripper finishes, the cleaned bytes are
+  re-sampled and the next-best stripper applies, up to
+  `MaxChainDepth` (4) iterations. Each Stripper still runs exactly
+  once per Wrap call. When more than one stripper applies, the
+  returned `chosen` is a synthetic `chain` value whose Name() joins
+  the applied stripper names with `+` (e.g.
+  `gitlab-ci+docker-compose`); the new `envelope.Chain` accessor
+  returns the raw slice. Signals from every applied stripper fan
+  into a single output channel. Closes the first half of the
+  previous KNOWN_ISSUES.md #2.
+- Real-world chained CI fixture
+  (`internal/envelope/testdata/gitlab-dc-gotest-fail.input`). A
+  synthesised public-shape log combining a GitLab CI envelope,
+  docker compose attaching to five services
+  (testrunner, postgres, redis, minio, mailhog), and enough
+  preamble that the `--- FAIL:` marker sits at byte 6335 — past the
+  4 KB threshold that motivated the SampleSize bump. Plus a
+  shorter `dc-gotest-fail.input` for the bare docker-compose case.
+  `TestEnvelope_FixtureCount` grows from 6 to 8. Closes the
+  previous KNOWN_ISSUES.md #4.
 
 ### Changed
 
-_None yet._
+- `rules/dependencies.md` documents the obligation to run
+  `go mod tidy` and stage the resulting `go.mod` / `go.sum` changes
+  in the same commit as the import that motivates them. A
+  trailing-imports commit is a bisect hazard — CI passes at the
+  tip but the intermediate commits fail with module-graph drift.
+- `docs/integration-ci.md` drops the `sed`-based docker-compose
+  pre-filter workaround. The native `docker-compose` envelope
+  stripper plus chaining cover the case end-to-end; the
+  troubleshooting bullet now points readers at the supported
+  prefix shapes instead.
 
 ### Deprecated
 
