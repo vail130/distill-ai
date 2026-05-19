@@ -1,0 +1,38 @@
+AGENTS.md
+  905997bab39acddd 81-82
+rules/dependencies.md
+  905997bab39acddd 20-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "c656c57704aa0b92c263c33f00924365dc12ba4e",
+  "prompts": {
+    "67419cc542bacf3e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c338681effeHlRG8hsTPU3peT",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 1572,
+      "total_deletions": 0,
+      "accepted_lines": 7605,
+      "overriden_lines": 0
+    },
+    "905997bab39acddd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1bfbcd3dffferCSV1cChPLm4AS",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 14,
+      "total_deletions": 1,
+      "accepted_lines": 14,
+      "overriden_lines": 0
+    }
+  }
+}
