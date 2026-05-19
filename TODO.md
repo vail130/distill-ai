@@ -4537,7 +4537,7 @@ drift can't recur.
 - **Docs:** the audit + corrections + new `docs/index.md` are
   the deliverable.
 
-### M16.4 — Integration recipes (`docs/integration-*.md`)
+### M16.4 — Integration recipes (`docs/integration-*.md`) ✅
 
 The three deliverables called out in the original sketch:
 `docs/integration-claude-code.md`,
