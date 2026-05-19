@@ -1,0 +1,36 @@
+KNOWN_ISSUES.md
+  67419cc542bacf3e 58-198
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "2c53a4b595cdf7dace0613bbb4be551e48f651ab",
+  "prompts": {
+    "67419cc542bacf3e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c338681effeHlRG8hsTPU3peT",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 3844,
+      "overriden_lines": 0
+    },
+    "6bf018cc3c3cb2a8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c3b7709dffekBdPc4ZFU4gWYD",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 6408,
+      "overriden_lines": 0
+    }
+  }
+}
