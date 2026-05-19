@@ -1,0 +1,58 @@
+docs/formats/gotest.md
+  67419cc542bacf3e 10-23
+CHANGELOG.md
+  67419cc542bacf3e 10-39
+docs/index.md
+  67419cc542bacf3e 1-29
+test/integration/docs_audit_test.go
+  67419cc542bacf3e 1-358
+docs/formats/generic.md
+  67419cc542bacf3e 15-29
+tools/docs-index/main.go
+  67419cc542bacf3e 1-213
+Makefile
+  67419cc542bacf3e 32,47-54
+docs/formats/pytest.md
+  67419cc542bacf3e 11-24,191-216
+docs/formats/jest.md
+  67419cc542bacf3e 10-22,175-200
+docs/decisions/README.md
+  67419cc542bacf3e 8-24
+internal/cli/root.go
+  67419cc542bacf3e 4
+.gitignore
+  67419cc542bacf3e 43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "f1d4c95c8800da64f990c4e0d2abbe25a3d91a8d",
+  "prompts": {
+    "67419cc542bacf3e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c338681effeHlRG8hsTPU3peT",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 815,
+      "total_deletions": 20,
+      "accepted_lines": 4468,
+      "overriden_lines": 1
+    },
+    "6bf018cc3c3cb2a8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c3b7709dffekBdPc4ZFU4gWYD",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 6408,
+      "overriden_lines": 0
+    }
+  }
+}
