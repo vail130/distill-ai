@@ -248,6 +248,97 @@ func TestGitLab_StripContextCancellation(t *testing.T) {
 	}
 }
 
+// TestGitLab_DetectGlabPrefixedSampleStillMatches asserts that
+// envelope detection works on input where every line is prefixed
+// with the `<RFC3339-Z> NN[A-Z]` framing `glab ci trace` prepends.
+// The pre-fix behaviour was a false negative — the section regex was
+// `^`-anchored against raw lines, so the prefix kept it from
+// firing and the timestamp-heuristic github-actions detector won
+// (0.8 vs gitlab-ci's 0). Captured from a real GitLab CI gotest
+// job log piped through `glab ci trace`.
+func TestGitLab_DetectGlabPrefixedSampleStillMatches(t *testing.T) {
+	sample := "" +
+		"2026-05-19T00:02:58.540261Z 00O section_start:1779148978:prepare_executor\n" +
+		"2026-05-19T00:03:22.731006Z 00O+\x1b[0Ksection_start:1779149002:prepare_script\n" +
+		"2026-05-19T00:03:22.731068Z 00O+\x1b[0K\x1b[0K\x1b[36;1mPreparing environment\x1b[0;m\x1b[0;m\n"
+	got := gitlabci.Stripper{}.Detect([]byte(sample))
+	if got != 1.0 {
+		t.Errorf("Detect on glab-prefixed sample = %v, want 1.0", got)
+	}
+}
+
+// TestGitLab_StripGlabPrefixedSections verifies the per-line strip
+// applies to both forms of the glab prefix: the standard
+// "<ts> NN[A-Z] " (with trailing space) and the continuation
+// "<ts> NN[A-Z]+<CSI EL0>" form glab emits on lines that wrap an
+// earlier carriage-return-terminated runner write. Every section
+// marker must be consumed; only the body lines survive.
+func TestGitLab_StripGlabPrefixedSections(t *testing.T) {
+	input := "" +
+		"2026-05-19T00:02:58.540261Z 00O section_start:1700000000:build\n" +
+		"2026-05-19T00:02:58.540262Z 00O compiling foo\n" +
+		"2026-05-19T00:03:22.731006Z 00O+\x1b[0Ksection_start:1700000001:subsection\n" +
+		"2026-05-19T00:03:22.731007Z 00O sub-line\n" +
+		"2026-05-19T00:03:22.731008Z 00O+\x1b[0Ksection_end:1700000001:subsection\n" +
+		"2026-05-19T00:03:22.731009Z 00O section_end:1700000000:build\n"
+	want := "compiling foo\nsub-line\n"
+	cleaned, signals := stripAll(t, input)
+	if cleaned != want {
+		t.Errorf("cleaned = %q, want %q", cleaned, want)
+	}
+	if len(signals) != 0 {
+		t.Errorf("expected 0 signals, got %d", len(signals))
+	}
+}
+
+// TestGitLab_StripGlabPrefixedJobFailure pins the end-to-end
+// behaviour a real production GitLab CI log surfaced: the runner's
+// terminal "ERROR: Job failed: exit status N" line, wrapped in
+// the glab prefix and a leading ANSI colour code, is consumed by
+// the stripper and surfaced as an envelope_step_failure Event.
+// "exit status N" and "exit code N" are accepted interchangeably.
+func TestGitLab_StripGlabPrefixedJobFailure(t *testing.T) {
+	input := "" +
+		"2026-05-19T00:15:07.553120Z 00O \x1b[31;1mERROR: Job failed: exit status 1\n"
+	cleaned, signals := stripAll(t, input)
+	if cleaned != "" {
+		t.Errorf("cleaned = %q, want \"\" (failure line consumed)", cleaned)
+	}
+	if len(signals) != 1 {
+		t.Fatalf("got %d signals, want 1", len(signals))
+	}
+	if signals[0].Metadata["exit_code"] != "1" {
+		t.Errorf("Metadata[\"exit_code\"] = %q, want \"1\"", signals[0].Metadata["exit_code"])
+	}
+	if signals[0].Kind != envelope.KindEnvelopeStepFailure {
+		t.Errorf("Kind = %q, want %q", signals[0].Kind, envelope.KindEnvelopeStepFailure)
+	}
+}
+
+// TestGitLab_StripExitStatusAndExitCodeAreEquivalent pins the
+// interchangeable wording the runner emits. Some GitLab runner
+// versions / glab versions print "exit code N", others "exit
+// status N"; both must produce the same signal.
+func TestGitLab_StripExitStatusAndExitCodeAreEquivalent(t *testing.T) {
+	cases := []string{
+		"ERROR: Job failed: exit code 7\n",
+		"ERROR: Job failed: exit status 7\n",
+	}
+	for _, input := range cases {
+		input := input
+		t.Run(input, func(t *testing.T) {
+			_, signals := stripAll(t, input)
+			if len(signals) != 1 {
+				t.Fatalf("got %d signals, want 1; input=%q", len(signals), input)
+			}
+			if signals[0].Metadata["exit_code"] != "7" {
+				t.Errorf("Metadata[\"exit_code\"] = %q, want \"7\"; input=%q",
+					signals[0].Metadata["exit_code"], input)
+			}
+		})
+	}
+}
+
 func stripAll(t *testing.T, input string) (cleaned string, signals []event.Event) {
 	t.Helper()
 	r, sigCh, err := gitlabci.Stripper{}.Strip(context.Background(), strings.NewReader(input))
