@@ -234,6 +234,7 @@ rule](../rules/output-stability.md) they do not bump
 | `none` (Noop)     | shipped  | M13.1    |
 | `github-actions`  | shipped  | M13.3    |
 | `gitlab-ci`       | shipped  | M13.4    |
+| `docker-compose`  | shipped  | pre-v1.0 |
 
 ### github-actions
 
@@ -412,6 +413,94 @@ gitlab-runner` line is harmless prose to gotest's parser).
 One synthesised signal Event arrives in parallel:
 `envelope_step_failure` with `Title=""` (the section was closed
 before the marker fired), `metadata.exit_code="1"`.
+
+### docker-compose
+
+Strips the per-line `<service>  | ` (or `<service>-<replica>  | `)
+prefix the docker daemon prepends to every container stdout line
+when one or more services are attached. The stripper is built to
+compose with the CI strippers: a GitLab CI job that runs
+`docker compose up` arrives at `Wrap` with two envelopes around
+the test runner's bytes, and the [chaining loop](#chaining) peels
+both before format detection.
+
+**Detection.** Confidence `1.0` when the first non-blank line of
+the sample carries the prefix. Confidence `0.8` when at least four
+distinct lines in the first 4 KiB carry the prefix, even if the
+first line does not (catches runs whose preamble — image pull
+progress, attach banner — precedes the container output).
+Confidence `0.0` otherwise.
+
+**Stripped from cleaned output.**
+
+| Input                                                          | Cleaned output                |
+|----------------------------------------------------------------|-------------------------------|
+| `testrunner-1  \| === RUN TestThing`                           | `=== RUN TestThing`           |
+| `api      \| ready`                                            | `ready`                       |
+| `[+] Pulling testrunner ...` (no prefix)                       | passed through verbatim       |
+| `Attaching to testrunner-1`                                    | passed through verbatim       |
+
+**No signal Events.** docker compose's framing carries no
+error/warning/step-failure semantics that aren't already present in
+the inner stream — the test runner emits its own `FAIL:` markers;
+docker compose just relays bytes. The stripper exists purely so
+the inner-format detector sees the bare command output.
+
+**Notes.**
+
+- The stripper recognises the **uncoloured** prefix shape only.
+  Recent docker compose versions emit a colourised prefix
+  (`\x1b[36mtestrunner-1  |\x1b[0m === RUN ...`) when stdout is a
+  TTY; CI runners and `docker compose --no-ansi` produce the
+  uncoloured form this stripper handles. A coloured-form follow-up
+  is deferred because it has to preserve any inner ANSI codes
+  emitted by the test runner itself.
+- The grammar for the service-name token follows the Compose spec:
+  lowercase alphanumerics, underscores, and dashes, optionally
+  ending in `-<replica-number>` for replicated services. The
+  `--padding-spaces--| ` minimum is two spaces, which is the
+  docker-compose default when only a single service is attached.
+
+**Example.**
+
+Input (the shape KNOWN_ISSUES.md issue #2 traced):
+
+```
+section_start:1700000000:run_tests
+Running with gitlab-runner 16.0.0
+[+] Pulling testrunner ...
+Attaching to testrunner-1
+testrunner-1  | === RUN   TestLogin
+testrunner-1  | --- FAIL: TestLogin (0.02s)
+testrunner-1  |     auth_test.go:42: expected 200, got 502
+testrunner-1  | FAIL
+section_end:1700000000:run_tests
+ERROR: Job failed: exit code 1
+```
+
+`envelope.Wrap` on `ChoiceAuto` picks `gitlab-ci` first
+(`section_start:` matches at 1.0), runs Strip, re-samples the
+cleaned bytes, picks `docker-compose` next (every `testrunner-1`
+line matches the prefix pattern), runs Strip again. The cleaned
+output handed to the format detector is bare `go test` output:
+
+```
+Running with gitlab-runner 16.0.0
+[+] Pulling testrunner ...
+Attaching to testrunner-1
+=== RUN   TestLogin
+--- FAIL: TestLogin (0.02s)
+    auth_test.go:42: expected 200, got 502
+FAIL
+```
+
+The cleaned bytes detect as `gotest` (the preamble lines are
+harmless prose to gotest's parser). `chosen.Name()` returns
+`"gitlab-ci+docker-compose"`; `envelope.Chain(chosen)` returns the
+two-element slice for callers that want to inspect each link.
+
+One synthesised signal Event still arrives from the gitlab-ci
+stripper: `envelope_step_failure` with `metadata.exit_code="1"`.
 
 ## Adding a new stripper
 

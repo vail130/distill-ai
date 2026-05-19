@@ -14,6 +14,7 @@ import (
 	"github.com/vail130/distill-ai/internal/formats"
 
 	// Trigger registration of every shipped format and envelope.
+	_ "github.com/vail130/distill-ai/internal/envelope/dockercompose"
 	_ "github.com/vail130/distill-ai/internal/envelope/githubactions"
 	_ "github.com/vail130/distill-ai/internal/envelope/gitlabci"
 	_ "github.com/vail130/distill-ai/internal/formats/generic"
