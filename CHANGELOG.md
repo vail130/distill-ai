@@ -2,13 +2,96 @@
 
 All notable changes to `distill-ai` are documented here.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this
+project adheres to
+[Semantic Versioning](https://semver.org/spec/v2.0.0.html). The
+JSON output schema is treated as a public API per
+[`rules/output-stability.md`](./rules/output-stability.md);
+breaking schema changes bump `output.SchemaVersion` and require a
+deprecation period documented under the relevant version's
+**Changed** subsection.
+
+The JSON `schema_version` evolves independently of the binary's
+SemVer. A binary version bump (`v1.0.0` → `v2.0.0`) does not
+automatically bump the schema; a schema change always bumps the
+binary's major version. Consumers parsing `distill-ai --output=json`
+should branch on `schema_version`, not the binary's `--version`
+string.
+
+**Tag convention.** Release tags are `vMAJOR.MINOR.PATCH` exactly
+(`v1.0.0`, `v1.1.0`, …). Pre-1.0 versions are not back-filled with
+tags. The `[Unreleased]` block accumulates entries between
+releases; the release commit moves the block's contents under the
+new version's section.
 
 ## [Unreleased]
 
 ### Added
 
+_None yet._
+
+### Changed
+
+_None yet._
+
+### Deprecated
+
+_None yet._
+
+### Removed
+
+_None yet._
+
+### Fixed
+
+_None yet._
+
+### Security
+
+_None yet._
+
+## [1.0.0] - YYYY-MM-DD
+
+**Release summary.** The v1.0 release. Ships four runtime-failure
+format parsers (`gotest`, `pytest`, `jest`, `generic`), two CI
+envelope strippers (`github-actions`, `gitlab-ci`), a streaming
+pipeline with dedupe / vendor-frame collapse / `--budget`
+enforcement, three encoded output forms (`text`, `json`,
+`markdown`) with a versioned JSON schema, a TOML configuration
+file, a stable Go library API at
+[`pkg/distill`](./pkg/distill), and man pages for every
+subcommand. The v1.0 contract is recorded in
+[ADR-0002](./docs/decisions/0002-v1.0-scope-and-post-v1.0-roadmap.md);
+the deferred-feature list is in
+[README.md § Status](./README.md#status). The release date is
+filled in by M17.5 when the tag is pushed.
+
+### Added
+
+- M16.5: CHANGELOG audit and v1.0 release preparation. The file
+  is reorganised into the canonical Keep a Changelog 1.1.0
+  structure: a pre-stubbed `[Unreleased]` block (empty Added /
+  Changed / Deprecated / Removed / Fixed / Security subsections
+  ready for v1.1 entries) followed by a `[1.0.0] - YYYY-MM-DD`
+  block carrying every shipped milestone's entry. The date
+  placeholder gets filled in by M17.5 when the release tag is
+  pushed. The preamble gains explicit notes about the
+  output-stability rule, the independent evolution of
+  `output.SchemaVersion` versus the binary's SemVer, and the
+  `vMAJOR.MINOR.PATCH` tag convention. Three drift-guard tests
+  in `test/integration/changelog_test.go` pin the contract:
+  `TestChangelog_HasUnreleasedAndV1Section` (both section
+  headers present); `TestChangelog_SubsectionHeadersAreSemVer`
+  (every `### Heading` is one of the six Keep a Changelog
+  subsections; no duplicates within a version);
+  `TestChangelog_EveryClosedMilestoneHasEntry` (every
+  user-visible closed milestone in TODO.md \u2014 M8 onward \u2014
+  has at least one CHANGELOG mention; internal-contract
+  milestones M0\u2013M7 that pre-dated the CHANGELOG are
+  explicitly skipped). M11 (pytest), M12 (jest), and M13
+  (envelope-stripper layer) gain proper entries the
+  per-milestone alignment rule had let slip.
 - M16.4: integration recipes for Claude Code, opencode, and CI
   systems. Three new docs under `docs/integration-*.md`:
   Claude Code (CLAUDE.md snippet, worked failing-pytest example,
@@ -63,41 +146,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   in the three remaining doc references that previously missed
   the update.
 
-### Fixed
-
-- detect: `SampleSize` bumped from 4 KiB to 16 KiB so envelope-wrapped
-  CI logs (logs from `glab ci trace`, `gh run view --log`, or any
-  runner configured with `--timestamps`) reach past the per-job
-  preamble (image pull, secret resolution, git clone) and into the
-  first test-runner marker. `internal/envelope.SampleSize` follows
-  in lockstep so envelope detection and format detection see the
-  same window. The constant is a single allocation per Detect call;
-  the buffer cost is negligible. KNOWN_ISSUES.md issue #3 records
-  the longer history and the two post-v1.0 follow-up options
-  (multi-window peek and re-sample-after-stripping) reserved for
-  M3.x revisit work. The TestSampleSize_ReasonableConstant floor
-  (≥ 1 KiB) is unchanged so future formats with later markers stay
-  protected.
-- gitlab-ci envelope: stripper now recognises and peels the
-  per-line preamble that `glab ci trace` and `gitlab-runner` in
-  `--timestamps` mode prepend to every line (an RFC3339-Z
-  timestamp, a 2-digit step number, a 1-letter stream code, and
-  either a trailing space or `+\x1b[0K` for continuation lines),
-  plus any ANSI CSI escape sequences immediately following.
-  Previously, `^`-anchored regexes for `section_start:` /
-  `section_end:` and `ERROR: Job failed:` failed against
-  glab-wrapped lines and the github-actions detector (which
-  honours the RFC3339-Z timestamp heuristic) won the detection
-  race — leaving a glab-traced GitLab CI log misidentified and
-  its envelope unstripped. The job-failure regex also accepts
-  both "exit code N" and "exit status N" phrasings, which the
-  GitLab runner emits interchangeably. Surfaced by a real
-  real production GitLab CI log. Four new tests cover the
-  glab-prefixed Detect, Strip section markers, Strip job failure,
-  and the exit-code/exit-status interchange.
-
-### Added
-
 - M16.2: README rewrite around v1.0 use cases. Replaces the abstract
   "Turn noisy command output into structured Events" pitch with a
   format-first opener: every shipped format (gotest, pytest, jest,
@@ -124,20 +172,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   has a matching close and references a real fixture). Sets the
   documentation contract for v1.0: the README is the single source
   of truth for what ships and how it's used.
-- M16.1.5: LineCounter plumbed through Sinks via a new LineSource
-  interface so the JSON summary's `input_lines` field and the
-  text/markdown footer's "distilled N lines" count are non-zero in
-  production. The Sinks were reading a static InputLines field set
-  at construction; the LineCounter wraps the input only at
-  pipeline-build time, so the field stayed 0 in every real run.
-  Three Sinks gain an optional LineSource field that wins over the
-  static fallback when set; the CLI installs the LineCounter via a
-  new attachLineSource helper paralleling attachCounters.
-  FixedLineSource is added for test scenarios that need a constant
-  without constructing a counter. The drift was invisible because
-  every existing Sink test set InputLines to a constant; three new
-  tests (one per Sink) pin the LineSource-wins contract.
-  Prerequisite for M16.2's readme-stats target.
 - M16.1: man pages generated from the cobra command tree. The CLI
   surface (root command and subcommands) was moved from
   `cmd/distill-ai/` into a new `internal/cli/` package so the
@@ -477,6 +511,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   gotest leg of KNOWN_ISSUES.md § 6 and makes
   `make test 2>&1 | ./bin/distill-ai` the canonical dogfooding
   loop for this project.
+- M11: `pytest` format — the second specific Format. Detector
+  raises Confidence to 1.0 on `=== test session starts ===` and
+  `=== FAILURES ===` markers, to 0.8 on the fuzzy
+  `>` assertion + `conftest.py` / `pytest.ini` mention combo.
+  Scanner is a state machine over `=== FAILURES ===` and
+  `=== ERRORS ===` blocks, emitting four kinds (`test_failure`,
+  `test_error`, `collection_error`, `warning`) with `metadata.test_id`
+  carrying the parametrised-test identifier and `Location` parsed
+  from the bottom of the traceback. Handles all four `--tb` shapes
+  (`long`, `short`, `line`, `native`) and the `=== warnings summary
+  ===` block via the per-format opt-in into `ParseOpts.MinSeverity`
+  / `ParseOpts.KeepWarnings`. Eight canonical fixtures land under
+  `internal/formats/pytest/testdata/` (clean, single-fail, multi-fail,
+  parametrised, xfail-xpass, collection-error, errors, warnings)
+  pinned by `TestPytest_FixtureCount`. Integration suite gains
+  `TestBinary_PytestEndToEndProducesOutput`. Closes the pytest leg
+  of KNOWN_ISSUES.md § 6 and confirms the shared
+  `internal/formats.RunGoldens` harness generalises beyond gotest's
+  shape.
+- M12: `jest` format — the third specific Format. Detector raises
+  Confidence to 1.0 on the `●` failure-block bullet, `FAIL <path>`,
+  and `PASS <path>` markers (the latter two require a path-token
+  guard so unrelated tools' bare `FAIL`/`PASS` lines don't claim
+  the format); to 0.8 on `Tests:` summary + `.test`/`.spec`
+  corroboration. Scanner emits three kinds (`test_failure`,
+  `snapshot_mismatch`, `suite_error`) with the Unicode chevron `›`
+  normalised to ASCII `>` in `metadata.test_id` so the value is
+  grep-able. Snapshot mismatches carry `metadata.snapshot_kind`
+  (`"file"` vs `"inline"`), with the diff preserved verbatim in
+  Body and a `maxSnapshotLines = 200` hard cap mirroring
+  M9.3 / M10.3. Stack frames extracted from `at fn (path:line:col)`
+  and bare `at path:line:col` shapes; the M5 CollapseStage's
+  `node_modules/` pattern catalogue is the single source of truth
+  for vendor classification. The default reporter, `--verbose`,
+  and `--ci` / no-ANSI modes are handled uniformly by
+  content-anchored detection. Eight canonical fixtures land under
+  `internal/formats/jest/testdata/` (clean, single-fail,
+  multi-suite-fail, snapshot-mismatch, inline-snapshot-mismatch,
+  suite-error, verbose, console-log-noise) pinned by
+  `TestJest_FixtureCount`. The JSON reporter (`--json` /
+  `--reporters=jest-json`) is out of scope for v1; v1.1 may pick
+  it up if demand surfaces. Closes the jest leg of
+  KNOWN_ISSUES.md § 6.
+- M13: envelope-stripper layer. Cleans wrapper-level framing (CI
+  systems, orchestrators) before format detection so a wrapped
+  `go test` log still detects as gotest at confidence 1.0. The
+  `envelope.Stripper` interface mirrors `formats.Format`: a
+  `Detect(sample) Confidence` plus a streaming `Strip(ctx, r)
+  (cleaned, signals, err)`. `envelope.Wrap` runs auto-detection
+  over registered strippers, picks the highest-scoring one above
+  `ConfidenceMinDetect`, and routes the cleaned bytes into format
+  detection. Two strippers ship: `github-actions` (peels per-line
+  RFC3339-Z timestamps, `##[group]` / `##[endgroup]` markers, and
+  the `##[error]` / `##[warning]` / `##[notice]` workflow
+  commands; surfaces step-level exit failures as
+  `envelope_step_failure` Events) and `gitlab-ci` (peels
+  `section_start:` / `section_end:` markers, trailing carriage
+  returns, and synthesises `envelope_step_failure` from
+  `ERROR: Job failed: exit code N`). New `--strip-envelope`
+  flag on `run` and `explain` accepts `auto` (default), `none`,
+  or a specific stripper name. The reserved noop `Stripper`
+  passes bytes through unchanged. New envelope Kinds documented
+  in SCHEMA.md (`envelope_error`, `envelope_warning`,
+  `envelope_step_failure`) — additive, no schema-version bump.
+  Integration suite covers each shipped stripper through the
+  binary, exercising the full envelope → detect → parse →
+  encode chain. docs/envelope.md is the per-feature reference.
 - Initial project scaffolding.
 - Architecture, contribution, and roadmap documentation.
 - M8 CLI surface, end-to-end usable from a pipe:
@@ -634,9 +735,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Adds dependencies `github.com/spf13/cobra`, `github.com/spf13/pflag`,
   and `github.com/inconshreveable/mousetrap` (Windows-only). All
   pure Go, MIT/BSD, no CGo. Documented in ARCHITECTURE.md.
-
-### Changed
-
 - ADR-0002 records the v1.0 scope (unchanged: `pytest`, `jest`,
   `gotest`, `generic`) and the post-v1.0 roadmap: v1.1 is now a
   focused static-analysis & linting theme (M23 `golangci-lint` +
@@ -662,7 +760,50 @@ _None yet._
 
 ### Fixed
 
-_None yet._
+- M16.1.5: LineCounter plumbed through Sinks via a new LineSource
+  interface so the JSON summary's `input_lines` field and the
+  text/markdown footer's "distilled N lines" count are non-zero in
+  production. The Sinks were reading a static InputLines field set
+  at construction; the LineCounter wraps the input only at
+  pipeline-build time, so the field stayed 0 in every real run.
+  Three Sinks gain an optional LineSource field that wins over the
+  static fallback when set; the CLI installs the LineCounter via a
+  new attachLineSource helper paralleling attachCounters.
+  FixedLineSource is added for test scenarios that need a constant
+  without constructing a counter. The drift was invisible because
+  every existing Sink test set InputLines to a constant; three new
+  tests (one per Sink) pin the LineSource-wins contract.
+  Prerequisite for M16.2's readme-stats target.
+- detect: `SampleSize` bumped from 4 KiB to 16 KiB so envelope-wrapped
+  CI logs (logs from `glab ci trace`, `gh run view --log`, or any
+  runner configured with `--timestamps`) reach past the per-job
+  preamble (image pull, secret resolution, git clone) and into the
+  first test-runner marker. `internal/envelope.SampleSize` follows
+  in lockstep so envelope detection and format detection see the
+  same window. The constant is a single allocation per Detect call;
+  the buffer cost is negligible. KNOWN_ISSUES.md issue #3 records
+  the longer history and the two post-v1.0 follow-up options
+  (multi-window peek and re-sample-after-stripping) reserved for
+  M3.x revisit work. The TestSampleSize_ReasonableConstant floor
+  (≥ 1 KiB) is unchanged so future formats with later markers stay
+  protected.
+- gitlab-ci envelope: stripper now recognises and peels the
+  per-line preamble that `glab ci trace` and `gitlab-runner` in
+  `--timestamps` mode prepend to every line (an RFC3339-Z
+  timestamp, a 2-digit step number, a 1-letter stream code, and
+  either a trailing space or `+\x1b[0K` for continuation lines),
+  plus any ANSI CSI escape sequences immediately following.
+  Previously, `^`-anchored regexes for `section_start:` /
+  `section_end:` and `ERROR: Job failed:` failed against
+  glab-wrapped lines and the github-actions detector (which
+  honours the RFC3339-Z timestamp heuristic) won the detection
+  race — leaving a glab-traced GitLab CI log misidentified and
+  its envelope unstripped. The job-failure regex also accepts
+  both "exit code N" and "exit status N" phrasings, which the
+  GitLab runner emits interchangeably. Surfaced by a real
+  production GitLab CI log. Four new tests cover the
+  glab-prefixed Detect, Strip section markers, Strip job failure,
+  and the exit-code/exit-status interchange.
 
 ### Security
 
@@ -670,4 +811,5 @@ _None yet._
 
 ---
 
-[Unreleased]: https://github.com/<owner>/distill-ai/compare/v0.0.0...HEAD
+[Unreleased]: https://github.com/vail130/distill-ai/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/vail130/distill-ai/releases/tag/v1.0.0
