@@ -4667,20 +4667,31 @@ release section, and updates the Keep a Changelog metadata.
 ## M17 — v1.0 release prep
 
 The final v1.0 milestone. M0–M16 deliver code, tests, and docs;
-M17 verifies the cumulative result against the performance and
+M17 closes the last real-world CI gap discovered during release
+prep, verifies the cumulative result against the performance and
 distribution budgets the project has committed to, cuts the
 `v1.0.0` tag, publishes the release artefacts, and runs the
-public launch. M17 is deliberately small in code surface area —
-no new features, no new formats — but every sub-item is a hard
-gate the release cannot cross without satisfying.
+public launch.
 
-The six sub-items split along the natural axis of release work:
-exit-criteria verification (M17.1), performance budget verification
-(M17.2), cross-platform release artefacts (M17.3), distribution
-channels (M17.4), the tag-and-publish step (M17.5), and the
-public launch (M17.6) — website, GitHub presence, and outreach.
-Each sub-item depends on its predecessor: a failed cross-compile
-means no Homebrew tap, which means no tag, which means no launch.
+M17 is deliberately small in code surface area. The only new format
+allowed in this milestone is `gotestsum`, because `/tmp/addr-job.log`
+proved that real Go CI pipelines commonly hide failures behind a
+gotestsum-style summary (`PASS pkg.Test`, `=== Failed`, `=== FAIL:`)
+that canonical `gotest` does not parse even after envelope stripping
+works. Other Go test-output tools (`gotestfmt`, `tparse`,
+`gotestdox`, `richgo`, JUnit XML generators) stay post-v1.0 until
+fixtures prove they need distinct parser behaviour.
+
+The seven sub-items split along the natural axis of release work:
+gotestsum coverage (M17.0), exit-criteria verification (M17.1),
+performance budget verification (M17.2), cross-platform release
+artefacts (M17.3), distribution channels (M17.4), the
+tag-and-publish step (M17.5), and the public launch (M17.6) —
+website, GitHub presence, and outreach. Each sub-item depends on
+its predecessor: if gotestsum does not extract the real failing
+package from the release-blocking fixture, v1.0 is not ready; a
+failed cross-compile means no Homebrew tap, which means no tag,
+which means no launch.
 
 Cross-references
 [performance rule](./rules/performance.md) (the budgets M17.2
@@ -4692,9 +4703,64 @@ section; M17.5 fills in the date).
 
 M17 builds on every preceding milestone: M0–M16 must all be
 complete (or explicitly deferred with a documented justification)
-before M17.1 starts. Each item below lists Definition of Done,
+before M17.1 starts, except for the M17.0 gotestsum scope
+exception recorded here. Each item below lists Definition of Done,
 required tests, and required doc updates per the
 [alignment rule](./rules/alignment.md).
+
+### M17.0 — `gotestsum` format for Go test summaries
+
+Add a `gotestsum` format that handles the human-readable summary
+formats emitted by `gotest.tools/gotestsum` and gotestsum-like
+wrappers around `go test -json`. This is a v1.0 scope exception,
+not the start of a broad Go test-output grab-bag: the concrete
+release-blocking fixture is `/tmp/addr-job.log`, whose envelope
+now strips to `gitlab-ci+docker-compose` but still falls back to
+`generic` because the body contains gotestsum-style lines rather
+than canonical `go test` `--- FAIL:` blocks.
+
+- **DoD:**
+  - New `internal/formats/gotestsum/` package registered in the
+    binary and documented under `docs/formats/gotestsum.md`.
+  - Detect with high confidence on gotestsum summary markers:
+    `^=== Failed$`, `^=== FAIL: <pkg-or-test>`,
+    `^DONE N tests`, and per-test status lines such as
+    `^(PASS|FAIL|SKIP) <pkg>.<TestName> (<duration>)`.
+  - Parse at least these Events:
+    - package/test failure summaries (`=== FAIL:` block) into
+      `test_failure` or a gotestsum-specific failure kind,
+      preserving package/test name and duration metadata where
+      present;
+    - build / test-binary invocation errors printed under the
+      failed package (the `/tmp/addr-job.log` exemplar is
+      `flag provided but not defined: -test.db.migrations`) into
+      a failure Event with the surrounding package in metadata;
+    - `DONE ... failures/errors ...` into summary metadata only
+      unless no concrete failure block was found, in which case
+      emit a best-effort summary Event.
+  - The real `/tmp/addr-job.log` shape is represented by a checked-in,
+    sanitised fixture under the gotestsum testdata set. The fixture
+    must include the `gitlab-ci+docker-compose` envelope fixture path
+    or a cleaned-body companion so regressions are caught both at the
+    envelope and format layers.
+  - No new dependencies. The parser is line-oriented stdlib code.
+- **Tests:**
+  - ≥5 golden fixtures: clean pass summary, single failed package,
+    package-level test-binary flag error, mixed pass/skip/fail summary,
+    and the sanitised `/tmp/addr-job.log` shape.
+  - Determinism property test for the new format.
+  - Integration fixture proving `gitlab-ci+docker-compose` envelope
+    stripping followed by auto-detection picks `gotestsum`, not
+    `generic`, on the real-world shape.
+  - Existing `go test ./...`, `golangci-lint run`, docs drift guards.
+- **Docs:**
+  - README format list adds `gotestsum` under Go test-output support.
+  - ARCHITECTURE.md format list adds `gotestsum` and explains why it
+    is separate from canonical `gotest`.
+  - `docs/formats/gotestsum.md` documents emitted kinds, detection
+    markers, what is dropped, and example I/O.
+  - CHANGELOG.md `[Unreleased]` / `[1.0.0]` notes the v1.0 scope
+    exception and references the sanitised real-world fixture.
 
 ### M17.1 — Cumulative exit-criteria audit
 
@@ -5756,6 +5822,30 @@ signal.
 - [ ] `npm`/`yarn`/`pnpm` install/build output
 - [ ] `rspec` format
 - [ ] `mocha` format
+
+Go test-output wrappers to re-evaluate after v1.0, once public
+fixtures prove whether they need distinct parser behaviour or can
+share `gotestsum` / `gotest` support:
+
+- [ ] `gotestfmt`: consumes `go test -json -v` and renders
+      template-driven CI output. Re-evaluate with GitHub Actions
+      and GitLab examples after M17.0 lands; if its default failure
+      blocks diverge from `gotestsum`, scope a separate format.
+- [ ] `tparse`: summarises `go test -json`, returning failures /
+      panics plus package summary tables. Re-evaluate whether its
+      output can be covered by a generic Go test-summary parser or
+      needs its own package.
+- [ ] `gotestdox`: renders tests as readable documentation with
+      checkmarks / `x` status markers. Re-evaluate only if CI logs
+      capture stdout from the tool rather than the underlying
+      `go test -json` stream.
+- [ ] `richgo`: mostly decorates canonical `go test` output with
+      colours and labels. Prefer improving ANSI/decorated canonical
+      `gotest` parsing unless fixtures prove the rendered shape
+      cannot round-trip through `gotest`.
+- [ ] `go-junit-report` and other JUnit XML generators: treat as a
+      possible generic `junit` / `xml-test-report` format, not a
+      Go-specific parser, if users pipe XML reports into distill-ai.
 
 > The previous note about cargo / rustc / tsc / gcc has been
 > resolved: cargo and rustc ship in
