@@ -45,12 +45,20 @@ type TextSink struct {
 	// the footer.
 	Counters *pipeline.BudgetCounters
 
-	// InputLines is the number of lines the Source consumed. The
-	// CLI (M8) installs a LineCounter around the pipeline's input
-	// and writes the post-Run count here before reading the Sink's
-	// EventsEmitted. Zero is acceptable; the footer prints "?" in
-	// that case.
+	// InputLines is the number of lines the Source consumed. Set
+	// before Run when the caller knows the count ahead of time
+	// (tests). At runtime the CLI prefers LineSource (below): the
+	// LineCounter is installed at pipeline construction but its
+	// count is only final after the Source drains. When both are
+	// set, LineSource wins; when neither is set, the footer renders
+	// "?".
 	InputLines int
+
+	// LineSource, when non-nil, is queried at footer-write time so
+	// the input-line count reflects every byte the Source actually
+	// consumed. The CLI passes the same *LineCounter it wrapped the
+	// input with. Tests can pass FixedLineSource(N) for a constant.
+	LineSource LineSource
 
 	// EstimatorName names the token estimator the pipeline used. The
 	// text footer renders it for transparency. Empty defaults to
@@ -100,7 +108,7 @@ func (s *TextSink) Sink(ctx context.Context, in <-chan event.Event) error {
 				if !s.NoFooter {
 					if err := writeTextFooter(bw, textFooter{
 						formatName:    formatLabel,
-						inputLines:    s.InputLines,
+						inputLines:    s.resolveInputLines(),
 						outputLines:   wc.lines,
 						eventsEmitted: s.emitted,
 						eventsDeduped: deduped,
@@ -140,6 +148,16 @@ func (s *TextSink) Sink(ctx context.Context, in <-chan event.Event) error {
 // CLI (M8) after Pipeline.Run returns to decide exit code 1 ("no
 // events").
 func (s *TextSink) EventsEmitted() int { return s.emitted }
+
+// resolveInputLines returns the input-line count to render in the
+// footer. LineSource wins when set so the runtime LineCounter count
+// is honoured; otherwise the static InputLines field is used.
+func (s *TextSink) resolveInputLines() int {
+	if s.LineSource != nil {
+		return s.LineSource.Lines()
+	}
+	return s.InputLines
+}
 
 // writeTextEvent renders one Event block per the M7.1 spec.
 func writeTextEvent(w io.Writer, idx int, ev event.Event) error {

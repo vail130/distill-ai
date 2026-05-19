@@ -26,6 +26,29 @@ import (
 // (new optional fields, new enum values) do not bump this.
 const SchemaVersion = 1
 
+// LineSource is the minimal contract a Sink needs to read the input
+// line count at footer-write time. *LineCounter satisfies it; tests
+// can provide their own implementation with a fixed value via a
+// FixedLineSource (below) when they don't want to wire the full
+// counter.
+//
+// Sinks read InputLines() each time they need the count rather than
+// caching it at construction, because the count is only final after
+// the Source has consumed its input — which is after the Sink was
+// built but before its footer is written.
+type LineSource interface {
+	Lines() int
+}
+
+// FixedLineSource is a LineSource that returns a constant. Useful in
+// tests that want to assert on a specific InputLines value without
+// constructing a LineCounter.
+type FixedLineSource int
+
+// Lines reports the constant value the FixedLineSource was created
+// with. Implements LineSource.
+func (f FixedLineSource) Lines() int { return int(f) }
+
 // LineCounter wraps an io.Reader and counts the newline-terminated
 // lines that flow through it. The CLI (M8) installs one around the
 // pipeline's input so the Sink can render the "distilled N → M lines"

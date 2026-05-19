@@ -211,6 +211,30 @@ func TestJSONSink_FooterReflectsCounters(t *testing.T) {
 	}
 }
 
+// TestJSONSink_LineSourceWinsOverStaticInputLines proves the CLI's
+// LineCounter wiring contract: a LineSource installed at Run time
+// supersedes the static InputLines value set at construction. The
+// JSON summary records the LineSource value.
+func TestJSONSink_LineSourceWinsOverStaticInputLines(t *testing.T) {
+	var buf bytes.Buffer
+	s := &JSONSink{
+		Writer:     &buf,
+		FormatName: "pytest",
+		InputLines: 1, // stale fallback
+		LineSource: FixedLineSource(123),
+	}
+	feedSink(t, s, []event.Event{simpleEvent("error", "x")})
+	var got struct {
+		Summary summary `json:"summary"`
+	}
+	if err := json.Unmarshal(buf.Bytes(), &got); err != nil {
+		t.Fatalf("unmarshal: %v\n%s", err, buf.String())
+	}
+	if got.Summary.InputLines != 123 {
+		t.Errorf("input_lines=%d want 123 (LineSource); InputLines field was 1", got.Summary.InputLines)
+	}
+}
+
 // TestJSONSink_SummarySchemaMatchesDoc verifies that every JSON tag on
 // the summary struct appears in docs/formats/SCHEMA.md's Summary field
 // reference. Parallel to TestEvent_JSONSchemaMatchesDoc; catches the

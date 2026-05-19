@@ -38,8 +38,18 @@ type MarkdownSink struct {
 	// Counters, if non-nil, carries BudgetStage totals for the footer.
 	Counters *pipeline.BudgetCounters
 
-	// InputLines is the line count the Source consumed.
+	// InputLines is the line count the Source consumed. Set
+	// before Run when the caller knows the count (tests). At
+	// runtime, prefer LineSource (below): the count is only final
+	// after the Source drains, which is after the Sink is
+	// constructed. When both are set, LineSource wins.
 	InputLines int
+
+	// LineSource, when non-nil, is queried at footer-write time so
+	// the input-line count reflects what the Source actually
+	// consumed. The CLI passes the *LineCounter it wrapped the
+	// input with. Tests can pass FixedLineSource(N) for a constant.
+	LineSource LineSource
 
 	// EstimatorName is the token estimator the pipeline used.
 	EstimatorName string
@@ -81,7 +91,7 @@ func (s *MarkdownSink) Sink(ctx context.Context, in <-chan event.Event) error {
 				if !s.NoFooter {
 					if err := writeMarkdownFooter(bw, textFooter{
 						formatName:    formatLabel,
-						inputLines:    s.InputLines,
+						inputLines:    s.resolveInputLines(),
 						outputLines:   wc.lines,
 						eventsEmitted: s.emitted,
 						eventsDeduped: deduped,
@@ -118,6 +128,16 @@ func (s *MarkdownSink) Sink(ctx context.Context, in <-chan event.Event) error {
 
 // EventsEmitted reports how many events the Sink wrote.
 func (s *MarkdownSink) EventsEmitted() int { return s.emitted }
+
+// resolveInputLines returns the input-line count to render in the
+// footer. LineSource wins over the static InputLines field when set
+// so the runtime LineCounter's count is honoured.
+func (s *MarkdownSink) resolveInputLines() int {
+	if s.LineSource != nil {
+		return s.LineSource.Lines()
+	}
+	return s.InputLines
+}
 
 func writeMarkdownEvent(w io.Writer, idx int, ev event.Event, fence string) error {
 	if _, err := fmt.Fprintf(w, "### [%d] %s %s\n\n", idx, severityLabel(ev.Severity), ev.Title); err != nil {

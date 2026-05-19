@@ -49,10 +49,19 @@ type JSONSink struct {
 	// and summary.estimated_tokens.
 	Counters *pipeline.BudgetCounters
 
-	// InputLines is the line count consumed from the Source, plumbed
-	// in by the CLI's LineCounter (M8). Zero is acceptable; the
-	// summary records it verbatim.
+	// InputLines is the line count consumed from the Source. Set
+	// before Run when the caller knows the count ahead of time
+	// (tests). At runtime, prefer LineSource (below): the count is
+	// only final after the Source drains, which is after the Sink
+	// is constructed. When both are set, LineSource wins; when
+	// neither is set, the summary's input_lines records 0.
 	InputLines int
+
+	// LineSource, when non-nil, is queried at summary-write time so
+	// the input_lines field reflects what the Source actually
+	// consumed. The CLI passes the *LineCounter it wrapped the
+	// input with. Tests can pass FixedLineSource(N) for a constant.
+	LineSource LineSource
 
 	// Streaming switches the encoder between batch (false) and ndjson
 	// (true) shapes per the SCHEMA.md spec.
@@ -85,6 +94,16 @@ func (s *JSONSink) Sink(ctx context.Context, in <-chan event.Event) error {
 // EventsEmitted reports how many events the Sink wrote. The CLI uses
 // this to map zero-event runs to exit code 1.
 func (s *JSONSink) EventsEmitted() int { return s.emitted }
+
+// resolveInputLines returns the input-line count to record in the
+// summary. LineSource wins over the static InputLines field when
+// set so the runtime LineCounter's count is honoured.
+func (s *JSONSink) resolveInputLines() int {
+	if s.LineSource != nil {
+		return s.LineSource.Lines()
+	}
+	return s.InputLines
+}
 
 // streamingSink emits one ndjson line per Event then a final summary
 // line. Each line is a self-contained object so a consumer reading
@@ -201,7 +220,7 @@ func (s *JSONSink) buildSummary(outputLines, deduped, frames int) summary {
 		name = "heuristic"
 	}
 	return summary{
-		InputLines:          s.InputLines,
+		InputLines:          s.resolveInputLines(),
 		OutputLines:         outputLines,
 		EventsFound:         s.emitted + dropped,
 		EventsEmitted:       s.emitted,
