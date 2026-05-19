@@ -78,7 +78,8 @@ topic when you need it:
 - **[commits.md](./rules/commits.md)** — Commit message format,
   component prefixes, amend-vs-follow-up policy.
 - **[dependencies.md](./rules/dependencies.md)** — Default no. New
-  deps need a justification in the commit message.
+  deps need a justification in the commit message, and `go mod tidy`
+  must run in the same commit.
 - **[flag-policy.md](./rules/flag-policy.md)** — Adding a CLI flag is
   a one-way door. Check the questions before doing it.
 - **[performance.md](./rules/performance.md)** — Throughput, latency,
