@@ -5,6 +5,23 @@ that were made and the alternatives that were rejected**. The goal is to
 keep future contributors (and future-us) from re-litigating decisions
 without new information.
 
+## Index
+
+The full set of ADRs accepted to date. Statuses are mirrored from
+each file's `**Status:**` line and pinned by
+`TestADRIndex_ListsEveryADR` in the integration suite.
+
+| ADR                                                                          | Status   | Decision                                                                                                                                                                              |
+|------------------------------------------------------------------------------|----------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| [ADR-0001](./0001-reject-cgo-tree-sitter-prefer-wasm.md)                     | Accepted | Reject CGo tree-sitter; prefer WASM tree-sitter via wazero for multi-language source-code distillation (v1.3).                                                                        |
+| [ADR-0002](./0002-v1.0-scope-and-post-v1.0-roadmap.md)                       | Accepted | Lock the v1.0 scope to four runtime-failure formats (gotest, pytest, jest, generic) and two CI envelope strippers; sequence post-v1.0 themes (static analysis, MCP, code, docs, etc). |
+| [ADR-0003](./0003-position-vs-rtk-and-snip.md)                               | Accepted | Position distill-ai as a Unix filter producing typed Events, NOT a proxy/wrapper of arbitrary CLI tools (the rtk / snip model). No state, no network, no per-agent hooks.             |
+
+A new ADR adds a row to this table in the same commit. The drift
+guard fails if any ADR file under `docs/decisions/` (excluding this
+README) is missing from the table, or if any table row points at a
+file that doesn't exist.
+
 ## When to write an ADR
 
 Write one when:

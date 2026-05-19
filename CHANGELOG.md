@@ -7,6 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- M16.3: per-feature doc audit and drift guards. The four per-format
+  docs (generic, gotest, pytest, jest) gain a uniform `## Event
+  kinds emitted` quick-reference table near the top of each file,
+  listing the kinds the parser actually emits with their severity
+  and trigger; the pytest and jest docs additionally gain a
+  `## Fixtures` section (gotest already had one) listing each
+  fixture under `internal/formats/<name>/testdata/` with what it
+  exercises. `docs/decisions/README.md` gains an ADR index table
+  enumerating every ADR present in the directory. The new
+  `tools/docs-index/` generator renders `docs/index.md` from every
+  Markdown file under `docs/`, grouping by subdirectory and using
+  each file's first H1 as the link title; it is wired into the
+  Makefile (`make docs-index`, `make docs-index-check`, and added
+  to `make all`) and as a `//go:generate` directive on
+  `internal/cli/root.go`. Five integration tests pin the structural
+  contract: `TestSchemaDoc_EveryKindHasProducer` (SCHEMA.md kind
+  lists match registered formats and their emitted kinds);
+  `TestPerFormatDocs_KindsMatch` (each per-format doc's quick-
+  reference table matches the parser's emitted kinds);
+  `TestEnvelopeDoc_EveryStripperDocumented` (every registered
+  Stripper has a subsection); `TestADRIndex_ListsEveryADR` (the
+  index table covers every file in `docs/decisions/` and every
+  link resolves); `TestDocsIndex_CoversEveryMarkdownFile` (the
+  committed `docs/index.md` matches the generator's output). The
+  4 KiB → 16 KiB sample-size bump from earlier in M16 is reflected
+  in the three remaining doc references that previously missed
+  the update.
+
 ### Fixed
 
 - detect: `SampleSize` bumped from 4 KiB to 16 KiB so envelope-wrapped

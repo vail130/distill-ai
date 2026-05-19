@@ -7,6 +7,19 @@ generic) format `distill-ai` ships, after `gotest` (M10) and
 `pytest` (M11). Jest covers the JavaScript / TypeScript niche that
 pytest fills for Python and gotest fills for Go.
 
+## Event kinds emitted
+
+| `kind`               | `severity` | Emitted when                                                                                  |
+|----------------------|------------|-----------------------------------------------------------------------------------------------|
+| `test_failure`       | `error`    | A `●` failure block whose body is an ordinary assertion / exception.                          |
+| `snapshot_mismatch`  | `error`    | A `●` failure block containing `expect(...).toMatchSnapshot(...)` or `toMatchInlineSnapshot`. |
+| `suite_error`        | `error`    | A `● Test suite failed to run` block (a test file's top-level `require` / `import` failure).  |
+
+The kind list is mirrored in
+[`docs/formats/SCHEMA.md` § Kind values](./SCHEMA.md#kind-values)
+and pinned by `TestJest_DocumentedKindsMatchEmitted` in the
+integration suite.
+
 ## Detection model
 
 `jest.Detect` raises confidence on the markers below, scored as
@@ -159,3 +172,29 @@ The JSON reporter (`--json` / `--reporters=jest-json`) is out of
 scope for v1 — it's a different format (structured JSON, no
 terminal output). M12 documents the gap; v1.1 can pick it up if
 demand surfaces.
+
+## Fixtures
+
+The v1 fixture set lives under
+[`internal/formats/jest/testdata/`](../../internal/formats/jest/testdata/).
+Eight fixtures, pinned by `TestJest_FixtureCount`:
+
+| Fixture                          | Exercises                                                                                            |
+|----------------------------------|------------------------------------------------------------------------------------------------------|
+| `clean.input`                    | All-green default-reporter output — scanner emits zero Events.                                       |
+| `single-fail.input`              | One `●` failure block with the canonical assertion + stack-frame shape.                              |
+| `multi-suite-fail.input`         | Failures across multiple suite files; `metadata.suite_file` attribution.                             |
+| `snapshot-mismatch.input`        | A `toMatchSnapshot` block — `snapshot_mismatch` kind, file-backed `metadata.snapshot_kind`.          |
+| `inline-snapshot-mismatch.input` | A `toMatchInlineSnapshot` block — inline `metadata.snapshot_kind`.                                   |
+| `suite-error.input`              | A `● Test suite failed to run` block from a top-level `require` failure — `suite_error` kind.        |
+| `verbose.input`                  | `--verbose` reporter output; per-test `✓` / `✗` indicators dropped.                                  |
+| `console-log-noise.input`        | `console.log` output between tests; the scanner drops it without affecting the surrounding Events.   |
+
+Regenerate goldens after a deliberate parser change:
+
+```sh
+DISTILL_AI_UPDATE_GOLDENS=1 go test ./internal/formats/jest/
+```
+
+The harness is shared with gotest and pytest via
+`internal/formats.RunGoldens`.
