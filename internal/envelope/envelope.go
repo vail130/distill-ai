@@ -42,9 +42,11 @@ import (
 // SampleSize is the number of bytes Wrap reads from the input before
 // asking each registered Stripper to score it. Matches detect.SampleSize
 // so envelope detection and format detection see the same window — a
-// stripper that requires more than 4 KiB to identify itself is almost
-// certainly looking at the wrong signal.
-const SampleSize = 4096
+// stripper that requires more than 16 KiB to identify itself is almost
+// certainly looking at the wrong signal. The constant rose from 4 KiB
+// to 16 KiB pre-v1.0 to cover real CI logs whose runner preamble is
+// longer than 4 KiB; see KNOWN_ISSUES.md issue #3 for the rationale.
+const SampleSize = 16384
 
 // SignalBufferSize is the default capacity for the signals channel a
 // Stripper returns. Matches pipeline.DefaultBufferSize so envelope

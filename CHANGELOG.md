@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- detect: `SampleSize` bumped from 4 KiB to 16 KiB so envelope-wrapped
+  CI logs (logs from `glab ci trace`, `gh run view --log`, or any
+  runner configured with `--timestamps`) reach past the per-job
+  preamble (image pull, secret resolution, git clone) and into the
+  first test-runner marker. `internal/envelope.SampleSize` follows
+  in lockstep so envelope detection and format detection see the
+  same window. The constant is a single allocation per Detect call;
+  the buffer cost is negligible. KNOWN_ISSUES.md issue #3 records
+  the longer history and the two post-v1.0 follow-up options
+  (multi-window peek and re-sample-after-stripping) reserved for
+  M3.x revisit work. The TestSampleSize_ReasonableConstant floor
+  (≥ 1 KiB) is unchanged so future formats with later markers stay
+  protected.
 - gitlab-ci envelope: stripper now recognises and peels the
   per-line preamble that `glab ci trace` and `gitlab-runner` in
   `--timestamps` mode prepend to every line (an RFC3339-Z
