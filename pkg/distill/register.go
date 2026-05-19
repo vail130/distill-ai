@@ -2,7 +2,7 @@ package distill
 
 // Format and envelope-stripper registration via side-effect imports.
 // Importing pkg/distill brings the full v1 format set into the
-// global registry: generic, gotest, jest, pytest, plus the
+// global registry: generic, gotest, gotestsum, jest, pytest, plus the
 // github-actions and gitlab-ci envelope strippers. A library
 // caller therefore gets the same default behaviour as the CLI
 // without having to enumerate every internal/formats/* package.
@@ -26,6 +26,9 @@ import (
 
 	// gotest parses `go test` output.
 	_ "github.com/vail130/distill-ai/internal/formats/gotest"
+
+	// gotestsum parses gotestsum-style Go test summaries.
+	_ "github.com/vail130/distill-ai/internal/formats/gotestsum"
 
 	// jest parses jest output.
 	_ "github.com/vail130/distill-ai/internal/formats/jest"

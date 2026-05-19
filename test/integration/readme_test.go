@@ -12,11 +12,12 @@ import (
 	// Trigger format registration.
 	_ "github.com/vail130/distill-ai/internal/formats/generic"
 	_ "github.com/vail130/distill-ai/internal/formats/gotest"
+	_ "github.com/vail130/distill-ai/internal/formats/gotestsum"
 	_ "github.com/vail130/distill-ai/internal/formats/jest"
 	_ "github.com/vail130/distill-ai/internal/formats/pytest"
 )
 
-// TestReadme_FormatListMatchesRegistry asserts that the four format
+// TestReadme_FormatListMatchesRegistry asserts that the five format
 // names the README's "Supported formats" lede block names are exactly
 // the set the binary registers. Catches the case where a future
 // format ships without updating the README, and the case where the
@@ -39,8 +40,8 @@ func TestReadme_FormatListMatchesRegistry(t *testing.T) {
 	body := string(readme)
 	// The lede paragraph names the formats in backticks. The
 	// exact sentence today is:
-	//   v1.0 ships four format parsers — `gotest`, `pytest`,
-	//   `jest`, `generic` — plus two CI envelope strippers ...
+	//   v1.0 ships five format parsers — `gotest`, `gotestsum`,
+	//   `pytest`, `jest`, `generic` — plus CI envelope strippers ...
 	// We extract every backticked-token in the first ~1.5 KB of
 	// the file (the lede block) and intersect with the registry.
 	const ledeBytes = 1500
@@ -61,8 +62,8 @@ func TestReadme_FormatListMatchesRegistry(t *testing.T) {
 			continue // not a format reference; could be a flag name etc.
 		}
 	}
-	// Hard assertion: the four v1.0 formats must appear in the lede.
-	for _, want := range []string{"gotest", "pytest", "jest", "generic"} {
+	// Hard assertion: the v1.0 formats must appear in the lede.
+	for _, want := range []string{"gotest", "gotestsum", "pytest", "jest", "generic"} {
 		if !tokens[want] {
 			t.Errorf("README lede paragraph must name format %q (in backticks); not found in first %d bytes",
 				want, ledeBytes)

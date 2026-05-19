@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/vail130/distill-ai/internal/envelope"
 	"github.com/vail130/distill-ai/internal/event"
 	"github.com/vail130/distill-ai/internal/formats"
 )
@@ -21,12 +22,53 @@ type fakeFormat struct {
 	score event.Confidence
 }
 
+type markerFormat struct {
+	name   string
+	marker string
+}
+
 func (f *fakeFormat) Name() string                     { return f.name }
 func (f *fakeFormat) Detect(_ []byte) event.Confidence { return f.score }
 func (f *fakeFormat) Parse(_ context.Context, _ io.Reader, _ formats.ParseOpts) (<-chan event.Event, error) {
 	ch := make(chan event.Event)
 	close(ch)
 	return ch, nil
+}
+
+func (f *markerFormat) Name() string { return f.name }
+
+func (f *markerFormat) Detect(sample []byte) event.Confidence {
+	if bytes.Contains(sample, []byte(f.marker)) {
+		return 1.0
+	}
+	return 0
+}
+
+func (f *markerFormat) Parse(_ context.Context, _ io.Reader, _ formats.ParseOpts) (<-chan event.Event, error) {
+	ch := make(chan event.Event)
+	close(ch)
+	return ch, nil
+}
+
+type rewriteEnvelopeStripper struct{}
+
+func (rewriteEnvelopeStripper) Name() string { return "rewrite" }
+
+func (rewriteEnvelopeStripper) Detect(sample []byte) event.Confidence {
+	if bytes.Contains(sample, []byte("WRAPPED")) {
+		return 1.0
+	}
+	return 0
+}
+
+func (rewriteEnvelopeStripper) Strip(_ context.Context, r io.Reader) (io.Reader, <-chan event.Event, error) {
+	b, err := io.ReadAll(r)
+	if err != nil {
+		return nil, nil, err
+	}
+	ch := make(chan event.Event)
+	close(ch)
+	return strings.NewReader(strings.ReplaceAll(string(b), "WRAPPED", "INNER")), ch, nil
 }
 
 func TestRun_HelpReturnsZero(t *testing.T) {
@@ -121,6 +163,26 @@ func TestDetectCmd_PrintsExpectedFormat(t *testing.T) {
 		"fellback_to_generic: false",
 		"runner: jest",
 	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output missing %q; got:\n%s", want, out)
+		}
+	}
+}
+
+func TestDetectCmd_StripsEnvelopeBeforeDetect(t *testing.T) {
+	formats.ResetForTest()
+	t.Cleanup(formats.ResetForTest)
+	envelopeResetForTest(t)
+	formats.Register(&markerFormat{name: "inner", marker: "INNER"})
+	envelope.Register(rewriteEnvelopeStripper{})
+	path := writeTempFile(t, "WRAPPED payload")
+	var stdout, stderr bytes.Buffer
+	code := run([]string{"detect", path}, strings.NewReader(""), &stdout, &stderr)
+	if code != 0 {
+		t.Fatalf("exit code = %d, want 0; stderr=%q", code, stderr.String())
+	}
+	out := stdout.String()
+	for _, want := range []string{"envelope: rewrite", "format: inner", "fellback_to_generic: false"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("output missing %q; got:\n%s", want, out)
 		}

@@ -147,20 +147,19 @@ func TestDockerCompose_StripMultiServiceAlignment(t *testing.T) {
 	}
 }
 
-func TestDockerCompose_PassesThroughUnprefixedLines(t *testing.T) {
-	// Preamble lines (image pulls, attach banner) and any line
-	// that doesn't match the prefix shape must survive intact —
-	// docker compose interleaves them with attached output and
-	// the inner-format detector handles them as ordinary bytes.
+func TestDockerCompose_DropsPreAttachPreamble(t *testing.T) {
+	// Preamble lines before the first attached container line are
+	// build/pull noise. Dropping them keeps the inner-format detector
+	// from sampling the preamble instead of the test output.
 	input := "" +
 		"[+] Pulling testrunner ...\n" +
 		"Attaching to testrunner-1\n" +
 		"testrunner-1  | === RUN TestFoo\n" +
+		"non-prefixed line after attach\n" +
 		"testrunner-1  | PASS\n"
 	want := "" +
-		"[+] Pulling testrunner ...\n" +
-		"Attaching to testrunner-1\n" +
 		"=== RUN TestFoo\n" +
+		"non-prefixed line after attach\n" +
 		"PASS\n"
 	cleaned, _ := stripAll(t, input)
 	if cleaned != want {

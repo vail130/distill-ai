@@ -29,14 +29,13 @@ integration suite.
 | Marker (anchored at start-of-line)                       | Score |
 |----------------------------------------------------------|-------|
 | `● ` bullet (optional leading whitespace)                | `1.0` |
-| `FAIL <path>` where `<path>` is a test-file path         | `1.0` |
-| `PASS <path>` where `<path>` is a test-file path         | `1.0` |
+| `FAIL <path>` where `<path>` ends in a jest test-file suffix | `1.0` |
+| `PASS <path>` where `<path>` ends in a jest test-file suffix | `1.0` |
 | `Tests:` summary plus a `jest` mention or `.test`/`.spec`| `0.8` |
 | Anything else                                            | `0.0` |
 
-A token after `FAIL` or `PASS` counts as a path when it contains a
-`/` or `\`, or when it ends in one of jest's default test-file
-suffixes: `.test.js`, `.test.ts`, `.test.jsx`, `.test.tsx`,
+A token after `FAIL` or `PASS` counts only when it ends in one of
+jest's default test-file suffixes: `.test.js`, `.test.ts`, `.test.jsx`, `.test.tsx`,
 `.spec.js`, `.spec.ts`, `.spec.jsx`, `.spec.tsx`. The path-token
 guard mirrors gotest's package-token guard from M10.1: unrelated
 tools printing a bare `FAIL` line do not raise the score. Verified

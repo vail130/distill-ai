@@ -1,0 +1,12 @@
+section_start:1700000000:test[0KRunning gotestsum
+testrunner-1  | FAIL example.com/api.TestMigrations (0.03s)
+testrunner-1  | 
+testrunner-1  | === Failed
+testrunner-1  | === FAIL: example.com/api TestMigrations (0.03s)
+testrunner-1  | flag provided but not defined: -test.db.migrations
+testrunner-1  | Usage of /tmp/go-build456/api.test:
+testrunner-1  |   -test.run regexp
+testrunner-1  | 
+testrunner-1  | DONE 1 tests, 1 failure in 0.30s
+section_end:1700000001:test[0K
+ERROR: Job failed: exit code 1

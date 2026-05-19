@@ -17,7 +17,7 @@ noisy command for the rest of the session**.
 
 Pipe through `distill-ai` when running:
 
-- Test runners: `pytest`, `go test`, `npm test`, `cargo test`, `jest`,
+- Test runners: `pytest`, `go test`, `gotestsum`, `npm test`, `cargo test`, `jest`,
   `mocha`, `rspec`, `phpunit`, etc.
 - Build tools: `make`, `cargo build`, `npm run build`, `go build`,
   `mvn`, `gradle`, `webpack`, etc.
@@ -44,6 +44,7 @@ Run the command bare when:
 # The default: autodetect format from stdin, distil to stdout.
 pytest 2>&1 | distill-ai
 go test ./... 2>&1 | distill-ai
+gotestsum -- ./... 2>&1 | distill-ai
 npm test 2>&1 | distill-ai
 cargo test 2>&1 | distill-ai
 

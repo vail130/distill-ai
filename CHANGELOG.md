@@ -29,6 +29,10 @@ new version's section.
 
 ### Added
 
+- `gotestsum` format. Parses gotestsum-style Go test summaries with
+  `=== Failed` / `=== FAIL:` blocks, `DONE ...` rollups, and
+  package-level test-binary flag errors that canonical `gotest`
+  output does not cover.
 - `docker-compose` envelope stripper. Peels the per-line
   `<service>  | ` (or `<service>-<replica>  | `) prefix the docker
   daemon prepends when one or more services are attached. Detection

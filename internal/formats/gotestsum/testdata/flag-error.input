@@ -1,0 +1,7 @@
+=== Failed
+=== FAIL: example.com/app
+flag provided but not defined: -test.db.migrations
+Usage of /tmp/go-build123/app.test:
+  -test.bench regexp
+
+DONE 1 tests, 1 failure in 0.01s

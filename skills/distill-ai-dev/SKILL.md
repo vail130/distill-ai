@@ -75,10 +75,12 @@ The Unicode chevron (`›`, U+203A) between suite and test name
 is normalised to ASCII `>` in `metadata.test_id` so the value is
 grep-able from any terminal.
 
-With M12 shipped, every v1 specific format is live; only
-`generic` remains as the safety net. `--strict` still works as
-the CI switch to forbid generic fallback (exit 2 instead of
-falling back).
+**M17.0** adds the **gotestsum** format for Go CI pipelines that use
+gotest.tools/gotestsum-style summaries instead of canonical `go test`
+blocks: `=== Failed`, `=== FAIL:`, status lines, and `DONE ...`
+rollups. It emits `test_failure` and `build_failure` Events and keeps
+`generic` as the safety net. `--strict` still works as the CI switch
+to forbid generic fallback (exit 2 instead of falling back).
 
 Looking past v1.0: the post-v1.0 roadmap is recorded in
 [ADR-0002](../../docs/decisions/0002-v1.0-scope-and-post-v1.0-roadmap.md).
@@ -122,7 +124,7 @@ Invocation forms today:
 - `./bin/distill-ai run [FORMAT] [FILE...]` — explicit form. Useful
   when you want to pass multiple files, force a specific format, or
   bypass autodetection with `--auto=false`.
-- `./bin/distill-ai detect FILE` — print which format wins
+- `./bin/distill-ai detect FILE` — print which envelope and format win
   detection, with confidence, sample size, and runner-up. Accepts
   `-` for stdin. After M9.1 plaintext input falls back to `generic`
   on stdout (`fellback_to_generic: true`) rather than erroring on
@@ -204,6 +206,18 @@ because they manifest in *your own terminal* before they manifest
 in a customer's. If the distilled output omits a failure you can
 see in the raw stream, that's a parser bug — fix it before moving
 on.
+
+### Distil a gotestsum run
+
+```sh
+gotestsum -- ./... 2>&1 | ./bin/distill-ai
+./bin/distill-ai run gotestsum test/integration/testdata/fixtures/gotestsum-fail.input
+```
+
+Useful when working on `internal/formats/gotestsum/`: the explicit
+format argument skips autodetect so parser regressions are isolated
+from detector regressions. Drop the positional format to exercise the
+full detect → parse path.
 
 ### Iterate on a parser against a specific fixture
 

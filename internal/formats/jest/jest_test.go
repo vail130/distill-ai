@@ -56,7 +56,8 @@ func TestJest_DetectFailRequiresPathToken(t *testing.T) {
 		"FAIL\n",
 		"FAIL rebooting\n",       // single token, no path separator
 		"FAIL some-thing-else\n", // no separator, no test-file suffix
-		"some FAIL state\n",      // not at start of line
+		"FAIL internal/qsrestgrpc\n",
+		"some FAIL state\n", // not at start of line
 	} {
 		got := f.Detect([]byte(sample))
 		if got == event.Confidence(1.0) {

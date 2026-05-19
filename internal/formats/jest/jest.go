@@ -15,9 +15,8 @@
 //   - `^(FAIL|PASS) ` followed by a path-shaped token. The path
 //     guard mirrors gotest's package-token guard from M10.1:
 //     unrelated tools printing a bare `FAIL` line do not raise the
-//     score. The token is recognised when it contains a path
-//     separator (`/` or `\`) or ends in one of the test-file
-//     extensions jest discovers by default (`.test.{js,ts,jsx,tsx}`,
+//     score. The token must end in one of the test-file extensions
+//     jest discovers by default (`.test.{js,ts,jsx,tsx}`,
 //     `.spec.{js,ts,jsx,tsx}`).
 //
 // The detector raises Confidence to 0.8 on the combined signal of
@@ -76,10 +75,9 @@ var bulletFailurePattern = regexp.MustCompile(`(?m)^\s*● `)
 // same one M10.1 uses for `FAIL\t<pkg>`.
 var failPassHeaderPattern = regexp.MustCompile(`(?m)^(FAIL|PASS) (\S+)`)
 
-// pathTokenPattern recognises path tokens for the FAIL/PASS-header
-// guard. A token counts as a path when it contains a `/` or `\`, or
-// when it ends in one of jest's default test-file suffixes.
-var pathTokenPattern = regexp.MustCompile(`(?:[/\\]|\.(?:test|spec)\.(?:js|ts|jsx|tsx)$)`)
+// pathTokenPattern recognises jest test-file tokens for the
+// FAIL/PASS-header guard.
+var pathTokenPattern = regexp.MustCompile(`\.(?:test|spec)\.(?:js|ts|jsx|tsx)$`)
 
 // testsSummaryPattern matches jest's terminal summary line:
 // `Tests:       1 failed, 2 passed, 3 total`. The leading whitespace

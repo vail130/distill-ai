@@ -255,6 +255,7 @@ internal/
         pytest/
         jest/
         gotest/
+        gotestsum/        # gotestsum-style Go test summaries
         k8s/
         json/             # structured JSON logs
         generic/          # regex fallback
@@ -591,17 +592,21 @@ Registry picks it up via `init()`. No central list to edit.
 
 ## v1 scope
 
-**Formats shipped:** `pytest`, `jest`, `gotest`, `generic`.
+**Formats shipped:** `pytest`, `jest`, `gotest`, `gotestsum`, `generic`.
 
-These cover ~70% of agent-debugging use cases. The detailed v1.0
+`gotestsum` is separate from `gotest` because gotestsum's human
+summary output uses `=== Failed` / `=== FAIL:` / `DONE ...` blocks
+instead of canonical `go test` `--- FAIL:` blocks. These formats cover
+~70% of agent-debugging use cases. The detailed v1.0
 contract and the post-v1.0 roadmap (v1.1 = static analysis,
 v1.2 = MCP, v1.3 = code distillation, v1.4 = documentation formats,
 v1.5 = more log/test formats) is recorded in
 [ADR-0002](./docs/decisions/0002-v1.0-scope-and-post-v1.0-roadmap.md).
 
-**Envelope strippers shipped:** `github-actions`, `gitlab-ci`. Both
-strip wrapper metadata from CI logs so the inner format (gotest,
-pytest, jest, generic) detects unchanged from a bare-stdout run.
+**Envelope strippers shipped:** `github-actions`, `gitlab-ci`,
+`docker-compose`. They strip wrapper metadata from CI logs so the
+inner format (gotest, gotestsum, pytest, jest, generic) detects
+unchanged from a bare-stdout run.
 See [Envelope handling](#envelope-handling) and
 [docs/envelope.md](./docs/envelope.md).
 

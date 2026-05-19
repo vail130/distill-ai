@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/vail130/distill-ai/internal/detect"
+	"github.com/vail130/distill-ai/internal/envelope"
 )
 
 // newDetectCmd returns the cobra command for `distill-ai detect FILE`.
@@ -28,10 +29,10 @@ func newDetectCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "detect FILE",
 		Short: "Identify which format a file is in.",
-		Long: `detect runs the format autodetector against FILE (or stdin
-when FILE is "-") and prints stable key:value lines describing the
-chosen format, its confidence, the sample size consumed, and the
-runner-up format.
+		Long: `detect strips any CI / orchestrator envelope, runs the format
+autodetector against FILE (or stdin when FILE is "-"), and prints stable
+key:value lines describing the chosen envelope, format, confidence, the
+sample size consumed, and the runner-up format.
 
 This subcommand exists so users (and tests) can ask "what is this?"
 without running a full distillation pipeline.
@@ -79,7 +80,21 @@ func runDetect(cmd *cobra.Command, args []string) error {
 		defer func() { _ = closer.Close() }() // best-effort close; nothing we can do on failure
 	}
 	strict, _ := cmd.Flags().GetBool("strict")
-	res, err := detect.Detect(context.Background(), r, detect.Opts{Strict: strict})
+	ctx, cancel := context.WithCancel(cmd.Context())
+	defer cancel()
+	cleaned, signals, stripper, err := envelope.Wrap(ctx, r, envelope.Options{Choice: envelope.ChoiceAuto})
+	if err != nil {
+		fmt.Fprintf(stderr, "distill-ai: detect %s: %v\n", source, err)
+		return &exitCodeError{code: ExitError}
+	}
+	go func() {
+		drained := 0
+		for range signals {
+			drained++
+		}
+		_ = drained
+	}()
+	res, err := detect.Detect(ctx, cleaned, detect.Opts{Strict: strict})
 	if err != nil {
 		// ErrNoFormat is a "no match" result, not an internal
 		// failure. Without --strict it maps to ExitNoEvents (1)
@@ -107,7 +122,7 @@ func runDetect(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(stderr, "distill-ai: detect %s: %v\n", source, err)
 		return &exitCodeError{code: ExitError}
 	}
-	printDetectResult(stdout, source, res)
+	printDetectResult(stdout, source, stripper, res)
 	if res.FellBackToGeneric {
 		return &exitCodeError{code: ExitNoEvents}
 	}
@@ -134,8 +149,13 @@ func openInput(path string, stdin io.Reader) (r io.Reader, source string, closer
 // printDetectResult writes the detector outcome to w in a human-
 // readable, parseable shape: stable key: value lines so tests can
 // grep / parse without depending on prose.
-func printDetectResult(w io.Writer, source string, res *detect.Result) {
+func printDetectResult(w io.Writer, source string, stripper envelope.Stripper, res *detect.Result) {
 	fmt.Fprintf(w, "source: %s\n", source)
+	if stripper == nil {
+		fmt.Fprintln(w, "envelope: none")
+	} else {
+		fmt.Fprintf(w, "envelope: %s\n", stripper.Name())
+	}
 	fmt.Fprintf(w, "format: %s\n", res.Format.Name())
 	fmt.Fprintf(w, "confidence: %.2f\n", float64(res.Confidence))
 	fmt.Fprintf(w, "sample_bytes: %d\n", len(res.Sample))

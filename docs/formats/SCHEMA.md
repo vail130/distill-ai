@@ -134,6 +134,7 @@ fields. As of M9.4:
 **pytest**: `test_failure`, `test_error`, `collection_error`, `warning`
 **jest**: `test_failure`, `snapshot_mismatch`, `suite_error`
 **gotest**: `test_failure`, `panic`, `build_failure`, `race_condition`
+**gotestsum**: `test_failure`, `build_failure`
 **generic**: `error_line`, `warning_line`, `traceback`, `panic`, `exception`
 **custom:&lt;name&gt;**: open-set — the user picks the string via the
 `kind` field of `[[formats.custom.<name>]]`. SCHEMA.md does not

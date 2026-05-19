@@ -155,11 +155,11 @@ Three likely causes:
    wrong stripper when the log's preamble is shorter than the
    format-detection sample window.
 2. **The test runner's first 16 KB of output is preamble.**
-   distill-ai samples the first 16 KB to pick a format. A long
-   `docker compose up` or `kubectl wait` before the test runner
-   starts can push the markers out of the sample. Pass an
-   explicit format argument (`distill-ai pytest`) to skip the
-   detect.
+   distill-ai samples the first 16 KB to pick a format. The
+   `docker-compose` envelope stripper drops pre-attach compose
+   preamble, but other wrappers can still push markers out of the
+   sample. Pass an explicit format argument (`distill-ai pytest`)
+   to skip detection.
 3. **The test runner is wrapped in a `docker compose` log.**
    distill-ai's `docker-compose` envelope stripper peels the
    per-line `<service>  | ` (or `<service>-<replica>  | `) prefix

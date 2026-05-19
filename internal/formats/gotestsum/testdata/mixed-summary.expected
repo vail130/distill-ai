@@ -1,0 +1,26 @@
+[
+  {
+    "severity": "error",
+    "kind": "test_failure",
+    "title": "total mismatch",
+    "location": {
+      "file": "checkout_test.go",
+      "line": 88,
+      "column": null
+    },
+    "body": [
+      "=== FAIL: example.com/app TestCheckout (0.02s)",
+      "    checkout_test.go:88: total mismatch",
+      ""
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "duration": "0.02s",
+      "package": "example.com/app",
+      "subject": "example.com/app TestCheckout",
+      "test_id": "TestCheckout"
+    }
+  }
+]

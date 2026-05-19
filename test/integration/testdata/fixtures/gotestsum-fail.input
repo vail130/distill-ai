@@ -1,0 +1,7 @@
+FAIL example.com/app.TestLogin (0.01s)
+
+=== Failed
+=== FAIL: example.com/app TestLogin (0.01s)
+    auth_test.go:42: expected 200, got 500
+
+DONE 1 tests, 1 failure in 0.12s

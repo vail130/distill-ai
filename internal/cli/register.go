@@ -26,6 +26,9 @@ import (
 	// `--- FAIL:`, `FAIL\t<pkg>`, and `=== RUN`.
 	_ "github.com/vail130/distill-ai/internal/formats/gotest"
 
+	// gotestsum parses gotestsum-style Go test summaries.
+	_ "github.com/vail130/distill-ai/internal/formats/gotestsum"
+
 	// jest parses jest output. Detect anchors on the `●` failure
 	// bullet, `FAIL`/`PASS` per-file headers with a test-file path
 	// token, and the `Tests:` summary line.

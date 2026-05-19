@@ -22,7 +22,7 @@ Each milestone ends with **exit criteria** — a milestone-level drift
 check before the milestone is marked complete (see
 [alignment.md § Enforcement](./rules/alignment.md#enforcement)).
 
-Milestones M1–M15 are scoped this way today, along with the three
+Milestones M1–M17 are scoped this way today, along with the three
 post-v1.0 milestones M23, M24, and M25 that
 [ADR-0002](./docs/decisions/0002-v1.0-scope-and-post-v1.0-roadmap.md)
 introduces. The five v1.6 filter-engine-parity milestones (M26–M30)
@@ -31,13 +31,12 @@ introduced by
 **listed but not yet scoped in detail**; they will be scoped after
 v1.0 ships, in priority order driven by real usage signal. Per the
 working agreement, **at least** the next three open milestones are
-kept fully scoped at all times. As of M15's completion the open
-scoped set is M16 (documentation) and M17 (v1.0 release prep) —
-both fully expanded with DoD / Tests / Docs per sub-item. When the
-v1.0 release prep (M17) lands and the v1.1 branch opens, the next
-scoped three will be M23 (golangci-lint), M24 (cargo-json), and
-M25 (Markdown outline) — already scoped below so the v1.1 cut is
-ready when v1.0 ships. M18–M22 (v1.3 code distillation) remain
+kept fully scoped at all times. As of M16's completion the next
+scoped three are M17 (v1.0 release prep), M23 (golangci-lint), and
+M24 (cargo-json) — all expanded below with DoD / Tests / Docs per
+sub-item. M25 (Markdown outline) is already scoped as the next
+milestone after those three, so the v1.4 cut is ready once v1.1
+ships. M18–M22 (v1.3 code distillation) remain
 sketched. M26–M30 remain enumerated only.
 
 ---
@@ -4708,7 +4707,7 @@ exception recorded here. Each item below lists Definition of Done,
 required tests, and required doc updates per the
 [alignment rule](./rules/alignment.md).
 
-### M17.0 — `gotestsum` format for Go test summaries
+### M17.0 — `gotestsum` format for Go test summaries ✅
 
 Add a `gotestsum` format that handles the human-readable summary
 formats emitted by `gotest.tools/gotestsum` and gotestsum-like
@@ -5149,7 +5148,7 @@ roadmap-promising in marketing copy).
 
 ### M17 exit criteria
 
-- All six sub-items ticked.
+- All seven sub-items ticked.
 - `v1.0.0` tag exists on `origin` and the GitHub Release page
   shows the published artefacts.
 - The Homebrew tap installs the binary cleanly on a fresh

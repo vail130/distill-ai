@@ -1,0 +1,10 @@
+PASS example.com/api.TestHealth (0.01s)
+FAIL example.com/api.TestMigrations (0.03s)
+
+=== Failed
+=== FAIL: example.com/api TestMigrations (0.03s)
+flag provided but not defined: -test.db.migrations
+Usage of /tmp/go-build456/api.test:
+  -test.run regexp
+
+DONE 2 tests, 1 failure in 0.30s

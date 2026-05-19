@@ -1,0 +1,24 @@
+[
+  {
+    "severity": "error",
+    "kind": "test_failure",
+    "title": "flag provided but not defined: -test.db.migrations",
+    "location": null,
+    "body": [
+      "=== FAIL: example.com/api TestMigrations (0.03s)",
+      "flag provided but not defined: -test.db.migrations",
+      "Usage of /tmp/go-build456/api.test:",
+      "  -test.run regexp",
+      ""
+    ],
+    "frames_collapsed": 0,
+    "count": 0,
+    "truncated": false,
+    "metadata": {
+      "duration": "0.03s",
+      "package": "example.com/api",
+      "subject": "example.com/api TestMigrations",
+      "test_id": "TestMigrations"
+    }
+  }
+]
