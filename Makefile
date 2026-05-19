@@ -44,6 +44,16 @@ install: ## Install into $GOBIN / $GOPATH/bin
 man: ## Regenerate man pages into man/man1/
 	$(GO) run ./cmd/distill-ai/gen-man -o man
 
+.PHONY: readme-stats
+readme-stats: build ## Print before/after stats for every fixture in TSV form
+	$(GO) run ./tools/readme-stats -bin $(OUT)
+
+.PHONY: readme-stats-check
+readme-stats-check: build ## Verify README's distill-ai-stats markers match fresh runs
+	@$(GO) run ./tools/readme-stats -bin $(OUT) > .readme-stats.tsv
+	@$(GO) run ./tools/readme-stats/verify -stats .readme-stats.tsv -readme README.md
+	@rm -f .readme-stats.tsv
+
 .PHONY: install-skill
 install-skill: ## Symlink the consumer skill into $$HOME/.config/opencode/skills/
 	@if [ ! -d "$(SKILL_SRC)" ]; then \

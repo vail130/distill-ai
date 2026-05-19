@@ -4,160 +4,191 @@
 Unix filter. No proxy, no network, no state. JSON output is a versioned
 public API.
 
+v1.0 ships four format parsers — `gotest`, `pytest`, `jest`, `generic`
+— plus two CI envelope strippers (`github-actions`, `gitlab-ci`) that
+peel wrapper noise before format detection:
+
 ```bash
-pytest 2>&1 | distill-ai
+go test ./... 2>&1 | distill-ai        # gotest: --- FAIL blocks, panics, race reports
+pytest 2>&1 | distill-ai               # pytest: =/= FAILURES =/= blocks, tracebacks
+npx jest 2>&1 | distill-ai             # jest:   ● failure markers, snapshot diffs
+tail -f app.log | distill-ai           # generic: ERROR / FATAL / Traceback fallback
+gh run view --log | distill-ai         # auto-strips the GitHub Actions envelope
+glab ci trace | distill-ai             # auto-strips the GitLab CI envelope
 ```
 
-`distill-ai` parses the noisy output of test runs, application logs, and
-stack traces, then emits a compact stream of typed Events: severity, kind,
-location, frames, body, context. Pipe it to an AI coding agent, paste it
-into chat, or consume the JSON from your own tooling.
+Pipe it to an AI coding agent, paste it into chat, or consume the JSON
+from your own tooling.
 
 ## Why
 
-A 50,000-line `pytest` run typically contains 200 useful lines: the actual
-failures with their assertion messages, file:line locations, and the
-context that explains them. The other 49,800 lines are passing-test noise,
-vendor stack frames, deprecation warnings, and build chatter — and a
-coding agent pays for every one of those lines in input tokens, spends
-seconds parsing the noise before it can reason about the real failure,
-and frequently latches onto the wrong error because the real one is
-buried.
+A 50,000-line test or build log typically contains a few hundred lines
+of signal — the actual failures with their assertion messages,
+`file:line` locations, and the context that explains them. The other
+49,000+ lines are passing-test chatter, vendor stack frames,
+deprecation warnings, and progress dots — and a coding agent pays for
+every one of those lines in input tokens, spends seconds parsing the
+noise before it can reason about the real failure, and frequently
+latches onto the wrong error because the real one is buried.
 
-`distill-ai` sits in the pipe between the command and the agent, extracts
-the signal, and discards the noise:
+`distill-ai` sits in the pipe between the command and the agent. It
+detects the format, parses it, and emits a compact stream of typed
+Events — severity, kind, file:line, frames, body, context — while
+collapsing vendor frames and deduplicating identical events.
 
+<!-- distill-ai-stats:gha-gotest-fail -->
+
+Concrete: a `go test` run inside GitHub Actions, before vs. after:
+
+| metric          | before | after | reduction |
+| --------------- | -----: | ----: | --------: |
+| lines           |     11 |    13 |       n/a |
+| estimated tokens |   251 |   105 |     **58%** |
+
+(Numbers from `test/integration/testdata/fixtures/gha-gotest-fail.input`;
+regenerate with `make readme-stats`. Production logs typically run
+~50–90% reduction; this fixture is small to keep the integration
+suite fast.)
+
+<!-- /distill-ai-stats:gha-gotest-fail -->
+
+The token saving compounds: every command an agent runs is 50–90%
+cheaper, and the smaller window leaves more room for code context.
+
+## Install
+
+```bash
+# Homebrew (macOS, Linux)
+brew install vail130/distill-ai/distill-ai
+
+# Go (any platform with a Go toolchain)
+go install github.com/vail130/distill-ai/cmd/distill-ai@latest
+
+# Direct download (linux/macos/windows × amd64/arm64)
+# https://github.com/vail130/distill-ai/releases
 ```
-  raw command output (50,000 lines, ~250,000 tokens)
-                       │
-                       ▼
-            ┌─────────────────────┐
-            │ autodetect format   │
-            │ parse → Events      │
-            │ collapse vendor     │
-            │ dedupe identical    │
-            │ enforce --budget    │
-            └─────────────────────┘
-                       │
-                       ▼
-  distilled (24 lines, ~340 tokens)
-  [1] ERROR AssertionError: expected 302, got 200
-    at tests/api/test_auth.py:47
-  [2] ERROR KeyError: 'session_id'
-    at auth/views.py:112  (×4)
-  ---
-  distilled 50,000 lines → 24 lines (340 tokens)
-  dropped: 0 events, 3 deduped, 8 vendor frames
-```
 
-## What distill-ai is, and is not
+The Homebrew formula and the `.deb` / `.rpm` packages bundle the man
+pages and shell completions. After a Homebrew install, `man distill-ai`
+and `distill-ai completions zsh` work out of the box.
 
-distill-ai is a **format-aware structured event extractor** for command
-output. It is **not** a general CLI proxy or command wrapper.
-
-|                                  | distill-ai                                | proxy/wrapper tools                     |
-| -------------------------------- | ----------------------------------------- | --------------------------------------- |
-| **Position**                     | Unix filter — sits in a pipe              | Wraps the command (`tool git status`)   |
-| **Forks the underlying command** | Never                                     | Always                                  |
-| **Works on `tail -f`, log files, library use** | Yes                         | No (their model is fork-exec-capture)   |
-| **Output**                       | Versioned structured Events (JSON schema) | Compressed text                         |
-| **State / network / telemetry**  | None. Ever.                               | Varies                                  |
-| **Format model**                 | Per-format parser emitting typed Events   | Per-command filter emitting text        |
-
-If your problem is "my agent runs 50 different shell tools and they're
-all noisy", a proxy/wrapper tool like [rtk] or [snip] is probably what
-you want. If your problem is "I need an agent — or my own tooling — to
-programmatically reason about test failures, stack traces, and logs as
-typed events with locations and severities", distill-ai is what you
-want. The two are complementary.
-
-[rtk]: https://github.com/rtk-ai/rtk
-[snip]: https://github.com/edouard-claude/snip
-
-## Supported formats
-
-- `generic` (M9) — regex-driven fallback. Recognises ERROR / FATAL /
-  WARN markers, Python tracebacks, Go panics, and JVM stack dumps.
-  Used whenever no specific format claims the input. Documented at
-  [docs/formats/generic.md](./docs/formats/generic.md).
-- `gotest` (M10) — parses `go test` output: `--- FAIL:` blocks,
-  package summaries, `=== RUN` headers, bare goroutine panics,
-  build failures, race-detector reports, and `go test -json` mode.
-  Emits `test_failure`, `panic`, `build_failure`, and
-  `race_condition` Events with structured stack frames. Documented
-  at [docs/formats/gotest.md](./docs/formats/gotest.md).
-- `pytest` (M11) — parses pytest output: `=== FAILURES ===` and
-  `=== ERRORS ===` blocks, the four `--tb` shapes (`long`,
-  `short`, `line`, `native`), warnings summary, parametrised test
-  IDs, collection-phase failures. Emits `test_failure`,
-  `test_error`, `collection_error`, and `warning` Events with
-  structured stack frames. Honours `--keep-warnings` and
-  `--severity`. Documented at
-  [docs/formats/pytest.md](./docs/formats/pytest.md).
-- `jest` (M12) — parses jest output: the `●` failure-block
-  bullet, per-file `FAIL`/`PASS` headers, snapshot mismatches
-  (file-backed and `toMatchInlineSnapshot` forms), suite-level
-  failures (`● Test suite failed to run`), the `--verbose`
-  reporter's `✓`/`✗` indicator lines, and the no-ANSI CI
-  reporter mode. Emits `test_failure`, `snapshot_mismatch`, and
-  `suite_error` Events with structured stack frames, the test
-  path (Unicode chevron normalised to ASCII `>` so it's
-  grep-able), and the suite file in metadata. Documented at
-  [docs/formats/jest.md](./docs/formats/jest.md).
-
-Use `distill-ai list-formats` to see what's wired into your binary,
-and `distill-ai detect FILE` to ask the autodetector which format it
-picks for a given input.
-
-### Envelopes
-
-distill-ai also strips wrapper-level metadata that CI systems and
-orchestrators add to command output, **before** format detection
-runs. A wrapped `go test` log still detects as `gotest` with full
-confidence because the cleaned bytes the detector sees are exactly
-what `go test` emitted. Wrapper-level signals (a step exiting
-non-zero, a `##[error]` directive) surface as Events with the
-dedicated `envelope_*` Kinds alongside the parser's own events.
-
-- `github-actions` (M13.3) — strips per-line timestamps,
-  `##[group]` / `##[endgroup]` markers, and the
-  `##[error]/##[warning]/##[notice]` workflow commands.
-  Translates the `##[error]Process completed with exit code N`
-  marker into `envelope_step_failure`.
-- `gitlab-ci` (M13.4) — strips `section_start:` / `section_end:`
-  markers and trailing carriage returns. Translates the runner's
-  `ERROR: Job failed: exit code N` line into
-  `envelope_step_failure`.
-
-Use `--strip-envelope=auto` (the default) for autodetect,
-`--strip-envelope=none` to pass bytes through unchanged, or
-`--strip-envelope=<name>` to force a specific stripper.
-Documented in detail at [docs/envelope.md](./docs/envelope.md).
+For `go install` users, the man pages live at `man/man1/` in the
+source tree; copy them to `/usr/local/share/man/man1/` if `man
+distill-ai` should resolve.
 
 ## Usage
 
+The common case is a Unix filter — read stdin, autodetect the format,
+write distilled output to stdout:
+
 ```bash
-# Common case: autodetect format from stdin
 pytest 2>&1 | distill-ai
+```
 
-# Explicit format (faster, skips detection)
-pytest 2>&1 | distill-ai pytest
+Worked examples for each shipped format, drawn from
+`test/integration/testdata/fixtures/`:
 
-# Run against one or more files explicitly
-distill-ai run pytest failure.log
-distill-ai run failure.log         # autodetect
+### gotest
 
-# Streaming
-kubectl logs -f my-pod | distill-ai
+```bash
+go test ./... 2>&1 | distill-ai
+```
 
-# Strip a CI / orchestrator envelope before format detection
-# (auto is the default; opt out with --strip-envelope=none or pick
-# a specific stripper like github-actions / gitlab-ci once those
-# ship in M13.3 / M13.4)
-gh run view --log | distill-ai
-glab ci trace | distill-ai
+Input (excerpt; see `testdata/fixtures/gotest-fail.input` for the full
+8-line fixture):
 
-# Fit output to a token budget
+```
+=== RUN   TestThing
+    thing_test.go:42: expected 200, got 500
+--- FAIL: TestThing (0.01s)
+FAIL	github.com/example/project/thing	0.123s
+```
+
+Output:
+
+```
+events from gotest
+
+[1] ERROR thing_test.go:42: expected 200, got 500
+  at thing_test.go:42
+  ...
+
+---
+distilled 8 lines → 10 lines (90 tokens, heuristic)
+```
+
+`gotest` emits four Event kinds: `test_failure`, `panic`,
+`build_failure`, `race_condition`. Subtest paths, package names, and
+goroutine-dump frames land in `metadata` and `frames`. See
+[`docs/formats/gotest.md`](./docs/formats/gotest.md).
+
+### pytest
+
+```bash
+pytest 2>&1 | distill-ai
+```
+
+A `=== FAILURES ===` block becomes one Event per failure with the
+assertion line as `Title`, the traceback as `Body`, the test ID
+(e.g., `tests/test_auth.py::test_login_redirect`) in `metadata`, and
+the bottom user-code frame as `Location`. The four `--tb` shapes
+(`long`, `short`, `line`, `native`) and the `=== ERRORS ===` /
+`=== warnings summary ===` blocks are all handled.
+
+Honours `--keep-warnings` and `--severity=warn` for warning passthrough.
+
+See [`docs/formats/pytest.md`](./docs/formats/pytest.md).
+
+### jest
+
+```bash
+npx jest 2>&1 | distill-ai
+```
+
+The `●` failure marker becomes one Event per failure (`test_failure`).
+Snapshot mismatches get their own `snapshot_mismatch` kind so
+downstream consumers can render the diff specially.
+`● Test suite failed to run` blocks (file-load syntax errors, missing
+modules) become `suite_error` Events.
+
+See [`docs/formats/jest.md`](./docs/formats/jest.md).
+
+### generic (fallback)
+
+```bash
+tail -f app.log | distill-ai          # autodetects as generic
+kubectl logs my-pod | distill-ai
+```
+
+When no specific format matches, `generic` anchors on severity markers
+(`ERROR`, `FATAL`, `WARN`, `panic:`, `Traceback`) and emits one Event
+per anchor with surrounding context. Python tracebacks, Go panics, and
+JVM exception blocks are accumulated as block Events with frames
+extracted. ANSI escapes are stripped from `Title`; `Body` keeps them
+so users see what was emitted.
+
+See [`docs/formats/generic.md`](./docs/formats/generic.md).
+
+### Envelopes (CI strippers)
+
+```bash
+gh run view --log | distill-ai                # auto-strip
+glab ci trace | distill-ai                    # auto-strip
+distill-ai --strip-envelope=github-actions    # force a specific stripper
+distill-ai --strip-envelope=none              # opt out
+```
+
+The envelope strippers run **before** format detection. A wrapped
+`go test` log still detects as `gotest` because the cleaned bytes
+the detector sees are exactly what `go test` emitted. Wrapper-level
+signals — a step exiting non-zero, a `##[error]` directive — surface
+as Events with the dedicated `envelope_*` kinds alongside the
+parser's own events. See [`docs/envelope.md`](./docs/envelope.md).
+
+### Other useful flags
+
+```bash
+# Fit output to a token budget (drops lowest-severity Events first)
 pytest 2>&1 | distill-ai --budget=2000
 
 # JSON output for tooling
@@ -169,23 +200,17 @@ pytest 2>&1 | distill-ai --output=markdown
 # Verbose: see which format the detector picked, on stderr
 pytest 2>&1 | distill-ai -v
 
+# Dry-run: see what's kept vs dropped, no distilled output
+distill-ai explain pytest-output.log
+
 # Identify a file's format without running the full pipeline
 distill-ai detect pytest-output.log
-distill-ai detect -          # read stdin
 
 # List every format the binary knows about
 distill-ai list-formats
 
-# Dry-run: see what's kept vs dropped, no distilled output
-distill-ai explain pytest-output.log
-distill-ai explain --budget=500 pytest-output.log  # see what budget drops
-
-# Print version, commit, build date
-distill-ai version
-distill-ai --version           # same info, single line
-
 # Shell completion (bash | zsh | fish | powershell)
-source <(distill-ai completions bash)
+source <(distill-ai completions zsh)
 ```
 
 ### Exit codes
@@ -197,14 +222,71 @@ source <(distill-ai completions bash)
 | `2`  | Error: bad flags, IO error, or autodetect failed under `--strict`.   |
 | `3`  | Partial: ran successfully but dropped or truncated to fit `--budget`. |
 
-### Integration with coding agents
+## Supported formats
+
+- `generic` — regex-driven fallback. Severity markers, Python
+  tracebacks, Go panics, JVM stack dumps. Documented at
+  [`docs/formats/generic.md`](./docs/formats/generic.md).
+- `gotest` — `go test` output, including the `-json` reporter,
+  panic blocks, build failures, and race-detector reports.
+  Documented at [`docs/formats/gotest.md`](./docs/formats/gotest.md).
+- `pytest` — `=== FAILURES ===` / `=== ERRORS ===` blocks, all
+  four `--tb` shapes, parametrised tests, collection-phase failures,
+  warning summaries. Documented at
+  [`docs/formats/pytest.md`](./docs/formats/pytest.md).
+- `jest` — `●` failure blocks, file-backed and inline snapshot
+  mismatches, `● Test suite failed to run`, default and CI
+  reporters. Documented at
+  [`docs/formats/jest.md`](./docs/formats/jest.md).
+
+Envelope strippers (run before detection):
+
+- `github-actions` — peels per-line timestamps, `##[group]` /
+  `##[endgroup]` markers, and the workflow-command directives.
+  Translates `##[error]Process completed with exit code N` into
+  `envelope_step_failure`.
+- `gitlab-ci` — peels `section_start:` / `section_end:` markers
+  and the trailing carriage returns the GitLab runner emits.
+  Translates `ERROR: Job failed: exit code N` into
+  `envelope_step_failure`.
+
+Use `distill-ai list-formats` to see what's wired into your binary,
+and `distill-ai detect FILE` to ask the autodetector which format
+it picks for a given input.
+
+## What distill-ai is, and is not
+
+distill-ai is a **format-aware structured event extractor** for
+command output. It is **not** a general CLI proxy or command
+wrapper.
+
+|                                  | distill-ai                                | proxy/wrapper tools                     |
+| -------------------------------- | ----------------------------------------- | --------------------------------------- |
+| **Position**                     | Unix filter — sits in a pipe              | Wraps the command (`tool git status`)   |
+| **Forks the underlying command** | Never                                     | Always                                  |
+| **Works on `tail -f`, log files, library use** | Yes                         | No (their model is fork-exec-capture)   |
+| **Output**                       | Versioned structured Events (JSON schema) | Compressed text                         |
+| **State / network / telemetry**  | None. Ever.                               | Varies                                  |
+| **Format model**                 | Per-format parser emitting typed Events   | Per-command filter emitting text        |
+
+If your problem is "my agent runs 50 different shell tools and
+they're all noisy", a proxy/wrapper tool like [rtk] or [snip] is
+probably what you want. If your problem is "I need an agent — or my
+own tooling — to programmatically reason about test failures, stack
+traces, and logs as typed events with locations and severities",
+distill-ai is what you want. The two are complementary.
+
+[rtk]: https://github.com/rtk-ai/rtk
+[snip]: https://github.com/edouard-claude/snip
+
+## Integration with coding agents
 
 distill-ai does not ship per-agent hooks or `init` subcommands; it
 deliberately stays out of the command-execution path (see
 [ADR-0003](./docs/decisions/0003-position-vs-rtk-and-snip.md)). The
-agent integration pattern is **documentation**: instruct the agent via
-its project rules file to pipe through `distill-ai` when running noisy
-commands.
+agent integration pattern is **documentation**: instruct the agent
+via its project rules file to pipe through `distill-ai` when running
+noisy commands.
 
 Add the following block to `AGENTS.md`, `CLAUDE.md`, `.cursorrules`,
 `GEMINI.md`, or your agent's equivalent project-rules file:
@@ -216,7 +298,6 @@ distill-ai to keep the context window lean:
   pytest 2>&1 | distill-ai
   npm test 2>&1 | distill-ai
   go test ./... 2>&1 | distill-ai
-  cargo test 2>&1 | distill-ai
   kubectl logs <pod> | distill-ai --dedupe
 
 For a strict token cap (e.g., fit a CI run in 2000 tokens):
@@ -226,34 +307,24 @@ To inspect what distill-ai dropped before trusting it:
   pytest 2>&1 | distill-ai explain
 ```
 
-The agent reads its rules file at session start and applies the pattern
-to every applicable command for the rest of the session.
+The agent reads its rules file at session start and applies the
+pattern to every applicable command for the rest of the session.
 
 For opencode, the project ships
 [`skills/distill-ai/SKILL.md`](./skills/distill-ai/SKILL.md) — a
 self-contained, agent-agnostic skill that loads automatically when
-output volume warrants it. It assumes only that `distill-ai` is on
-`PATH` and is reusable verbatim outside this repo. A sibling
-[`skills/distill-ai-dev/SKILL.md`](./skills/distill-ai-dev/SKILL.md)
-covers the in-repo dogfooding loop for contributors.
-
-To make the consumer skill available in opencode sessions outside
-this repo, symlink it into your user-level skills directory:
+output volume warrants it. To make the skill available in opencode
+sessions outside this repo:
 
 ```bash
 make install-skill
 ```
 
-This links `skills/distill-ai/` into
-`~/.config/opencode/skills/distill-ai`. Override the destination with
-`SKILL_DEST=/path/to/skill make install-skill`. Run
-`make uninstall-skill` to remove the link.
+Per-agent integration recipes for Claude Code, opencode, and CI
+systems land in `docs/integration-*.md` (M16.4); see TODO.md for
+status.
 
-Per-agent integration recipes for Claude Code, Cursor, Copilot, Codex,
-Gemini, Windsurf, and Cline are planned for v1.6 (see
-[TODO.md § M29](./TODO.md#m29--per-agent-integration-recipes-documentation)).
-
-### Embedding in Go
+## Embedding in Go
 
 `distill-ai` ships a stable Go library at
 [`pkg/distill`](./pkg/distill) for code that wants to embed the
@@ -306,14 +377,43 @@ the explicit position decision against the proxy/wrapper model.
 
 ## Status
 
-Pre-1.0. The v1.0 contract (`pytest`, `jest`, `gotest`, `generic`) is
-recorded in
+v1.0 release prep in progress; release tag landing in M17. The v1.0
+contract is recorded in
 [ADR-0002](./docs/decisions/0002-v1.0-scope-and-post-v1.0-roadmap.md);
-see [TODO.md](./TODO.md) for the milestone status. See
-[ARCHITECTURE.md](./ARCHITECTURE.md) for the design and
-[AGENTS.md](./AGENTS.md) for contribution guidance.
+see [TODO.md](./TODO.md) for the milestone status, and
+[ARCHITECTURE.md](./ARCHITECTURE.md) for the design.
 
-### Documentation
+**What v1.0 is:** four runtime-failure formats (gotest, pytest, jest,
+generic), two CI envelope strippers (github-actions, gitlab-ci), a
+streaming pipeline with dedupe / vendor-collapse / budget enforcement,
+versioned JSON / text / markdown output, a configuration file, a
+stable Go library API at `pkg/distill`, and man pages.
+
+**What v1.0 is not — and won't grow before tagging:**
+
+- **No static-analysis formats** (`golangci-lint`, `cargo`, `rustc`).
+  Deferred to v1.1. See
+  [TODO.md § M23, M24](./TODO.md#v11--static-analysis--linting-post-launch).
+- **No MCP server.** Deferred to v1.2.
+- **No source-code distillation.** Deferred to v1.3
+  ([M18–M21](./TODO.md#v13--code-distillation)).
+- **No Markdown / HTML doc formats.** Deferred to v1.4.
+- **No additional log / test formats** (`k8s`, generic JSON logs,
+  `npm` / `yarn`, `rspec`, `mocha`). Deferred to v1.5.
+- **No filter-engine parity features** (`discover` subcommand,
+  `--ultra-compact`, drop-side log, custom TOML formats).
+  Deferred to v1.6
+  ([M26–M30](./TODO.md#v16--filter-engine-parity-post-launch)).
+
+The deferrals are deliberate: every v1.0 format and stripper is
+solving a runtime-failure problem an agent or human actually has
+*today* (failed test, panicking binary, broken CI run). Static
+analysis, code-level distillation, and source-language parsers
+are valuable but architecturally distinct, and shipping them
+inside v1.0 would push the release surface beyond what one
+contributor can stabilise.
+
+## Documentation
 
 Man pages live under [`man/man1/`](./man/man1/) and are bundled into
 the `.deb` / `.rpm` artefacts goreleaser produces. After installing
@@ -326,6 +426,14 @@ The pages are generated from the cobra command tree by `go run
 ./cmd/distill-ai/gen-man` (also available as `make man`); they are
 checked into the repo so distributions install them without
 re-running the generator on the host.
+
+The per-feature reference set lives under [`docs/`](./docs/):
+[SCHEMA.md](./docs/formats/SCHEMA.md) (the JSON output contract),
+[envelope.md](./docs/envelope.md) (CI envelope strippers),
+[explain.md](./docs/explain.md) (dry-run mode),
+[config.md](./docs/config.md) (configuration files),
+[library-api.md](./docs/library-api.md) (`pkg/distill`),
+[decisions/](./docs/decisions/) (ADRs).
 
 ## Inspiration and prior art
 
