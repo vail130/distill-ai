@@ -1,0 +1,7 @@
+[+] Pulling testrunner ...
+Attaching to testrunner-1
+testrunner-1  | === RUN   TestLogin
+testrunner-1  | --- FAIL: TestLogin (0.02s)
+testrunner-1  |     auth_test.go:42: expected 200, got 502
+testrunner-1  | FAIL
+testrunner-1  | FAIL	github.com/example/m	0.123s
