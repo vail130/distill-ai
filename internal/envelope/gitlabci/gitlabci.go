@@ -64,9 +64,35 @@ const (
 var sectionPattern = regexp.MustCompile(`^section_(start|end):(\d+):([a-zA-Z0-9_]+)\r?$`)
 
 // jobFailurePattern matches the runner's terminal "this job failed"
-// line. The format is stable across GitLab runner versions; only
-// the exit code varies.
-var jobFailurePattern = regexp.MustCompile(`^ERROR: Job failed: exit code (\d+)$`)
+// line. GitLab runner emits two phrasings interchangeably across
+// versions: "exit code N" (the canonical) and "exit status N" (seen
+// in jobs scraped via `glab ci trace`). Both convey the same
+// signal; capture either.
+var jobFailurePattern = regexp.MustCompile(`^ERROR: Job failed: exit (?:code|status) (\d+)$`)
+
+// glabPrefixPattern matches the per-line preamble `glab ci trace`
+// (and `gitlab-runner` in --timestamps mode) prepends to every line:
+// an RFC3339-Z timestamp, a space, a 2-digit step number, and a
+// single-letter stream code (O for stdout, E for stderr). The
+// terminator is either a single space (the standard case) or a
+// `+` followed by an ANSI CSI "erase to end of line" sequence
+// (`[0K`); glab emits the `+` framing on lines that continue an
+// earlier carriage-return-terminated runner write, which is how
+// every section_start: after the first one arrives.
+//
+// Any subsequent ANSI CSI escape sequences are also consumed by
+// the same match, so the section / job-failure regexes see the
+// line content directly. This matters: glab sandwiches CSI EL0
+// (`[0K`) and SGR colour codes (`[31;1m`, `[36;1m`) between the
+// prefix and the meaningful text on most lines, and an `^`-anchored
+// section_start: or "ERROR: Job failed:" regex fails on them.
+//
+// Example matches (all stripped to the same suffix shape):
+//
+//	"2026-05-19T00:02:58.540261Z 00O section_start:..."
+//	"2026-05-19T00:03:22.731006Z 00O+[0Ksection_start:..."
+//	"2026-05-19T00:15:07.553120Z 00O [31;1mERROR: Job failed: ..."
+var glabPrefixPattern = regexp.MustCompile("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d+Z \\d{2}[A-Z](?: |\\+\x1b\\[0K)(?:\x1b\\[[0-9;]*[A-Za-z])*")
 
 // csiPattern matches a single ANSI CSI escape sequence (the most
 // common kind GitLab emits: `\x1b[31m`, `\x1b[0m`, etc.). Used by
@@ -129,7 +155,13 @@ func (Stripper) Detect(sample []byte) event.Confidence {
 
 func hasSectionMarker(sample []byte) bool {
 	for _, line := range bytes.Split(sample, []byte{'\n'}) {
-		if sectionPattern.Match(line) {
+		// Strip the glab/gitlab-runner-timestamps prefix when
+		// present so wrapped logs detect identically to raw
+		// runner output. The non-wrapped case is the common
+		// one and the regex is anchored, so the strip is a
+		// constant-time no-op then.
+		l := glabPrefixPattern.ReplaceAll(line, nil)
+		if sectionPattern.Match(l) {
 			return true
 		}
 	}
@@ -276,8 +308,15 @@ func (s *state) currentSection() string {
 //   - signal: pointer to a synthesised Event, or nil.
 //   - keep: true if the line forwards to the cleaned Reader;
 //     false if the stripper consumes it.
+//
+// The glab/gitlab-runner-timestamps prefix is stripped first so the
+// section_start / section_end / job-failure regexes apply uniformly
+// to raw runner output and to glab-wrapped output. The stripped
+// prefix is also dropped from the cleaned bytes so downstream format
+// detection sees the same shape either way.
 func process(line string, st *state) (clean string, signal *event.Event, keep bool) {
 	line = strings.TrimRight(line, "\r")
+	line = glabPrefixPattern.ReplaceAllString(line, "")
 	if m := sectionPattern.FindStringSubmatch(line + "\r"); m != nil {
 		// The regex requires `\r?$`; we just stripped the trailing
 		// `\r`, so re-add it for the match. Cheaper than a second

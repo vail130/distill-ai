@@ -288,41 +288,61 @@ closed), `metadata.exit_code="1"`.
 ### gitlab-ci
 
 Strips the GitLab CI job envelope: `section_start:` /
-`section_end:` markers, trailing carriage returns, and the
-runner's terminal "Job failed" line.
+`section_end:` markers, trailing carriage returns, the runner's
+terminal "Job failed" line, and — when present — the per-line
+preamble that `glab ci trace` and `gitlab-runner --timestamps`
+prepend to every line.
 
 **Detection.** Confidence `1.0` when the sample contains any line
 matching `section_start:NS:name` or `section_end:NS:name` (with or
-without the canonical `\r` terminator). Confidence `0.8` when the
-sample contains the "Running with gitlab-runner " banner together
-with at least five distinct ANSI CSI escape sequences in the first
-1 KiB.
+without the canonical `\r` terminator), with or without the glab
+preamble. Confidence `0.8` when the sample contains the "Running
+with gitlab-runner " banner together with at least five distinct
+ANSI CSI escape sequences in the first 1 KiB.
 
 **Stripped from cleaned output.**
 
-| Input                                                | Cleaned output                |
-|------------------------------------------------------|-------------------------------|
-| `section_start:1700000000:build\r`                   | *(removed)*                   |
-| `section_end:1700000000:build\r`                     | *(removed)*                   |
-| `line ending with \r\n`                              | `line ending with \n`         |
-| `ERROR: Job failed: exit code N`                     | *(removed)*; emits signal     |
+| Input                                                                       | Cleaned output                |
+|-----------------------------------------------------------------------------|-------------------------------|
+| `section_start:1700000000:build\r`                                          | *(removed)*                   |
+| `section_end:1700000000:build\r`                                            | *(removed)*                   |
+| `2026-05-19T00:02:58.540261Z 00O section_start:1700000000:build`            | *(removed)*                   |
+| `2026-05-19T00:03:22.731006Z 00O+\x1b[0Ksection_start:1700000001:script`   | *(removed)*                   |
+| `2026-05-19T00:15:07.553120Z 00O \x1b[31;1mERROR: Job failed: exit status 1` | *(removed)*; emits signal     |
+| `line ending with \r\n`                                                     | `line ending with \n`         |
+| `ERROR: Job failed: exit code N`                                            | *(removed)*; emits signal     |
 
-Per-line ANSI escapes are passed through unchanged — inner-format
-parsers handle them where they matter (gotest, pytest, jest all
-strip ANSI from Title fields).
+The glab preamble itself is `<RFC3339-Z timestamp> <2-digit step
+number><1-letter stream code><sep>` where `<sep>` is either a
+single space (the canonical case) or a `+` followed by an ANSI CSI
+"erase to end of line" sequence (`\x1b[0K`) that glab emits on
+continuations of carriage-return-terminated runner writes. Any
+ANSI CSI escapes that follow are also consumed by the same prefix
+strip so the section / failure regexes apply to the line content
+directly. Per-line ANSI escapes that appear later in the line body
+are passed through unchanged — inner-format parsers handle them
+where they matter (gotest, pytest, jest all strip ANSI from Title
+fields).
 
 **Synthesised signal Events.**
 
-| Input line                              | `Kind`                    | Severity | Title / Metadata                                                         |
-|-----------------------------------------|---------------------------|----------|--------------------------------------------------------------------------|
-| `ERROR: Job failed: exit code N`        | `envelope_step_failure`   | `error`  | Title = surrounding section name (or empty); `metadata.exit_code="N"`, `metadata.step` set when in scope |
+| Input line                                                                                | `Kind`                    | Severity | Title / Metadata                                                                                                            |
+|-------------------------------------------------------------------------------------------|---------------------------|----------|-----------------------------------------------------------------------------------------------------------------------------|
+| `ERROR: Job failed: exit code N` or `ERROR: Job failed: exit status N` (with or without preamble) | `envelope_step_failure` | `error`  | Title = surrounding section name (or empty); `metadata.exit_code="N"`, `metadata.step` set when in scope                    |
+
+Both "exit code N" and "exit status N" phrasings are accepted —
+different GitLab runner / glab versions print one or the other but
+they convey the same signal.
 
 **Notes.**
 
-- No timestamp stripping. GitLab CI does not prefix per-line
-  timestamps in the default runner configuration. When a project
-  enables timestamping via runner config, the timestamps land in
-  the inner stream and the inner format handles them.
+- When the log is consumed via `glab ci trace`, every line is
+  wrapped in the glab preamble. distill-ai recognises and strips
+  it so `glab ci trace | distill-ai` and the raw-runner-output
+  case behave identically.
+- The glab preamble strip is conservative: a line without the
+  preamble matches the regex as a no-op so non-wrapped GitLab CI
+  logs are unaffected.
 - The section stack is bounded at depth 8 for symmetry with the
   github-actions stripper; in practice GitLab sections do not
   nest.

@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- gitlab-ci envelope: stripper now recognises and peels the
+  per-line preamble that `glab ci trace` and `gitlab-runner` in
+  `--timestamps` mode prepend to every line (an RFC3339-Z
+  timestamp, a 2-digit step number, a 1-letter stream code, and
+  either a trailing space or `+\x1b[0K` for continuation lines),
+  plus any ANSI CSI escape sequences immediately following.
+  Previously, `^`-anchored regexes for `section_start:` /
+  `section_end:` and `ERROR: Job failed:` failed against
+  glab-wrapped lines and the github-actions detector (which
+  honours the RFC3339-Z timestamp heuristic) won the detection
+  race — leaving a glab-traced GitLab CI log misidentified and
+  its envelope unstripped. The job-failure regex also accepts
+  both "exit code N" and "exit status N" phrasings, which the
+  GitLab runner emits interchangeably. Surfaced by a real
+  real production GitLab CI log. Four new tests cover the
+  glab-prefixed Detect, Strip section markers, Strip job failure,
+  and the exit-code/exit-status interchange.
+
 ### Added
 
 - M16.2: README rewrite around v1.0 use cases. Replaces the abstract
