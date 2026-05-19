@@ -36,8 +36,9 @@ type Format interface {
 	Name() string
 
 	// Detect inspects an opening sample of input (typically the first
-	// 4KB, see internal/detect.SampleSize) and returns a self-reported
-	// confidence in [0.0, 1.0] that the input is in this format.
+	// 16 KB, see internal/detect.SampleSize) and returns a
+	// self-reported confidence in [0.0, 1.0] that the input is in
+	// this format.
 	//
 	// Implementations may not modify the sample slice and may not
 	// retain it beyond the call. Implementations must be cheap:
@@ -45,8 +46,9 @@ type Format interface {
 	// so anything beyond a regex match or a few field probes is
 	// suspect.
 	//
-	// Sample may be shorter than 4KB on small inputs; implementations
-	// must handle empty and truncated samples without panicking.
+	// Sample may be shorter than SampleSize on small inputs;
+	// implementations must handle empty and truncated samples
+	// without panicking.
 	Detect(sample []byte) event.Confidence
 
 	// Parse consumes r and emits Events on the returned channel.

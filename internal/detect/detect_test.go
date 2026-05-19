@@ -198,7 +198,11 @@ func TestDetect_SingleByteInput(t *testing.T) {
 }
 
 func TestDetect_SampleNotConsumed(t *testing.T) {
-	original := strings.Repeat("ab", 4096) // > SampleSize
+	// Generate input strictly larger than SampleSize so the
+	// detector reads a full sample and the stream still has
+	// remaining bytes to verify the "sample is prepended, not
+	// consumed" contract.
+	original := strings.Repeat("ab", detect.SampleSize)
 	res, err := detect.Detect(context.Background(), strings.NewReader(original), detect.Opts{
 		Formats: []formats.Format{
 			&fakeFormat{name: "pytest", score: 0.9},

@@ -22,11 +22,18 @@ import (
 
 // SampleSize is the number of bytes the detector reads from the
 // opening of an input before deciding which Format should parse it.
-// 4 KiB is enough for every format we currently support to score
-// confidently — every known marker (pytest's "=== FAILURES ===", go
-// test's "--- FAIL:", jest's "●", structured-JSON's `{"level":...`)
-// appears within the first kilobyte of any realistic input.
-const SampleSize = 4096
+// 16 KiB comfortably reaches past the per-job preamble real CI
+// runners emit (image pull, secret resolution, git clone, docker
+// compose up) — well before any test runner's first marker —
+// while staying small enough that the buffer cost is negligible
+// (one allocation per Detect call). 4 KiB, the M3.1 default, was
+// not enough for typical GitLab CI / GitHub Actions logs piped
+// through `glab ci trace` or `gh run view --log`; see
+// KNOWN_ISSUES.md issue #3 for the longer history.
+//
+// Tests assert SampleSize ≥ 1 KiB to leave headroom for future
+// formats whose markers might fall later in their inputs.
+const SampleSize = 16384
 
 // GenericFormatName is the name reserved for the catch-all fallback
 // Format. When no specific Format scores above ConfidenceMinDetect,
