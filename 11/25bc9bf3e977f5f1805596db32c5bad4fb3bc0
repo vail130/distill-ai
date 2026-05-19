@@ -1,0 +1,105 @@
+docs/index.md
+  4935d4a711a2a781 30
+internal/cli/cli_test.go
+  4935d4a711a2a781 12,25-29,38-47,51-61,64-73,172-185
+pkg/distill/register.go
+  4935d4a711a2a781 5,30-32
+internal/formats/gotestsum/gotestsum.go
+  4935d4a711a2a781 1-59
+test/integration/integration_docs_test.go
+  4935d4a711a2a781 15,108
+CHANGELOG.md
+  4935d4a711a2a781 32-35
+docs/integration-ci.md
+  4935d4a711a2a781 158-162
+test/integration/docs_audit_test.go
+  4935d4a711a2a781 22,95,344
+docs/formats/jest.md
+  4935d4a711a2a781 32-33,37-38
+internal/envelope/dockercompose/dockercompose.go
+  4935d4a711a2a781 160-163,187,199-205,230,233,235
+internal/cli/register.go
+  4935d4a711a2a781 29-31
+docs/formats/gotestsum.md
+  4935d4a711a2a781 1-80
+TODO.md
+  4935d4a711a2a781 25,34-39,4710,5151
+skills/distill-ai/SKILL.md
+  4935d4a711a2a781 20,47
+internal/formats/gotestsum/scanner.go
+  4935d4a711a2a781 1-171
+docs/envelope.md
+  4935d4a711a2a781 148-150,453-455,511
+internal/cli/detect.go
+  4935d4a711a2a781 13,32-35,83-85,87-97,125,152,154-158
+internal/formats/jest/jest_test.go
+  4935d4a711a2a781 59-60
+test/integration/integration_test.go
+  4935d4a711a2a781 487-505,627-637,646-687
+README.md
+  4935d4a711a2a781 7-8,13,234-237,259-260
+internal/formats/gotestsum/goldens_test.go
+  4935d4a711a2a781 1-16
+skills/distill-ai-dev/SKILL.md
+  4935d4a711a2a781 78-83,127,210-220
+internal/formats/gotestsum/gotestsum_test.go
+  4935d4a711a2a781 1-147
+test/integration/public_api_test.go
+  4935d4a711a2a781 45
+ARCHITECTURE.md
+  4935d4a711a2a781 258,595,597-600,606-609
+internal/envelope/dockercompose/dockercompose_test.go
+  4935d4a711a2a781 150-153,158,162
+internal/formats/jest/jest.go
+  4935d4a711a2a781 18-19,78-80
+docs/formats/SCHEMA.md
+  4935d4a711a2a781 137
+test/integration/readme_test.go
+  4935d4a711a2a781 15,20,43-44,65-66
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "1125bc9bf3e977f5f1805596db32c5bad4fb3bc0",
+  "prompts": {
+    "4935d4a711a2a781": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1bee2c13effeylQBQMvaJ7n6zk",
+        "model": "openai/gpt-5.5"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 939,
+      "total_deletions": 108,
+      "accepted_lines": 918,
+      "overriden_lines": 0
+    },
+    "67419cc542bacf3e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c338681effeHlRG8hsTPU3peT",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 7500,
+      "overriden_lines": 7
+    },
+    "905997bab39acddd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1bfbcd3dffferCSV1cChPLm4AS",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 8,
+      "overriden_lines": 0
+    }
+  }
+}
