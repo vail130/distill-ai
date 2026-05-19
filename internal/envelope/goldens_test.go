@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/vail130/distill-ai/internal/envelope"
+	"github.com/vail130/distill-ai/internal/envelope/dockercompose"
 	"github.com/vail130/distill-ai/internal/envelope/githubactions"
 	"github.com/vail130/distill-ai/internal/envelope/gitlabci"
 	"github.com/vail130/distill-ai/internal/formats"
@@ -28,11 +29,14 @@ func TestEnvelope_Goldens(t *testing.T) {
 	envelope.RunGoldens(t, "testdata")
 }
 
-// TestEnvelope_FixtureCount pins the fixture set to exactly the
-// six enumerated in the M13.5 DoD so future drift surfaces
-// immediately.
+// TestEnvelope_FixtureCount pins the fixture set so future drift
+// surfaces immediately. The count grew from M13.5's six (two each
+// for github-actions, gitlab-ci, and one each for the step-failure
+// shapes) when docker-compose landed pre-v1.0 with its own basic
+// fixture plus the chained gitlab-ci+docker-compose fixture from
+// KNOWN_ISSUES.md issue #4.
 func TestEnvelope_FixtureCount(t *testing.T) {
-	envelope.FixtureCount(t, "testdata", 6)
+	envelope.FixtureCount(t, "testdata", 8)
 }
 
 // registerForGoldens populates both registries with the strippers
@@ -46,6 +50,7 @@ func registerForGoldens(t *testing.T) {
 	formats.ResetForTest()
 	t.Cleanup(envelope.ResetForTest)
 	t.Cleanup(formats.ResetForTest)
+	envelope.Register(dockercompose.Stripper{})
 	envelope.Register(githubactions.Stripper{})
 	envelope.Register(gitlabci.Stripper{})
 	formats.Register(generic.Format{})

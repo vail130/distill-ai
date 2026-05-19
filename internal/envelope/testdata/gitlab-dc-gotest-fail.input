@@ -1,0 +1,136 @@
+Running with gitlab-runner 16.5.0 (a1b2c3d4) on shared-runner-1 abcd1234
+  Preparing the "docker" executor
+  Using Docker executor with image golang:1.22 ...
+  Pulling docker image golang:1.22 ...
+  Using docker image sha256:abcdef1234567890 for golang:1.22 with digest golang@sha256:fedcba0987654321 ...
+section_start:1700000000:prepare_executor
+Preparing environment
+Running on runner-abcd1234-project-12345-concurrent-0 via shared-runner-1...
+section_end:1700000000:prepare_executor
+section_start:1700000010:get_sources
+Getting source from Git repository
+Fetching changes with git depth set to 50...
+Initialized empty Git repository in /builds/group/cli/.git/
+Created fresh repository.
+Checking out abcd1234 as detached HEAD (ref is feature/test-fix)...
+Skipping Git submodules setup
+section_end:1700000010:get_sources
+section_start:1700000020:resolve_secrets
+Resolving secrets
+section_end:1700000020:resolve_secrets
+section_start:1700000030:download_artifacts
+Downloading artifacts
+Downloading artifacts for build (1234567)...
+Downloading artifacts from coordinator... ok        host=storage.example.com
+section_end:1700000030:download_artifacts
+section_start:1700000040:step_script
+Executing "step_script" stage of the job script
+Using docker image sha256:abcdef1234567890 for golang:1.22 with digest golang@sha256:fedcba0987654321 ...
+$ docker compose -f docker-compose.test.yml up --abort-on-container-exit --exit-code-from testrunner
+[+] Pulling 5/5
+ ✔ testrunner Pulled                                                          12.3s
+ ✔ postgres Pulled                                                             8.7s
+ ✔ redis Pulled                                                                5.4s
+ ✔ minio Pulled                                                                7.1s
+ ✔ mailhog Pulled                                                              3.2s
+[+] Running 6/6
+ ✔ Network cli_default        Created                                          0.1s
+ ✔ Container cli-postgres-1   Started                                          1.4s
+ ✔ Container cli-redis-1      Started                                          0.9s
+ ✔ Container cli-minio-1      Started                                          1.2s
+ ✔ Container cli-mailhog-1    Started                                          0.7s
+ ✔ Container cli-testrunner-1 Started                                          2.1s
+Attaching to cli-testrunner-1, cli-postgres-1, cli-redis-1, cli-minio-1, cli-mailhog-1
+cli-postgres-1   | The files belonging to this database system will be owned by user "postgres".
+cli-postgres-1   | This user must also own the server process.
+cli-postgres-1   | The database cluster will be initialized with locale "en_US.utf8".
+cli-postgres-1   | The default database encoding has accordingly been set to "UTF8".
+cli-postgres-1   | The default text search configuration will be set to "english".
+cli-postgres-1   | Data page checksums are disabled.
+cli-postgres-1   | fixing permissions on existing directory /var/lib/postgresql/data ... ok
+cli-postgres-1   | creating subdirectories ... ok
+cli-postgres-1   | selecting dynamic shared memory implementation ... posix
+cli-postgres-1   | selecting default max_connections ... 100
+cli-postgres-1   | selecting default shared_buffers ... 128MB
+cli-postgres-1   | selecting default time zone ... UTC
+cli-postgres-1   | creating configuration files ... ok
+cli-postgres-1   | running bootstrap script ... ok
+cli-postgres-1   | performing post-bootstrap initialization ... ok
+cli-postgres-1   | syncing data to disk ... ok
+cli-postgres-1   | initdb: warning: enabling "trust" authentication for local connections
+cli-postgres-1   | Success. You can now start the database server using:
+cli-postgres-1   | waiting for server to start....
+cli-postgres-1   | database system was shut down at 2024-08-19 12:34:56 UTC
+cli-postgres-1   | database system is ready to accept connections
+cli-redis-1      | 1:M 19 Aug 2024 12:34:57.123 * Ready to accept connections tcp
+cli-minio-1      | API: http://172.18.0.5:9000  http://127.0.0.1:9000
+cli-mailhog-1    | [HTTP] Binding to address: 0.0.0.0:8025
+cli-testrunner-1 | waiting for postgres...
+cli-testrunner-1 | postgres ready
+cli-testrunner-1 | waiting for redis...
+cli-testrunner-1 | redis ready
+cli-testrunner-1 | running migrations...
+cli-testrunner-1 | migrations applied
+cli-testrunner-1 | seeding fixtures...
+cli-testrunner-1 | fixtures loaded
+cli-testrunner-1 | starting go test
+cli-testrunner-1 | === RUN   TestPass000
+cli-testrunner-1 | --- PASS: TestPass000 (0.00s)
+cli-testrunner-1 | === RUN   TestPass001
+cli-testrunner-1 | --- PASS: TestPass001 (0.01s)
+cli-testrunner-1 | === RUN   TestPass002
+cli-testrunner-1 | --- PASS: TestPass002 (0.02s)
+cli-testrunner-1 | === RUN   TestPass003
+cli-testrunner-1 | --- PASS: TestPass003 (0.03s)
+cli-testrunner-1 | === RUN   TestPass004
+cli-testrunner-1 | --- PASS: TestPass004 (0.04s)
+cli-testrunner-1 | === RUN   TestPass005
+cli-testrunner-1 | --- PASS: TestPass005 (0.05s)
+cli-testrunner-1 | === RUN   TestPass006
+cli-testrunner-1 | --- PASS: TestPass006 (0.06s)
+cli-testrunner-1 | === RUN   TestPass007
+cli-testrunner-1 | --- PASS: TestPass007 (0.07s)
+cli-testrunner-1 | === RUN   TestPass008
+cli-testrunner-1 | --- PASS: TestPass008 (0.08s)
+cli-testrunner-1 | === RUN   TestPass009
+cli-testrunner-1 | --- PASS: TestPass009 (0.09s)
+cli-testrunner-1 | === RUN   TestPass010
+cli-testrunner-1 | --- PASS: TestPass010 (0.00s)
+cli-testrunner-1 | === RUN   TestPass011
+cli-testrunner-1 | --- PASS: TestPass011 (0.01s)
+cli-testrunner-1 | === RUN   TestPass012
+cli-testrunner-1 | --- PASS: TestPass012 (0.02s)
+cli-testrunner-1 | === RUN   TestPass013
+cli-testrunner-1 | --- PASS: TestPass013 (0.03s)
+cli-testrunner-1 | === RUN   TestPass014
+cli-testrunner-1 | --- PASS: TestPass014 (0.04s)
+cli-testrunner-1 | === RUN   TestPass015
+cli-testrunner-1 | --- PASS: TestPass015 (0.05s)
+cli-testrunner-1 | === RUN   TestPass016
+cli-testrunner-1 | --- PASS: TestPass016 (0.06s)
+cli-testrunner-1 | === RUN   TestPass017
+cli-testrunner-1 | --- PASS: TestPass017 (0.07s)
+cli-testrunner-1 | === RUN   TestPass018
+cli-testrunner-1 | --- PASS: TestPass018 (0.08s)
+cli-testrunner-1 | === RUN   TestPass019
+cli-testrunner-1 | --- PASS: TestPass019 (0.09s)
+cli-testrunner-1 | === RUN   TestAuth/Login
+cli-testrunner-1 | --- FAIL: TestAuth/Login (0.15s)
+cli-testrunner-1 |     auth_test.go:142: expected status 200, got 502
+cli-testrunner-1 |         response body: {"error":"upstream unavailable"}
+cli-testrunner-1 |     auth_test.go:144: token endpoint returned non-2xx
+cli-testrunner-1 | FAIL
+cli-testrunner-1 | FAIL	gitlab.com/gitlab-org/cli/internal/auth	3.245s
+cli-testrunner-1 | FAIL
+cli-testrunner-1 exited with code 1
+[+] Stopping 5/5
+ ✔ Container cli-mailhog-1    Stopped                                          0.3s
+ ✔ Container cli-minio-1      Stopped                                          0.4s
+ ✔ Container cli-redis-1      Stopped                                          0.2s
+ ✔ Container cli-postgres-1   Stopped                                          0.7s
+ ✔ Container cli-testrunner-1 Stopped                                          0.0s
+section_end:1700000040:step_script
+section_start:1700000050:cleanup_file_variables
+Cleaning up project directory and file based variables
+section_end:1700000050:cleanup_file_variables
+ERROR: Job failed: exit code 1
