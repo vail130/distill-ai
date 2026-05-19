@@ -482,6 +482,71 @@ func TestWrap_AutoChainStopsWhenNoCandidateClaims(t *testing.T) {
 	}
 }
 
+// TestWrap_AutoChainGrowsSampleForLongPreambles closes the
+// real-world reach problem that surfaced when the chain re-sample
+// only read the cheap 16 KiB after a CI envelope stripper had
+// applied: a docker-compose log nested inside GitLab CI can sit
+// behind 100+ KiB of `docker buildx build` / `apt-get install`
+// preamble in the cleaned stream, and the dc detector never sees
+// its own prefix in the first 16 KiB.
+//
+// The stub here mimics that shape: a noisy preamble that doesn't
+// match the inner stripper, followed by lines that do. Without the
+// grown-sample logic the inner stripper would never be picked.
+func TestWrap_AutoChainGrowsSampleForLongPreambles(t *testing.T) {
+	envelope.ResetForTest()
+	t.Cleanup(envelope.ResetForTest)
+	// outer always claims and passes input through unchanged.
+	envelope.Register(stubStripper{name: "outer", score: 1.0})
+	// inner claims only when its marker appears in the sample.
+	// Place the marker at byte ~32 KiB so the cheap 16 KiB
+	// initial chain sample misses it but the grown sample
+	// catches it.
+	const innerMarker = "INNER-MARKER-XYZ\n"
+	envelope.Register(matchSubstringStripper{name: "inner", substring: innerMarker})
+	preamble := strings.Repeat("docker buildx build progress line\n", 1024) // ~33 KiB
+	input := preamble + innerMarker + "tail line\n"
+	_, _, chosen, err := envelope.Wrap(
+		context.Background(),
+		strings.NewReader(input),
+		envelope.Options{Choice: envelope.ChoiceAuto},
+	)
+	if err != nil {
+		t.Fatalf("Wrap: %v", err)
+	}
+	if chosen == nil || chosen.Name() != "outer+inner" {
+		t.Fatalf("chosen.Name() = %v, want \"outer+inner\" (grown sample should catch inner)",
+			nameOrNil(chosen))
+	}
+}
+
+// TestWrap_AutoChainGrownSampleBoundedByCap pins the hard cap on
+// the grown-sample loop. An inner stripper whose marker sits past
+// MaxChainSampleSize must NOT be picked — the chain stops growing
+// at the cap and falls through to "no inner envelope claimed".
+func TestWrap_AutoChainGrownSampleBoundedByCap(t *testing.T) {
+	envelope.ResetForTest()
+	t.Cleanup(envelope.ResetForTest)
+	envelope.Register(stubStripper{name: "outer", score: 1.0})
+	const innerMarker = "INNER-PAST-CAP\n"
+	envelope.Register(matchSubstringStripper{name: "inner", substring: innerMarker})
+	// Push the marker past MaxChainSampleSize (256 KiB).
+	preamble := strings.Repeat("x", envelope.MaxChainSampleSize+1024)
+	input := preamble + innerMarker
+	_, _, chosen, err := envelope.Wrap(
+		context.Background(),
+		strings.NewReader(input),
+		envelope.Options{Choice: envelope.ChoiceAuto},
+	)
+	if err != nil {
+		t.Fatalf("Wrap: %v", err)
+	}
+	if chosen == nil || chosen.Name() != "outer" {
+		t.Fatalf("chosen.Name() = %v, want \"outer\" (inner marker past cap, should not be picked)",
+			nameOrNil(chosen))
+	}
+}
+
 // TestWrap_AutoChainBoundedByMaxDepth pins the safety cap so an
 // always-matching pair (or a future bug that lets the same stripper
 // re-claim its own output) can't loop forever. With three
@@ -554,6 +619,32 @@ func chainNames(links []envelope.Stripper) []string {
 		out = append(out, s.Name())
 	}
 	return out
+}
+
+// matchSubstringStripper claims input whose sample contains the
+// configured substring anywhere. Used by grown-sample tests to
+// model an inner envelope whose marker sits deep in the cleaned
+// stream behind a long preamble.
+type matchSubstringStripper struct {
+	name      string
+	substring string
+}
+
+func (m matchSubstringStripper) Name() string { return m.name }
+
+func (m matchSubstringStripper) Detect(sample []byte) event.Confidence {
+	if strings.Contains(string(sample), m.substring) {
+		return 1.0
+	}
+	return 0
+}
+
+func (m matchSubstringStripper) Strip(_ context.Context, r io.Reader) (io.Reader, <-chan event.Event, error) {
+	ch := make(chan event.Event)
+	close(ch)
+	// Pass-through: tests only care about which strippers got
+	// picked, not what they did with the bytes.
+	return r, ch, nil
 }
 
 // matchPrefixStripper is a stripper that only claims input whose

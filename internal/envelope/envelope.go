@@ -111,6 +111,26 @@ const ConfidenceMinDetect event.Confidence = event.ConfidenceMinDetect
 // latency.
 const MaxChainDepth = 4
 
+// ChainSampleGrowStep is the chunk size used to grow the sample on
+// chain re-detection passes when the initial 16 KiB sample doesn't
+// claim a candidate. Real-world CI logs often have very long
+// preambles between the outer envelope (e.g. GitLab CI sections)
+// and the inner envelope (e.g. docker-compose attached output) —
+// `docker buildx build` followed by `apt-get install` can easily
+// run for 100+ KiB before the test runner actually starts. Reading
+// in 64 KiB chunks balances "find the inner envelope" against
+// "don't slurp the whole log on every Wrap call".
+const ChainSampleGrowStep = 64 * 1024
+
+// MaxChainSampleSize bounds how many bytes a chain iteration can
+// buffer while looking for an inner envelope. 256 KiB is generous
+// enough for every real-world CI shape observed to date and small
+// enough that the worst-case warmup-memory cost stays well under
+// the pipeline's pipeline.BoundedMemory budget. Crucially this
+// cost is only paid on chain iterations — the FIRST stripper is
+// always detected with the cheap 16 KiB sample.
+const MaxChainSampleSize = 256 * 1024
+
 // ErrUnknownStripper is returned by Wrap when Options.Choice names a
 // stripper that has not been registered. Wrap-friendly so callers can
 // errors.Is past additional context.
@@ -303,13 +323,34 @@ func wrapAuto(ctx context.Context, r io.Reader, opts Options) (io.Reader, <-chan
 	// Stripper interface contract.
 	used := map[string]bool{}
 	for i := 0; i < MaxChainDepth; i++ {
-		sample, rest, sErr := readSample(stream)
-		if sErr != nil {
-			return nil, nil, nil, fmt.Errorf("envelope: read sample: %w", sErr)
+		remaining := filterStrippers(candidates, used)
+		// First iteration uses the cheap 16 KiB sample. Once a
+		// stripper has applied and we're looking for an inner
+		// envelope on the cleaned stream, real-world preambles
+		// (docker buildx, apt-get install, kubectl wait) can be
+		// 100+ KiB long, so the chain re-sample grows in
+		// ChainSampleGrowStep chunks up to MaxChainSampleSize
+		// until either a candidate claims or the cap is hit.
+		var (
+			sample []byte
+			rest   io.Reader
+			winner Stripper
+			score  event.Confidence
+			sErr   error
+		)
+		if i == 0 {
+			sample, rest, sErr = readSample(stream)
+			if sErr != nil {
+				return nil, nil, nil, fmt.Errorf("envelope: read sample: %w", sErr)
+			}
+			winner, score = pickStripper(remaining, sample)
+		} else {
+			sample, rest, winner, score, sErr = growSampleUntilClaimed(stream, remaining)
+			if sErr != nil {
+				return nil, nil, nil, fmt.Errorf("envelope: grow sample: %w", sErr)
+			}
 		}
 		stream = prependSample(sample, rest)
-		remaining := filterStrippers(candidates, used)
-		winner, score := pickStripper(remaining, sample)
 		if winner == nil || score < ConfidenceMinDetect {
 			break
 		}
@@ -487,6 +528,71 @@ func pickStripper(strippers []Stripper, sample []byte) (Stripper, event.Confiden
 		}
 	}
 	return winner, bestScore
+}
+
+// growSampleUntilClaimed reads from r in growing windows, scoring
+// the cumulative sample against candidates after each window, and
+// returns as soon as a candidate scores ≥ ConfidenceMinDetect or
+// the buffered sample reaches MaxChainSampleSize. The returned
+// (sample, rest) pair is the same shape readSample produces so the
+// caller can prepend it through io.MultiReader.
+//
+// Used inside the chain loop (after the first stripper has applied)
+// because real-world CI preambles can be 100+ KiB before the inner
+// envelope's first marker — a single 16 KiB sample misses them.
+// The cost grows with the preamble length, but the function returns
+// the moment a candidate claims so well-formed inputs pay the cheap
+// path. Bounded by MaxChainSampleSize.
+//
+// On EOF the function returns whatever bytes it read and the best
+// candidate seen so far (which may still be nil). The caller treats
+// "no candidate above threshold" the same as the first-iteration
+// path: break out of the chain loop.
+func growSampleUntilClaimed(r io.Reader, candidates []Stripper) (
+	[]byte, io.Reader, Stripper, event.Confidence, error,
+) {
+	// Start with the cheap SampleSize read so callers that don't
+	// need the wider window pay nothing extra.
+	sample, rest, err := readSample(r)
+	if err != nil {
+		return nil, nil, nil, 0, err
+	}
+	winner, score := pickStripper(candidates, sample)
+	if score >= ConfidenceMinDetect {
+		return sample, rest, winner, score, nil
+	}
+	// Grow in ChainSampleGrowStep chunks but never overshoot
+	// MaxChainSampleSize. emptyReader returned by readSample on EOF
+	// reports 0 bytes on Read; we treat that as "no more input"
+	// and stop early.
+	buf := sample
+	for len(buf) < MaxChainSampleSize {
+		want := ChainSampleGrowStep
+		if remaining := MaxChainSampleSize - len(buf); remaining < want {
+			want = remaining
+		}
+		chunk := make([]byte, want)
+		n, readErr := io.ReadFull(rest, chunk)
+		if n > 0 {
+			buf = append(buf, chunk[:n]...)
+			winner, score = pickStripper(candidates, buf)
+			if score >= ConfidenceMinDetect {
+				return buf, rest, winner, score, nil
+			}
+		}
+		if readErr != nil {
+			if errors.Is(readErr, io.EOF) || errors.Is(readErr, io.ErrUnexpectedEOF) {
+				// Stream drained; pickStripper already
+				// scored the final cumulative sample.
+				return buf, emptyReader{}, winner, score, nil
+			}
+			return nil, nil, nil, 0, readErr
+		}
+	}
+	// Hit the cap. Return whatever the last score was; the chain
+	// loop will treat a below-threshold result as "no claim" and
+	// break.
+	return buf, rest, winner, score, nil
 }
 
 // readSample reads up to SampleSize bytes from r and returns them
