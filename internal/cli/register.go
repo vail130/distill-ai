@@ -35,6 +35,13 @@ import (
 	// `=== test session starts ===` and `=== FAILURES ===` banners.
 	_ "github.com/vail130/distill-ai/internal/formats/pytest"
 
+	// docker-compose strips the per-line "<service>  | " prefix the
+	// docker daemon prepends when containers are attached. Composes
+	// with the CI strippers via envelope.Wrap's chaining loop so a
+	// GitLab CI job running `docker compose up` peels both envelopes
+	// before format detection.
+	_ "github.com/vail130/distill-ai/internal/envelope/dockercompose"
+
 	// github-actions strips the GitHub Actions workflow envelope
 	// (timestamps, group markers, error/warning directives) before
 	// format detection runs.

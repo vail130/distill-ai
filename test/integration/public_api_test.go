@@ -37,6 +37,7 @@ func TestPublicAPI_NoLeakedInternalImports(t *testing.T) {
 		// not part of the public type surface — they only
 		// trigger init() — so the test allows them despite
 		// being internal/ packages.
+		"github.com/vail130/distill-ai/internal/envelope/dockercompose": true,
 		"github.com/vail130/distill-ai/internal/envelope/githubactions": true,
 		"github.com/vail130/distill-ai/internal/envelope/gitlabci":      true,
 		"github.com/vail130/distill-ai/internal/formats/generic":        true,
