@@ -122,3 +122,22 @@ func TestMarkdownSink_RendersBulletsAndFences(t *testing.T) {
 		}
 	}
 }
+
+// TestMarkdownSink_LineSourceWinsOverStaticInputLines mirrors the
+// TextSink and JSONSink LineSource tests: a LineSource installed at
+// Run time supersedes InputLines for footer rendering, so the CLI's
+// live LineCounter is honoured.
+func TestMarkdownSink_LineSourceWinsOverStaticInputLines(t *testing.T) {
+	var buf bytes.Buffer
+	s := &MarkdownSink{
+		Writer:     &buf,
+		FormatName: "pytest",
+		InputLines: 7, // stale fallback
+		LineSource: FixedLineSource(314),
+	}
+	feedSink(t, s, []event.Event{simpleEvent("error", "x")})
+	out := buf.String()
+	if !strings.Contains(out, "314") {
+		t.Errorf("footer should include LineSource value 314, got:\n%s", out)
+	}
+}

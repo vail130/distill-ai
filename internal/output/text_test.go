@@ -189,6 +189,29 @@ func TestTextSink_FooterReflectsCounters(t *testing.T) {
 	}
 }
 
+// TestTextSink_LineSourceWinsOverStaticInputLines proves that a
+// LineSource installed before Run takes precedence over the static
+// InputLines field at footer-write time. This is the contract the
+// CLI relies on: a LineCounter wrapped around input is read live so
+// the footer reflects the bytes the Source actually consumed.
+func TestTextSink_LineSourceWinsOverStaticInputLines(t *testing.T) {
+	var buf bytes.Buffer
+	s := &TextSink{
+		Writer:     &buf,
+		FormatName: "pytest",
+		InputLines: 5, // stale fallback
+		LineSource: FixedLineSource(42),
+	}
+	feedSink(t, s, []event.Event{simpleEvent("error", "x")})
+	out := buf.String()
+	if !strings.Contains(out, "distilled 42 lines") {
+		t.Errorf("footer should use LineSource value 42, got: %q", out)
+	}
+	if strings.Contains(out, "distilled 5 lines") {
+		t.Errorf("footer must not use stale InputLines value 5, got: %q", out)
+	}
+}
+
 // runText runs TextSink over evs and returns the encoded output. With
 // emptyToo=true it also tests that NoFooter behaves correctly.
 func runText(t *testing.T, evs []event.Event, noFooter bool) []byte {

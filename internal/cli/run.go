@@ -279,6 +279,10 @@ func runRun(cmd *cobra.Command, args []string, fl *runFlags) error {
 	// pointer is shared with the BudgetStage; the Sink reads it
 	// after the stage has populated it (at end of pipeline).
 	attachCounters(sink, pipe.BudgetCounters)
+	// Wire the LineCounter the input was wrapped with so the Sink's
+	// footer reports the real input-line count instead of the
+	// static zero its InputLines field carries at construction time.
+	attachLineSource(sink, lc)
 	ctx := cmd.Context()
 	if ctx == nil {
 		ctx = context.Background()
@@ -409,6 +413,25 @@ func attachCounters(s pipeline.Sink, c *pipeline.BudgetCounters) {
 		sink.Counters = c
 	case *output.MarkdownSink:
 		sink.Counters = c
+	}
+}
+
+// attachLineSource installs a LineSource on the Sink so the footer
+// (text / markdown) or summary (json) reads the live input-line count
+// at footer-write time. Without this, the Sink's static InputLines
+// field stays 0 because the LineCounter is wrapped around input
+// after the Sink is constructed but before its footer is written.
+func attachLineSource(s pipeline.Sink, ls output.LineSource) {
+	if ls == nil {
+		return
+	}
+	switch sink := s.(type) {
+	case *output.TextSink:
+		sink.LineSource = ls
+	case *output.JSONSink:
+		sink.LineSource = ls
+	case *output.MarkdownSink:
+		sink.LineSource = ls
 	}
 }
 
