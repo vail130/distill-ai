@@ -92,14 +92,41 @@ Behaviour:
 
 | `Choice`              | Behaviour                                                                                       |
 |-----------------------|-------------------------------------------------------------------------------------------------|
-| `""` or `"auto"`      | Read SampleSize bytes, score every registered Stripper, pick the highest ≥ `ConfidenceMinDetect`. Fall back to Noop if nothing wins. |
+| `""` or `"auto"`      | Detect and apply a Stripper, then re-detect on the cleaned bytes and apply the next match. Iterate up to `MaxChainDepth` times. Fall back to Noop if nothing wins on the first pass. |
 | `"none"`              | Force the Noop stripper; do not run detection.                                                  |
-| `<stripper name>`     | Look up the named stripper; use it unconditionally. Unknown names return `ErrUnknownStripper`.  |
+| `<stripper name>`     | Look up the named stripper; use it unconditionally. Unknown names return `ErrUnknownStripper`. No chaining. |
 
 `Wrap` never drops bytes: the SampleSize-byte buffer is prepended
 to the trailing Reader before the chosen Stripper sees the stream,
 the same `io.MultiReader` shape
 [`detect.Detect`](../internal/detect/detect.go) uses.
+
+### Chaining
+
+Real-world inputs often nest envelopes: a GitLab CI job that runs
+`docker compose up` wraps its container's stdout in **both** the
+GitLab CI section/timestamp envelope **and** the docker-compose
+service-name prefix (`testrunner-1  | === RUN TestThing`). Peeling
+only the outer envelope still leaves the inner-format detector
+looking at `testrunner-1  | ` line prefixes, which don't match
+`gotest`'s `^=== RUN` anchor and force the fall-back to `generic`.
+
+`Wrap` on `ChoiceAuto` solves this by chaining: after the
+highest-confidence Stripper finishes, the next iteration re-samples
+the cleaned bytes and picks again from the **remaining** Strippers
+(the same Stripper can't apply twice in a single chain). Chaining
+stops as soon as no remaining Stripper scores ≥
+`ConfidenceMinDetect`, or after `MaxChainDepth` iterations as a
+safety cap.
+
+When more than one Stripper applies, `chosen.Name()` is the joined
+chain (e.g. `"gitlab-ci+docker-compose"`); the
+[`envelope.Chain`](../internal/envelope/envelope.go) helper returns
+the raw slice for callers that need the breakdown.
+
+Signals from every applied Stripper flow through a single fan-in
+channel so downstream consumers see one unified stream regardless
+of how many envelopes were peeled.
 
 The CLI's `--strip-envelope` flag (M13.2) maps directly onto
 `Options.Choice`.
