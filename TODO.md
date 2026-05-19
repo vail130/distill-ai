@@ -4318,7 +4318,7 @@ actually use it."
 
 ---
 
-## M16 — Documentation
+## M16 — Documentation ✅
 
 The polish milestone before v1.0 ships. M0–M15 deliver the binary,
 the library, the formats, the envelope stripper, and the config
@@ -4601,7 +4601,7 @@ or pipeline picks up distilled output."
     mentioned matches the SKILL.md `cli-surface` manifest.
 - **Docs:** the three new files are the deliverable.
 
-### M16.5 — CHANGELOG.md aligned and tagged for v1.0
+### M16.5 — CHANGELOG.md aligned and tagged for v1.0 ✅
 
 The CHANGELOG already accumulates `[Unreleased]` entries via the
 per-milestone alignment rule. M16.5 organises them, ensures every
