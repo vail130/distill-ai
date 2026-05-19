@@ -1,0 +1,44 @@
+docs/envelope.md
+  905997bab39acddd 122-132
+internal/envelope/dockercompose/dockercompose.go
+  905997bab39acddd 107-110,112-115,118-122,124
+internal/envelope/envelope.go
+  905997bab39acddd 114-133,326-351,533-597
+CHANGELOG.md
+  905997bab39acddd 52-63
+internal/envelope/envelope_test.go
+  905997bab39acddd 485-549,624-649
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "6cca0306f8b1209438eecc6108ea432a8fe1e3e1",
+  "prompts": {
+    "67419cc542bacf3e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c338681effeHlRG8hsTPU3peT",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 7506,
+      "overriden_lines": 0
+    },
+    "905997bab39acddd": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1bfbcd3dffferCSV1cChPLm4AS",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 243,
+      "total_deletions": 33,
+      "accepted_lines": 249,
+      "overriden_lines": 0
+    }
+  }
+}
