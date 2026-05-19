@@ -247,7 +247,12 @@ func TestWrap_EmptyChoiceTreatedAsAuto(t *testing.T) {
 func TestWrap_AutoChoosesHighestConfidence(t *testing.T) {
 	envelope.ResetForTest()
 	t.Cleanup(envelope.ResetForTest)
-	envelope.Register(stubStripper{name: "low", score: 0.65})
+	// Use a non-matching stub (score 0) for the second candidate so
+	// only the high-confidence one is picked. With chaining,
+	// registering two matching stubs would apply both — the
+	// dedicated TestWrap_AutoChainsMultipleStrippers below covers
+	// that path. This test isolates the highest-of-many rule.
+	envelope.Register(stubStripper{name: "low", score: 0})
 	envelope.Register(stubStripper{name: "high", score: 0.95})
 	_, _, chosen, err := envelope.Wrap(
 		context.Background(),
@@ -263,7 +268,9 @@ func TestWrap_AutoChoosesHighestConfidence(t *testing.T) {
 }
 
 // TestWrap_AutoTieBreaksAlphabetically asserts the deterministic
-// tie-break rule documented in Wrap's godoc.
+// tie-break rule documented in Wrap's godoc. Both stubs match at the
+// same score; chaining applies them in alphabetical order so the
+// chain Name() begins with the alphabetically-first stripper.
 func TestWrap_AutoTieBreaksAlphabetically(t *testing.T) {
 	envelope.ResetForTest()
 	t.Cleanup(envelope.ResetForTest)
@@ -277,8 +284,13 @@ func TestWrap_AutoTieBreaksAlphabetically(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Wrap: %v", err)
 	}
-	if chosen == nil || chosen.Name() != "alpha" {
-		t.Fatalf("chosen.Name() = %v, want \"alpha\" (alphabetical tie-break)", nameOrNil(chosen))
+	// Both stubs always match (Detect returns score regardless of
+	// input), so chaining applies them in alphabetical-tie order.
+	// Assert the first-applied stripper, which is what the
+	// tie-break rule promises.
+	want := "alpha+zulu"
+	if chosen == nil || chosen.Name() != want {
+		t.Fatalf("chosen.Name() = %v, want %q (alphabetical tie-break on first chain step)", nameOrNil(chosen), want)
 	}
 }
 
@@ -406,6 +418,96 @@ func TestWrap_OptionsStrippersOverridesRegistry(t *testing.T) {
 	}
 }
 
+// TestWrap_AutoChainsMultipleStrippers exercises the v1.0 chaining
+// path that closes KNOWN_ISSUES.md issue #2: a sample that two
+// strippers each claim above the detection floor must trigger both
+// in order, with the second running against the first's cleaned
+// output. The synthetic stripper here uses a "consume once" Detect
+// so the second iteration only picks it if the first has finished.
+func TestWrap_AutoChainsMultipleStrippers(t *testing.T) {
+	envelope.ResetForTest()
+	t.Cleanup(envelope.ResetForTest)
+	// outer always claims; inner is a chainStub that matches the
+	// outer's cleaned-output marker. After outer runs the cleaned
+	// stream begins with "INNER:" so inner.Detect returns 1.0; on
+	// the first sample (raw "OUTER:..." input) inner would not
+	// match.
+	envelope.Register(matchPrefixStripper{name: "outer", prefix: "OUTER:", rewriteTo: "INNER:"})
+	envelope.Register(matchPrefixStripper{name: "inner", prefix: "INNER:", rewriteTo: ""})
+	cleaned, signals, chosen, err := envelope.Wrap(
+		context.Background(),
+		strings.NewReader("OUTER:body line\n"),
+		envelope.Options{Choice: envelope.ChoiceAuto},
+	)
+	if err != nil {
+		t.Fatalf("Wrap: %v", err)
+	}
+	if chosen == nil || chosen.Name() != "outer+inner" {
+		t.Fatalf("chosen.Name() = %v, want \"outer+inner\"", nameOrNil(chosen))
+	}
+	got, err := io.ReadAll(cleaned)
+	if err != nil {
+		t.Fatalf("read cleaned: %v", err)
+	}
+	if string(got) != "body line\n" {
+		t.Errorf("cleaned = %q, want %q (both strippers applied)", got, "body line\n")
+	}
+	drainSignalsExpectClosed(t, signals)
+	// envelope.Chain exposes the constituent strippers.
+	links := envelope.Chain(chosen)
+	if len(links) != 2 || links[0].Name() != "outer" || links[1].Name() != "inner" {
+		t.Errorf("Chain(chosen) = %v, want [outer inner]", chainNames(links))
+	}
+}
+
+// TestWrap_AutoChainStopsWhenNoCandidateClaims verifies the chain
+// terminates as soon as no remaining stripper scores ≥
+// ConfidenceMinDetect. Without that guard a single-match input
+// would still incur a full MaxChainDepth-iteration penalty.
+func TestWrap_AutoChainStopsWhenNoCandidateClaims(t *testing.T) {
+	envelope.ResetForTest()
+	t.Cleanup(envelope.ResetForTest)
+	envelope.Register(matchPrefixStripper{name: "outer", prefix: "OUTER:", rewriteTo: ""})
+	envelope.Register(matchPrefixStripper{name: "inner", prefix: "WONT-MATCH:", rewriteTo: ""})
+	_, _, chosen, err := envelope.Wrap(
+		context.Background(),
+		strings.NewReader("OUTER:body\n"),
+		envelope.Options{Choice: envelope.ChoiceAuto},
+	)
+	if err != nil {
+		t.Fatalf("Wrap: %v", err)
+	}
+	if chosen == nil || chosen.Name() != "outer" {
+		t.Fatalf("chosen.Name() = %v, want \"outer\" (only one stripper claims)", nameOrNil(chosen))
+	}
+}
+
+// TestWrap_AutoChainBoundedByMaxDepth pins the safety cap so an
+// always-matching pair (or a future bug that lets the same stripper
+// re-claim its own output) can't loop forever. With three
+// always-matching strippers and MaxChainDepth=4, exactly three
+// strippers should apply — MaxChainDepth bounds the loop but the
+// `used` set prevents re-picking.
+func TestWrap_AutoChainBoundedByMaxDepth(t *testing.T) {
+	envelope.ResetForTest()
+	t.Cleanup(envelope.ResetForTest)
+	envelope.Register(stubStripper{name: "a", score: 1.0})
+	envelope.Register(stubStripper{name: "b", score: 1.0})
+	envelope.Register(stubStripper{name: "c", score: 1.0})
+	_, _, chosen, err := envelope.Wrap(
+		context.Background(),
+		strings.NewReader("sample"),
+		envelope.Options{Choice: envelope.ChoiceAuto},
+	)
+	if err != nil {
+		t.Fatalf("Wrap: %v", err)
+	}
+	links := envelope.Chain(chosen)
+	if len(links) != 3 {
+		t.Errorf("Chain length = %d, want 3 (all distinct stubs applied once)", len(links))
+	}
+}
+
 // TestKindConstantsAreStable pins the string values so a careless
 // rename surfaces as a build failure rather than silent schema drift.
 func TestKindConstantsAreStable(t *testing.T) {
@@ -444,4 +546,43 @@ func nameOrNil(s envelope.Stripper) string {
 		return "<nil>"
 	}
 	return s.Name()
+}
+
+func chainNames(links []envelope.Stripper) []string {
+	out := make([]string, 0, len(links))
+	for _, s := range links {
+		out = append(out, s.Name())
+	}
+	return out
+}
+
+// matchPrefixStripper is a stripper that only claims input whose
+// first line begins with a configured prefix; on Strip it rewrites
+// that prefix to rewriteTo (empty string drops the prefix entirely).
+// Used by chaining tests to model real-world strippers where each
+// layer only matches *after* the previous layer has peeled.
+type matchPrefixStripper struct {
+	name      string
+	prefix    string
+	rewriteTo string
+}
+
+func (m matchPrefixStripper) Name() string { return m.name }
+
+func (m matchPrefixStripper) Detect(sample []byte) event.Confidence {
+	if strings.HasPrefix(string(sample), m.prefix) {
+		return 1.0
+	}
+	return 0
+}
+
+func (m matchPrefixStripper) Strip(_ context.Context, r io.Reader) (io.Reader, <-chan event.Event, error) {
+	ch := make(chan event.Event)
+	close(ch)
+	raw, err := io.ReadAll(r)
+	if err != nil {
+		return nil, nil, err
+	}
+	rewritten := strings.Replace(string(raw), m.prefix, m.rewriteTo, 1)
+	return strings.NewReader(rewritten), ch, nil
 }

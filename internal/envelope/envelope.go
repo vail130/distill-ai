@@ -35,6 +35,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
+	"sync"
 
 	"github.com/vail130/distill-ai/internal/event"
 )
@@ -99,6 +101,15 @@ const (
 // to Noop the same way a format that scores below 0.6 falls back to
 // generic.
 const ConfidenceMinDetect event.Confidence = event.ConfidenceMinDetect
+
+// MaxChainDepth caps how many strippers Wrap can apply in sequence on
+// ChoiceAuto. Real-world stacks rarely chain past two (CI envelope +
+// container framing); four is the defensive ceiling so an adversarial
+// or pathological input can't make Wrap loop indefinitely re-sampling
+// cleaned bytes. Each chain iteration costs one SampleSize read on
+// the cleaned stream, so the cap also bounds the worst-case warmup
+// latency.
+const MaxChainDepth = 4
 
 // ErrUnknownStripper is returned by Wrap when Options.Choice names a
 // stripper that has not been registered. Wrap-friendly so callers can
@@ -193,9 +204,10 @@ type Options struct {
 
 // Wrap inspects the first SampleSize bytes of r and returns a cleaned
 // Reader plus a channel of envelope signal Events. The returned
-// `chosen` is the Stripper that produced the cleaned Reader — Noop
-// when Options.Choice is ChoiceNone, when no Stripper scored above
-// ConfidenceMinDetect, or when no strippers are registered.
+// `chosen` is the Stripper (or chain of Strippers) that produced the
+// cleaned Reader — Noop when Options.Choice is ChoiceNone, when no
+// Stripper scored above ConfidenceMinDetect, or when no strippers are
+// registered.
 //
 // Behaviour:
 //
@@ -205,12 +217,17 @@ type Options struct {
 //   - Choice == ChoiceAuto: read up to SampleSize bytes, ask every
 //     stripper from Options.Strippers (default: All()) to score the
 //     sample, pick the highest-confidence stripper ≥
-//     ConfidenceMinDetect; fall back to Noop otherwise. Detection
-//     does not honour ctx because every Stripper.Detect must be
-//     cheap; if a future implementation is not, the slowness is a
-//     bug.
+//     ConfidenceMinDetect; fall back to Noop otherwise. After
+//     applying that stripper, re-sample the cleaned stream and
+//     pick again from the remaining candidates. Repeat up to
+//     MaxChainDepth times, allowing real-world stacks like
+//     GitLab CI + docker-compose to compose without per-stripper
+//     coupling. Detection does not honour ctx because every
+//     Stripper.Detect must be cheap; if a future implementation is
+//     not, the slowness is a bug.
 //   - Choice == <name>: look up the named stripper and use it
-//     unconditionally. Unknown names return ErrUnknownStripper.
+//     unconditionally. Unknown names return ErrUnknownStripper. No
+//     chaining: the explicit choice is the single applied stripper.
 //
 // The returned `cleaned` Reader yields the original input bytes
 // processed by the chosen Stripper. For Noop and for ChoiceAuto with
@@ -218,9 +235,17 @@ type Options struct {
 // io.MultiReader of the sample buffer and the rest of r — Wrap never
 // drops bytes.
 //
-// The returned `signals` channel is the chosen Stripper's signal
-// channel. For Noop and Strippers that never emit signals, the
-// channel closes immediately so a consuming goroutine doesn't leak.
+// The returned `signals` channel is the union of every applied
+// Stripper's signal channel, fanned in by an internal goroutine. For
+// Noop and Strippers that never emit signals, the channel closes
+// immediately so a consuming goroutine doesn't leak. Signal ordering
+// across stripper boundaries is not guaranteed — the fan-in goroutine
+// emits in arrival order.
+//
+// When chaining applies more than one stripper, the returned `chosen`
+// is a synthetic Stripper whose Name() is the applied stripper names
+// joined with "+", e.g. "gitlab-ci+docker-compose". Chain returns the
+// raw slice of applied Strippers for callers that need the breakdown.
 //
 // Wrap does not own r; the caller is responsible for closing r if r
 // is an io.Closer. The cleaned Reader honours ctx via the chosen
@@ -257,18 +282,47 @@ func Wrap(ctx context.Context, r io.Reader, opts Options) (cleaned io.Reader, si
 		}
 		return nil, nil, nil, fmt.Errorf("%w: %q", ErrUnknownStripper, choice)
 	}
-	// Auto: sample, score, pick.
-	sample, rest, sErr := readSample(r)
-	if sErr != nil {
-		return nil, nil, nil, fmt.Errorf("envelope: read sample: %w", sErr)
-	}
-	stream := prependSample(sample, rest)
+	return wrapAuto(ctx, r, opts)
+}
+
+// wrapAuto runs the ChoiceAuto detect+strip loop. Factored out of
+// Wrap to keep the dispatcher above readable; this function owns the
+// chaining logic.
+func wrapAuto(ctx context.Context, r io.Reader, opts Options) (io.Reader, <-chan event.Event, Stripper, error) {
 	candidates := opts.Strippers
 	if candidates == nil {
 		candidates = All()
 	}
-	winner, score := pickStripper(candidates, sample)
-	if winner == nil || score < ConfidenceMinDetect {
+	stream := r
+	var (
+		applied     []Stripper
+		signalChans []<-chan event.Event
+	)
+	// Track which strippers have already run so the next detection
+	// pass can't re-pick the same one. Names are stable per the
+	// Stripper interface contract.
+	used := map[string]bool{}
+	for i := 0; i < MaxChainDepth; i++ {
+		sample, rest, sErr := readSample(stream)
+		if sErr != nil {
+			return nil, nil, nil, fmt.Errorf("envelope: read sample: %w", sErr)
+		}
+		stream = prependSample(sample, rest)
+		remaining := filterStrippers(candidates, used)
+		winner, score := pickStripper(remaining, sample)
+		if winner == nil || score < ConfidenceMinDetect {
+			break
+		}
+		c, sigs, wErr := winner.Strip(ctx, stream)
+		if wErr != nil {
+			return nil, nil, nil, fmt.Errorf("envelope: strip %q: %w", winner.Name(), wErr)
+		}
+		applied = append(applied, winner)
+		signalChans = append(signalChans, sigs)
+		used[winner.Name()] = true
+		stream = c
+	}
+	if len(applied) == 0 {
 		noop := Noop{}
 		c, sigs, nErr := noop.Strip(ctx, stream)
 		if nErr != nil {
@@ -276,11 +330,111 @@ func Wrap(ctx context.Context, r io.Reader, opts Options) (cleaned io.Reader, si
 		}
 		return c, sigs, noop, nil
 	}
-	c, sigs, wErr := winner.Strip(ctx, stream)
-	if wErr != nil {
-		return nil, nil, nil, fmt.Errorf("envelope: strip %q: %w", winner.Name(), wErr)
+	if len(applied) == 1 {
+		return stream, signalChans[0], applied[0], nil
 	}
-	return c, sigs, winner, nil
+	merged := fanInSignals(ctx, signalChans)
+	return stream, merged, chain{strippers: applied}, nil
+}
+
+// filterStrippers returns the subset of candidates whose Name() is
+// not present in used. Order is preserved.
+func filterStrippers(candidates []Stripper, used map[string]bool) []Stripper {
+	out := make([]Stripper, 0, len(candidates))
+	for _, s := range candidates {
+		if used[s.Name()] {
+			continue
+		}
+		out = append(out, s)
+	}
+	return out
+}
+
+// fanInSignals merges N signal channels into a single output channel.
+// The output closes exactly once when every input has closed. ctx
+// cancellation closes the output promptly even if some upstream
+// stripper has not yet closed its channel.
+func fanInSignals(ctx context.Context, inputs []<-chan event.Event) <-chan event.Event {
+	out := make(chan event.Event, SignalBufferSize)
+	var wg sync.WaitGroup
+	wg.Add(len(inputs))
+	for _, in := range inputs {
+		go func(in <-chan event.Event) {
+			defer wg.Done()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case ev, ok := <-in:
+					if !ok {
+						return
+					}
+					select {
+					case <-ctx.Done():
+						return
+					case out <- ev:
+					}
+				}
+			}
+		}(in)
+	}
+	go func() {
+		wg.Wait()
+		close(out)
+	}()
+	return out
+}
+
+// chain is a synthetic Stripper returned by Wrap when ChoiceAuto
+// applies more than one stripper. It is never registered in the
+// global registry and never participates in detection — its only
+// purpose is to give Wrap callers a stable Name() that records the
+// chain (e.g. "gitlab-ci+docker-compose") and a Chain() accessor for
+// the raw slice.
+//
+// Strip on a chain is intentionally not supported: Wrap has already
+// streamed the cleaned bytes through each constituent Stripper. A
+// caller that obtained a chain from Wrap and tries to re-Strip a
+// fresh Reader through it would re-detect from scratch via Wrap,
+// which is the right code path.
+type chain struct {
+	strippers []Stripper
+}
+
+// Name returns the constituent stripper names joined with "+". The
+// order matches application order: outermost-wrapper first,
+// innermost-wrapper last.
+func (c chain) Name() string {
+	names := make([]string, 0, len(c.strippers))
+	for _, s := range c.strippers {
+		names = append(names, s.Name())
+	}
+	return strings.Join(names, "+")
+}
+
+// Detect always returns 0 — chain values never participate in
+// detection. They are only ever returned by Wrap, never registered.
+func (chain) Detect(_ []byte) event.Confidence { return 0 }
+
+// Strip on a chain returns an error. Wrap is the only legitimate
+// constructor of chain values, and Wrap returns the already-streamed
+// cleaned Reader directly rather than re-driving Strip on the chain.
+func (chain) Strip(_ context.Context, _ io.Reader) (io.Reader, <-chan event.Event, error) {
+	return nil, nil, errors.New("envelope: chain.Strip not supported; obtain a fresh chain via Wrap")
+}
+
+// Chain returns the slice of Strippers applied by Wrap, in order.
+// Returns nil when s is not a multi-Stripper chain. Callers that
+// want the breakdown (e.g. verbose CLI logging that prints each
+// applied envelope on its own line) type-assert via Chainer.
+func Chain(s Stripper) []Stripper {
+	c, ok := s.(chain)
+	if !ok {
+		return nil
+	}
+	out := make([]Stripper, len(c.strippers))
+	copy(out, c.strippers)
+	return out
 }
 
 // Noop is the explicit "no envelope" Stripper. Its Strip returns the
