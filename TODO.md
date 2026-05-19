@@ -4476,7 +4476,7 @@ the user does with it."
     intra-repo references are validated.
 - **Docs:** the README rewrite is the deliverable.
 
-### M16.3 — Audit existing per-feature docs
+### M16.3 — Audit existing per-feature docs ✅
 
 Every M9–M15 milestone landed its own doc. M16.3 walks the doc
 set as a whole, catches any drift the per-milestone alignment
