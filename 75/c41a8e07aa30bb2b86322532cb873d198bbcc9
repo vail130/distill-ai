@@ -1,0 +1,50 @@
+internal/output/output.go
+  67419cc542bacf3e 29-51
+internal/output/markdown.go
+  67419cc542bacf3e 41-45,48-52,94,132-141
+internal/output/text_test.go
+  67419cc542bacf3e 192-214
+internal/output/text.go
+  67419cc542bacf3e 48-54,57-61,111,152-161
+internal/output/json_test.go
+  67419cc542bacf3e 214-237
+internal/cli/run.go
+  67419cc542bacf3e 282-285,419-437
+internal/output/markdown_test.go
+  67419cc542bacf3e 125-143
+internal/output/json.go
+  67419cc542bacf3e 52-57,60-64,98-107,223
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "75c41a8e07aa30bb2b86322532cb873d198bbcc9",
+  "prompts": {
+    "67419cc542bacf3e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c338681effeHlRG8hsTPU3peT",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 181,
+      "total_deletions": 12,
+      "accepted_lines": 4459,
+      "overriden_lines": 0
+    },
+    "6bf018cc3c3cb2a8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c3b7709dffekBdPc4ZFU4gWYD",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 6516,
+      "overriden_lines": 0
+    }
+  }
+}
