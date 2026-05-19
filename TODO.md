@@ -4414,7 +4414,7 @@ introduced without a regenerated man page.
   - Update `Makefile` help text (the `make help` target) to
     list `man`.
 
-### M16.2 — README rewrite around v1.0 use cases
+### M16.2 — README rewrite around v1.0 use cases ✅
 
 Today's README opens with an abstract pitch ("Turn noisy command
 output into structured Events"). M16.2 rewrites it around the
