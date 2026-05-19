@@ -1,0 +1,42 @@
+internal/envelope/gitlabci/gitlabci.go
+  67419cc542bacf3e 67-95,158-164,311-316,319
+CHANGELOG.md
+  67419cc542bacf3e 10-29
+internal/envelope/gitlabci/gitlabci_test.go
+  67419cc542bacf3e 251-341
+docs/envelope.md
+  67419cc542bacf3e 291-294,298-301,305-325,329-331,333-335,339-345
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.2.8",
+  "base_commit_sha": "74be68fb73da0e682d2bc8facec9477c3cd63dd9",
+  "prompts": {
+    "67419cc542bacf3e": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c338681effeHlRG8hsTPU3peT",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 357,
+      "total_deletions": 46,
+      "accepted_lines": 4041,
+      "overriden_lines": 0
+    },
+    "6bf018cc3c3cb2a8": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_1c3b7709dffekBdPc4ZFU4gWYD",
+        "model": "anthropic/claude-opus-4-7"
+      },
+      "human_author": "Vail Gold",
+      "messages": [],
+      "total_additions": 0,
+      "total_deletions": 0,
+      "accepted_lines": 6408,
+      "overriden_lines": 0
+    }
+  }
+}
