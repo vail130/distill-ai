@@ -10,6 +10,9 @@ added without an index update fails CI.
 - [Configuration file](./config.md)
 - [Envelope handling](./envelope.md)
 - [`distill-ai explain`](./explain.md)
+- [Integrating distill-ai with CI systems](./integration-ci.md)
+- [Integrating distill-ai with Claude Code](./integration-claude-code.md)
+- [Integrating distill-ai with opencode](./integration-opencode.md)
 - [Library API (`pkg/distill`)](./library-api.md)
 
 ## Decisions
