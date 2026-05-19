@@ -29,7 +29,7 @@ GOFLAGS    ?=
 TESTFLAGS  ?= -race -timeout=60s
 
 .PHONY: all
-all: build man
+all: build man docs-index
 
 .PHONY: build
 build: ## Build the binary into ./bin/
@@ -43,6 +43,14 @@ install: ## Install into $GOBIN / $GOPATH/bin
 .PHONY: man
 man: ## Regenerate man pages into man/man1/
 	$(GO) run ./cmd/distill-ai/gen-man -o man
+
+.PHONY: docs-index
+docs-index: ## Regenerate docs/index.md from docs/**/*.md headers
+	$(GO) run ./tools/docs-index
+
+.PHONY: docs-index-check
+docs-index-check: ## Verify docs/index.md is up to date with the source tree
+	$(GO) run ./tools/docs-index -check
 
 .PHONY: readme-stats
 readme-stats: build ## Print before/after stats for every fixture in TSV form

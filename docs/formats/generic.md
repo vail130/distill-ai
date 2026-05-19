@@ -12,6 +12,21 @@ sequence of severity-bucketed Events anchored to `ERROR`, `FATAL`,
 `panic`, `Exception`, `Traceback`, and friends, with N lines of
 surrounding context.
 
+## Event kinds emitted
+
+| `kind`           | `severity` | Emitted when                                                              |
+|------------------|------------|---------------------------------------------------------------------------|
+| `error_line`     | `error`    | A single line matching the error catalogue (`ERROR`, `FATAL`, `Error:`).  |
+| `warning_line`   | `warn`     | A single line matching the warning catalogue (`WARN(ING)?`, `Warning:`).  |
+| `traceback`      | `error`    | A Python `Traceback (most recent call last):` block with frame extraction. |
+| `panic`          | `error`    | A Go `panic:` block + goroutine dump.                                     |
+| `exception`      | `error`    | A JVM `Exception in thread ...` block.                                    |
+
+The kind list is mirrored in
+[`docs/formats/SCHEMA.md` § Kind values](./SCHEMA.md#kind-values)
+and pinned by `TestGeneric_DocumentedKindsMatchEmitted` in the
+integration suite.
+
 ## Detection model
 
 `generic` is **excluded from the detector's candidate set** up

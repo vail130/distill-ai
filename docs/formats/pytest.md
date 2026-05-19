@@ -8,6 +8,20 @@ test runner in the agent-debugging ecosystem; shipping it second
 also cross-checks that the shared format-test harness extracted in
 M10.5 generalises beyond Go's shape.
 
+## Event kinds emitted
+
+| `kind`              | `severity` | Emitted when                                                       |
+|---------------------|------------|--------------------------------------------------------------------|
+| `test_failure`      | `error`    | A `=== FAILURES ===` block (any `--tb` shape).                     |
+| `test_error`        | `error`    | A `=== ERRORS ===` block (fixture error, in-test error).           |
+| `collection_error`  | `error`    | A collection-phase failure (e.g. a syntax error in a test module). |
+| `warning`           | `warn`     | A `=== warnings summary ===` entry (with `--keep-warnings`).       |
+
+The kind list is mirrored in
+[`docs/formats/SCHEMA.md` § Kind values](./SCHEMA.md#kind-values)
+and pinned by `TestPytest_DocumentedKindsMatchEmitted` in the
+integration suite.
+
 ## Detection model
 
 `pytest.Detect` raises confidence on the markers below, scored as
@@ -174,3 +188,29 @@ M11.4 will document side-by-side handling of `--tb=long`,
 `--tb=short`, `--tb=line`, and `--tb=native`. M11.1 only ships the
 detector; the four shapes are all detected the same way (the
 session header and FAILURES banner are reporter-independent).
+
+## Fixtures
+
+The v1 fixture set lives under
+[`internal/formats/pytest/testdata/`](../../internal/formats/pytest/testdata/).
+Eight fixtures, pinned by `TestPytest_FixtureCount`:
+
+| Fixture                     | Exercises                                                                                |
+|-----------------------------|------------------------------------------------------------------------------------------|
+| `clean.input`               | All-green session — scanner emits zero Events.                                           |
+| `single-fail.input`         | One `=== FAILURES ===` block with the canonical `--tb=long` shape.                       |
+| `multi-fail.input`          | Three failures in one session; ordering and per-test attribution.                        |
+| `parametrised.input`        | Parametrised test failures with the bracketed parameter IDs.                             |
+| `xfail-xpass.input`         | `xfail` / `xpassed` markers — parser distinguishes from real failures.                   |
+| `collection-error.input`    | A collection-phase syntax error before any test runs.                                    |
+| `errors.input`              | `=== ERRORS ===` block from a fixture error.                                             |
+| `warnings.input`            | `=== warnings summary ===` entries; exercises the `--keep-warnings` / `MinSeverity` opt-in. |
+
+Regenerate goldens after a deliberate parser change:
+
+```sh
+DISTILL_AI_UPDATE_GOLDENS=1 go test ./internal/formats/pytest/
+```
+
+The harness is shared with gotest and jest via
+`internal/formats.RunGoldens`.

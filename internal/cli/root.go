@@ -1,6 +1,7 @@
 package cli
 
 //go:generate go run ../../cmd/distill-ai/gen-man -o ../../man
+//go:generate go run ../../tools/docs-index -root ../../docs -o ../../docs/index.md
 
 import (
 	"errors"

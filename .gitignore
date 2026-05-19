@@ -40,3 +40,4 @@ go.work.sum
 .readme-stats.tsv
 /readme-stats
 /gen-man
+/docs-index

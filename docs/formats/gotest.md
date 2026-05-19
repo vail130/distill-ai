@@ -7,6 +7,20 @@ generic) format `distill-ai` ships, chosen first because it is the
 format this very project emits on every `make test`. The dogfood
 loop closes inside the project.
 
+## Event kinds emitted
+
+| `kind`            | `severity` | Emitted when                                                                                       |
+|-------------------|------------|----------------------------------------------------------------------------------------------------|
+| `test_failure`    | `error`    | A `--- FAIL:` block (with or without `-v`), or a `-json` reporter `fail` action.                   |
+| `panic`           | `error`    | A `panic:` block + goroutine dump. Suppresses the surrounding `--- FAIL:` (the panic is the signal). |
+| `build_failure`   | `error`    | A `path/to/file.go:line:col: message` line emitted when compilation fails before tests run.        |
+| `race_condition`  | `error`    | A `==================`-framed race-detector report.                                                |
+
+The kind list is mirrored in
+[`docs/formats/SCHEMA.md` § Kind values](./SCHEMA.md#kind-values)
+and pinned by `TestGotest_DocumentedKindsMatchEmitted` in the
+integration suite.
+
 ## Detection model
 
 `gotest.Detect` raises confidence on the markers below, scored as
