@@ -1,0 +1,67 @@
+2024-01-15T10:23:40.1234567Z Current runner version: '2.317.0'
+2024-01-15T10:23:40.1234567Z ##[group]Operating System
+2024-01-15T10:23:40.1234567Z Ubuntu
+2024-01-15T10:23:40.1234567Z 22.04.4
+2024-01-15T10:23:40.1234567Z LTS
+2024-01-15T10:23:40.1234567Z ##[endgroup]
+2024-01-15T10:23:40.1234567Z ##[group]Runner Image
+2024-01-15T10:23:40.1234567Z Image: ubuntu-22.04
+2024-01-15T10:23:40.1234567Z Version: 20240114.1.0
+2024-01-15T10:23:40.1234567Z ##[endgroup]
+2024-01-15T10:23:40.1234567Z Prepare workflow directory
+2024-01-15T10:23:40.1234567Z Prepare all required actions
+2024-01-15T10:23:40.1234567Z Getting action download info
+2024-01-15T10:23:40.1234567Z Download action repository 'actions/checkout@v4' (SHA:b4ffde65f46336ab88eb53be808477a3936bae11)
+2024-01-15T10:23:41.1234567Z Complete job name: integration-test (ubuntu-22.04)
+2024-01-15T10:23:41.1234567Z ##[group]Run actions/checkout@v4
+2024-01-15T10:23:41.1234567Z with:
+2024-01-15T10:23:41.1234567Z   repository: example/m
+2024-01-15T10:23:41.1234567Z   token: ***
+2024-01-15T10:23:41.1234567Z ##[endgroup]
+2024-01-15T10:23:41.1234567Z Syncing repository: example/m
+2024-01-15T10:23:42.1234567Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2024-01-15T10:23:42.1234567Z Switched to a new branch 'main'
+2024-01-15T10:23:42.1234567Z ##[group]Run docker compose -f docker-compose.test.yml up --abort-on-container-exit --exit-code-from testrunner
+2024-01-15T10:23:42.1234567Z [36;1mdocker compose -f docker-compose.test.yml up --abort-on-container-exit --exit-code-from testrunner[0m
+2024-01-15T10:23:42.1234567Z shell: /usr/bin/bash -e {0}
+2024-01-15T10:23:42.1234567Z ##[endgroup]
+2024-01-15T10:23:43.1234567Z [+] Pulling 5/5
+2024-01-15T10:23:43.1234567Z  ✔ testrunner Pulled                                                          12.3s
+2024-01-15T10:23:43.1234567Z  ✔ postgres Pulled                                                             8.7s
+2024-01-15T10:23:43.1234567Z  ✔ redis Pulled                                                                5.4s
+2024-01-15T10:23:43.1234567Z  ✔ minio Pulled                                                                7.1s
+2024-01-15T10:23:43.1234567Z  ✔ mailhog Pulled                                                              3.2s
+2024-01-15T10:23:44.1234567Z [+] Running 6/6
+2024-01-15T10:23:44.1234567Z  ✔ Network m_default        Created                                          0.1s
+2024-01-15T10:23:44.1234567Z  ✔ Container m-postgres-1   Started                                          1.4s
+2024-01-15T10:23:44.1234567Z  ✔ Container m-redis-1      Started                                          0.9s
+2024-01-15T10:23:44.1234567Z  ✔ Container m-minio-1      Started                                          1.2s
+2024-01-15T10:23:44.1234567Z  ✔ Container m-mailhog-1    Started                                          0.7s
+2024-01-15T10:23:44.1234567Z  ✔ Container m-testrunner-1 Started                                          2.1s
+2024-01-15T10:23:44.1234567Z Attaching to testrunner-1
+2024-01-15T10:23:45.1234567Z testrunner-1  | === RUN   TestAuth
+2024-01-15T10:23:45.1234567Z testrunner-1  | === RUN   TestAuth/Login
+2024-01-15T10:23:46.1234567Z testrunner-1  |     auth_test.go:142: expected status 200, got 502
+2024-01-15T10:23:46.1234567Z testrunner-1  |         response body: {"error":"upstream unavailable"}
+2024-01-15T10:23:46.1234567Z testrunner-1  |     auth_test.go:144: token endpoint returned non-2xx
+2024-01-15T10:23:46.1234567Z testrunner-1  | --- FAIL: TestAuth (0.15s)
+2024-01-15T10:23:46.1234567Z testrunner-1  |     --- FAIL: TestAuth/Login (0.15s)
+2024-01-15T10:23:46.1234567Z testrunner-1  | FAIL
+2024-01-15T10:23:46.1234567Z testrunner-1  | FAIL	github.com/example/m/internal/auth	0.156s
+2024-01-15T10:23:46.1234567Z testrunner-1  | FAIL
+2024-01-15T10:23:46.1234567Z testrunner-1 exited with code 1
+2024-01-15T10:23:46.1234567Z Aborting on container exit...
+2024-01-15T10:23:47.1234567Z [+] Stopping 5/5
+2024-01-15T10:23:47.1234567Z  ✔ Container m-testrunner-1 Stopped                                          0.0s
+2024-01-15T10:23:47.1234567Z  ✔ Container m-mailhog-1    Stopped                                          0.2s
+2024-01-15T10:23:47.1234567Z  ✔ Container m-minio-1      Stopped                                          0.3s
+2024-01-15T10:23:47.1234567Z  ✔ Container m-redis-1      Stopped                                          0.3s
+2024-01-15T10:23:47.1234567Z  ✔ Container m-postgres-1   Stopped                                          0.4s
+2024-01-15T10:23:47.1234567Z ##[error]Process completed with exit code 1.
+2024-01-15T10:23:48.1234567Z ##[group]Post Run actions/checkout@v4
+2024-01-15T10:23:48.1234567Z [command]/usr/bin/git version
+2024-01-15T10:23:48.1234567Z git version 2.43.0
+2024-01-15T10:23:48.1234567Z ##[endgroup]
+2024-01-15T10:23:48.1234567Z ##[group]Complete job
+2024-01-15T10:23:48.1234567Z Cleaning up orphan processes
+2024-01-15T10:23:48.1234567Z ##[endgroup]
