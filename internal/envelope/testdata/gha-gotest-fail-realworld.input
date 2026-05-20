@@ -1,0 +1,102 @@
+2024-01-15T10:23:40.1234567Z Current runner version: '2.317.0'
+2024-01-15T10:23:40.1234567Z ##[group]Operating System
+2024-01-15T10:23:40.1234567Z Ubuntu
+2024-01-15T10:23:40.1234567Z 22.04.4
+2024-01-15T10:23:40.1234567Z LTS
+2024-01-15T10:23:40.1234567Z ##[endgroup]
+2024-01-15T10:23:40.1234567Z ##[group]Runner Image
+2024-01-15T10:23:40.1234567Z Image: ubuntu-22.04
+2024-01-15T10:23:40.1234567Z Version: 20240114.1.0
+2024-01-15T10:23:40.1234567Z Included Software: https://github.com/actions/runner-images/blob/ubuntu22/20240114.1/images/ubuntu/Ubuntu2204-Readme.md
+2024-01-15T10:23:40.1234567Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu22%2F20240114.1
+2024-01-15T10:23:40.1234567Z ##[endgroup]
+2024-01-15T10:23:40.1234567Z ##[group]GITHUB_TOKEN Permissions
+2024-01-15T10:23:40.1234567Z Contents: read
+2024-01-15T10:23:40.1234567Z Metadata: read
+2024-01-15T10:23:40.1234567Z ##[endgroup]
+2024-01-15T10:23:40.1234567Z Secret source: Actions
+2024-01-15T10:23:40.1234567Z Prepare workflow directory
+2024-01-15T10:23:40.1234567Z Prepare all required actions
+2024-01-15T10:23:40.1234567Z Getting action download info
+2024-01-15T10:23:40.1234567Z Download action repository 'actions/checkout@v4' (SHA:b4ffde65f46336ab88eb53be808477a3936bae11)
+2024-01-15T10:23:41.1234567Z Download action repository 'actions/setup-go@v5' (SHA:0c52d547c9bc32b1aa3301fd7a9cb496313a4491)
+2024-01-15T10:23:41.1234567Z Complete job name: test (ubuntu-22.04)
+2024-01-15T10:23:41.1234567Z ##[group]Run actions/checkout@v4
+2024-01-15T10:23:41.1234567Z with:
+2024-01-15T10:23:41.1234567Z   repository: example/m
+2024-01-15T10:23:41.1234567Z   token: ***
+2024-01-15T10:23:41.1234567Z   ssh-strict: true
+2024-01-15T10:23:41.1234567Z   persist-credentials: true
+2024-01-15T10:23:41.1234567Z   clean: true
+2024-01-15T10:23:41.1234567Z   sparse-checkout-cone-mode: true
+2024-01-15T10:23:41.1234567Z   fetch-depth: 1
+2024-01-15T10:23:41.1234567Z   fetch-tags: false
+2024-01-15T10:23:41.1234567Z   show-progress: true
+2024-01-15T10:23:41.1234567Z   lfs: false
+2024-01-15T10:23:41.1234567Z   submodules: false
+2024-01-15T10:23:41.1234567Z   set-safe-directory: true
+2024-01-15T10:23:41.1234567Z ##[endgroup]
+2024-01-15T10:23:41.1234567Z Syncing repository: example/m
+2024-01-15T10:23:41.1234567Z ##[group]Getting Git version info
+2024-01-15T10:23:41.1234567Z Working directory is '/home/runner/work/m/m'
+2024-01-15T10:23:41.1234567Z [command]/usr/bin/git version
+2024-01-15T10:23:41.1234567Z git version 2.43.0
+2024-01-15T10:23:41.1234567Z ##[endgroup]
+2024-01-15T10:23:41.1234567Z Temporarily overriding HOME='/home/runner/work/_temp/abcdef12-3456-7890-abcd-ef1234567890' before making global git config changes
+2024-01-15T10:23:41.1234567Z Adding repository directory to the temporary git global config as a safe directory
+2024-01-15T10:23:41.1234567Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/m/m
+2024-01-15T10:23:41.1234567Z Initializing the repository
+2024-01-15T10:23:42.1234567Z Fetching the repository
+2024-01-15T10:23:43.1234567Z Determining the checkout info
+2024-01-15T10:23:43.1234567Z Checking out the ref
+2024-01-15T10:23:43.1234567Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2024-01-15T10:23:43.1234567Z Switched to a new branch 'main'
+2024-01-15T10:23:43.1234567Z ##[group]Run actions/setup-go@v5
+2024-01-15T10:23:43.1234567Z with:
+2024-01-15T10:23:43.1234567Z   go-version: 1.22
+2024-01-15T10:23:43.1234567Z   check-latest: false
+2024-01-15T10:23:43.1234567Z   cache: true
+2024-01-15T10:23:43.1234567Z   cache-dependency-path: go.sum
+2024-01-15T10:23:43.1234567Z ##[endgroup]
+2024-01-15T10:23:43.1234567Z Setup go version spec 1.22
+2024-01-15T10:23:44.1234567Z Attempting to download 1.22...
+2024-01-15T10:23:44.1234567Z Acquiring 1.22.5 from https://github.com/actions/go-versions/releases/download/1.22.5-12345
+2024-01-15T10:23:45.1234567Z Extracting Go...
+2024-01-15T10:23:45.1234567Z Successfully extracted go to /opt/hostedtoolcache/go/1.22.5/x64
+2024-01-15T10:23:45.1234567Z Added go to the path
+2024-01-15T10:23:45.1234567Z Successfully set up Go version 1.22
+2024-01-15T10:23:45.1234567Z go version go1.22.5 linux/amd64
+2024-01-15T10:23:45.1234567Z ##[group]Run go test ./...
+2024-01-15T10:23:45.1234567Z [36;1mgo test ./...[0m
+2024-01-15T10:23:45.1234567Z shell: /usr/bin/bash -e {0}
+2024-01-15T10:23:45.1234567Z env:
+2024-01-15T10:23:45.1234567Z   GOROOT: /opt/hostedtoolcache/go/1.22.5/x64
+2024-01-15T10:23:46.1234567Z === RUN   TestLogin
+2024-01-15T10:23:47.1234567Z --- FAIL: TestLogin (0.02s)
+2024-01-15T10:23:48.1234567Z     auth_test.go:42: expected 200, got 502
+2024-01-15T10:23:49.1234567Z FAIL
+2024-01-15T10:23:50.1234567Z FAIL	github.com/example/m	0.123s
+2024-01-15T10:23:51.1234567Z ##[error]Process completed with exit code 1.
+2024-01-15T10:23:51.1234567Z ##[group]Post Run actions/setup-go@v5
+2024-01-15T10:23:51.1234567Z Post job cleanup.
+2024-01-15T10:23:51.1234567Z [command]/usr/bin/tar --posix -cf cache.tzst --use-compress-program zstdmt -P -C /home/runner/work/m/m --files-from manifest.txt
+2024-01-15T10:23:52.1234567Z Cache Size: ~12 MB (12345678 B)
+2024-01-15T10:23:52.1234567Z Cache saved successfully
+2024-01-15T10:23:52.1234567Z Cache saved with key: setup-go-Linux-go-1.22.5-abc123def456
+2024-01-15T10:23:52.1234567Z ##[endgroup]
+2024-01-15T10:23:52.1234567Z ##[group]Post Run actions/checkout@v4
+2024-01-15T10:23:52.1234567Z [command]/usr/bin/git version
+2024-01-15T10:23:52.1234567Z git version 2.43.0
+2024-01-15T10:23:52.1234567Z Temporarily overriding HOME='/home/runner/work/_temp/cleanup' before making global git config changes
+2024-01-15T10:23:52.1234567Z Adding repository directory to the temporary git global config as a safe directory
+2024-01-15T10:23:52.1234567Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/m/m
+2024-01-15T10:23:52.1234567Z /usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2024-01-15T10:23:52.1234567Z /usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core\.sshCommand' || :"
+2024-01-15T10:23:52.1234567Z /usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2024-01-15T10:23:52.1234567Z http.https://github.com/.extraheader
+2024-01-15T10:23:52.1234567Z /usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2024-01-15T10:23:52.1234567Z /usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http\.https\:\/\/github\.com\/\.extraheader' || :"
+2024-01-15T10:23:52.1234567Z ##[endgroup]
+2024-01-15T10:23:52.1234567Z ##[group]Complete job
+2024-01-15T10:23:52.1234567Z Cleaning up orphan processes
+2024-01-15T10:23:52.1234567Z ##[endgroup]

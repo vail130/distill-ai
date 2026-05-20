@@ -1,0 +1,47 @@
+{
+  "stripper": "github-actions",
+  "format": "gotest",
+  "signals": [
+    {
+      "severity": "error",
+      "kind": "envelope_step_failure",
+      "title": "Run go test ./...",
+      "location": null,
+      "body": [
+        "Process completed with exit code 1."
+      ],
+      "frames_collapsed": 0,
+      "count": 0,
+      "truncated": false,
+      "metadata": {
+        "exit_code": "1",
+        "step": "Run go test ./..."
+      }
+    }
+  ],
+  "parser_events": [
+    {
+      "severity": "error",
+      "kind": "test_failure",
+      "title": "expected 200, got 502",
+      "location": {
+        "file": "auth_test.go",
+        "line": 42,
+        "column": null
+      },
+      "body": [
+        "--- FAIL: TestLogin (0.02s)",
+        "    auth_test.go:42: expected 200, got 502",
+        "FAIL"
+      ],
+      "frames_collapsed": 0,
+      "count": 0,
+      "truncated": false,
+      "metadata": {
+        "duration": "0.02s",
+        "package": "github.com/example/m",
+        "test_id": "TestLogin"
+      }
+    }
+  ]
+}

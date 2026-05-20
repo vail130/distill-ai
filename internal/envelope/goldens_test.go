@@ -34,9 +34,11 @@ func TestEnvelope_Goldens(t *testing.T) {
 // for github-actions, gitlab-ci, and one each for the step-failure
 // shapes) when docker-compose landed pre-v1.0 with its own basic
 // fixture plus the chained gitlab-ci+docker-compose fixture from
-// KNOWN_ISSUES.md issue #4.
+// KNOWN_ISSUES.md issue #4. M17.0a added the realistic
+// `gh run view --log` shape and the chained github-actions+docker-compose
+// fixture so GitHub Actions coverage matches GitLab CI's.
 func TestEnvelope_FixtureCount(t *testing.T) {
-	envelope.FixtureCount(t, "testdata", 8)
+	envelope.FixtureCount(t, "testdata", 10)
 }
 
 // registerForGoldens populates both registries with the strippers
